@@ -1,0 +1,23 @@
+export const PERIODOS_CALENDARIO = {
+  "CLASES REGULARES":  { desde: "2026-03-02", hasta: "2026-12-03" },
+  "1er BIMESTRE":      { desde: "2026-03-02", hasta: "2026-05-07" },
+  "2do BIMESTRE":      { desde: "2026-05-08", hasta: "2026-07-17" },
+  "3er BIMESTRE":      { desde: "2026-08-03", hasta: "2026-10-02" },
+  "4to BIMESTRE":      { desde: "2026-10-05", hasta: "2026-12-03" },
+  "1er CUATRIMESTRE":  { desde: "2026-03-02", hasta: "2026-07-17" },
+  "2do CUATRIMESTRE":  { desde: "2026-08-03", hasta: "2026-12-03" },
+  "PO DIC":            { desde: "2026-12-04", hasta: "2026-12-18" },
+  "PO FEB-MAR":        { desde: "2027-02-01", hasta: "2027-02-28" },
+  "MARZO 2026":        { desde: "2026-03-01", hasta: "2026-03-31" },
+  "ABRIL 2026":        { desde: "2026-04-01", hasta: "2026-04-30" },
+  "MAYO 2026":         { desde: "2026-05-01", hasta: "2026-05-31" },
+  "JUNIO 2026":        { desde: "2026-06-01", hasta: "2026-06-30" },
+  "JULIO 2026":        { desde: "2026-07-01", hasta: "2026-07-31" },
+  "AGOSTO 2026":       { desde: "2026-08-01", hasta: "2026-08-31" },
+  "SEPTIEMBRE 2026":   { desde: "2026-09-01", hasta: "2026-09-30" },
+  "OCTUBRE 2026":      { desde: "2026-10-01", hasta: "2026-10-31" },
+  "NOVIEMBRE 2026":    { desde: "2026-11-01", hasta: "2026-11-30" },
+  "DICIEMBRE 2026":    { desde: "2026-12-01", hasta: "2026-12-31" },
+  "ENERO 2026":        { desde: "2027-01-01", hasta: "2027-01-31" },
+  "FEBRERO 2026":      { desde: "2027-02-01", hasta: "2027-02-28" }
+};

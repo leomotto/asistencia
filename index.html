@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Asistencia Escolar Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    }
+  </script>
+  <!-- Iconos de Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link rel="stylesheet" href="css/styles.css?v=9.0">
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
+
+  <!-- Modal Toast para Alertas -->
+  <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden transition-opacity duration-300">
+    <span id="toastMsg">Mensaje</span>
+  </div>
+
+  <!-- PANTALLA DE CARGA (anti-flashing) — visible por defecto, se oculta tras resolver sesión -->
+  <div id="loadingScreen" class="fixed inset-0 bg-slate-100 dark:bg-slate-900 flex flex-col items-center justify-center z-[200]">
+    <i class="ph ph-books text-6xl text-emerald-500 mb-4"></i>
+    <h1 class="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-wider mb-3">ASISTENCIA PRO</h1>
+    <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
+      <i class="ph ph-spinner animate-spin text-lg"></i>
+      <span>Cargando...</span>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE LOGIN — oculta por defecto hasta que auth resuelva -->
+  <div id="loginScreen" class="fixed inset-0 bg-slate-100 dark:bg-slate-900 flex items-center justify-center z-[100] hidden">
+    <div class="bg-white dark:bg-slate-800 p-8 rounded-xl shadow-lg border dark:border-slate-700 max-w-sm w-full text-center">
+      <div class="mb-6 flex justify-center">
+        <i class="ph ph-books text-6xl text-indigo-600"></i>
+      </div>
+      <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2 tracking-wide">ASISTENCIA PRO</h2>
+      <p class="text-sm text-slate-500 dark:text-slate-400 font-medium mb-8">Sistema integral de control</p>
+      
+      <button onclick="app.iniciarSesionGoogle()" class="w-full bg-white dark:bg-slate-800 border dark:border-slate-700 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 py-3 rounded-lg font-bold hover:bg-slate-50 dark:bg-slate-900 transition flex justify-center items-center gap-2 shadow-sm">
+        <i class="ph ph-google-logo text-xl text-red-500"></i> Iniciar sesión con Google
+      </button>
+
+      <div id="devModeContainer" class="hidden mt-4 pt-4 border-t border-amber-200">
+        <button onclick="app.entrarModoDesarrollo()" class="w-full bg-amber-500 text-white py-2.5 rounded-lg font-bold hover:bg-amber-600 transition flex justify-center items-center gap-2 text-sm shadow-sm">
+          <i class="ph ph-code text-lg"></i> Entrar como Admin (Dev Local)
+        </button>
+        <p class="text-[10px] text-amber-500 mt-1.5">Solo visible en localhost · sin conexión a auth</p>
+      </div>
+
+      <p class="text-xs text-slate-400 mt-4">Requiere acceso autorizado por un administrador.</p>
+    </div>
+  </div>
+
+  <div id="appContainer" class="flex flex-col md:flex-row h-full hidden">
+    <!-- Sidebar / Menú de Navegación -->
+  <!-- Overlay para cerrar menú en móvil -->
+  <div id="menuOverlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden" onclick="app.toggleMenuMobile()"></div>
+
+  <!-- Top bar hamburguesa — solo móvil -->
+  <div class="md:hidden flex items-center justify-between px-4 py-3 bg-slate-800 text-white flex-shrink-0 z-20">
+    <div class="flex items-center gap-2">
+      <i class="ph ph-books text-xl text-emerald-400"></i>
+      <span class="font-bold text-sm tracking-wider">ASISTENCIA PRO</span>
+    </div>
+    <button onclick="app.toggleMenuMobile()" class="p-1.5 rounded hover:bg-white/10 transition" aria-label="Menú">
+      <i class="ph ph-list text-xl"></i>
+    </button>
+  </div>
+
+    <nav id="sideNav" class="bg-slate-800 text-white fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-64 md:flex-shrink-0 flex flex-col justify-between p-4 shadow-lg z-40 -translate-x-full md:translate-x-0 transition-transform duration-300">
+    <div class="mb-0 md:mb-8 flex items-center gap-2">
+      <i class="ph ph-books text-3xl text-emerald-400"></i>
+      <h1 class="text-xl font-bold tracking-wider hidden md:block">ASISTENCIA PRO</h1>
+    </div>
+    
+    <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
+      <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 bg-white/10 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
+        <i class="ph ph-list-checks text-xl"></i> <span class="hidden md:inline">Toma Diaria</span>
+      </button>
+      <button onclick="switchTab('planillaGrilla')" id="btnGrilla" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
+        <i class="ph ph-table text-xl"></i> <span class="hidden md:inline">Planilla (Grilla)</span>
+      </button>
+      <button onclick="switchTab('panelBI')" id="btnPanel" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
+        <i class="ph ph-chart-bar text-xl"></i> <span class="hidden md:inline">Panel BI</span>
+      </button>
+      <button onclick="switchTab('gestionAlumnos')" id="btnGestion" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
+        <i class="ph ph-student text-xl"></i> <span class="hidden md:inline">Matrícula</span>
+      </button>
+      <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden">
+        <i class="ph ph-books text-xl"></i> <span class="hidden md:inline">Materias</span>
+      </button>
+      <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden">
+        <i class="ph ph-users text-xl"></i> <span class="hidden md:inline">Docentes</span>
+      </button>
+      
+      <div class="md:mt-auto pt-4 border-t dark:border-slate-700 border-white/20 hidden md:block"></div>
+      
+      <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
+        <i class="ph ph-moon text-xl" id="iconTheme"></i> <span class="hidden md:inline" id="textTheme">Modo Noche</span>
+      </button>
+    </div>
+    
+    <div id="authStatus" class="mt-auto hidden md:block text-xs text-slate-400">
+      <i class="ph ph-spinner animate-spin"></i> Conectando DB...
+    </div>
+  </nav>
+
+  <!-- Contenedor Principal -->
+  <main class="flex-1 overflow-hidden relative">
+    
+    <!-- PANTALLA: TOMA DIARIA -->
+    <section id="tomaDiaria" class="h-full overflow-y-auto p-4 md:p-8 fade-in block">
+      <div class="max-w-3xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
+        <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
+          <i class="ph ph-calendar-check text-emerald-500"></i> Registro de Asistencia
+        </h2>
+        
+        <!-- Cabecera de Toma -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-700">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CURSO / DIVISIÓN</label>
+            <select id="tomaCurso" class="w-full p-2 border dark:border-slate-700 rounded-md focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-800 font-medium select-curso-global">
+              <option value="">Seleccione...</option>
+              <!-- Dinámico -->
+            </select>
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">FECHA DE CLASE</label>
+              <span id="badgeHorario" class="hidden text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-black uppercase"></span>
+            </div>
+            <input type="date" id="tomaFecha" class="w-full p-2 border dark:border-slate-700 rounded-md focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-800 font-medium">
+            <span id="alertaDiaSemana" class="hidden text-[10px] text-red-600 font-bold block mt-1">⚠️ No es un día habitual de clase</span>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO DE DÍA</label>
+            <select id="tomaTipo" class="w-full p-2 border dark:border-slate-700 rounded-md focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-800 font-medium">
+              <option value="CLASE">CLASE</option>
+              <option value="FERIADO">FERIADO</option>
+              <option value="PARO">PARO</option>
+              <option value="JORNADA">JORNADA</option>
+              <option value="LICENCIA">LICENCIA</option>
+              <option value="OTROS">OTROS</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Botones Rápidos de Fecha (Acceso Directo Mobile) -->
+        <div id="quickDatesContainer" class="hidden bg-emerald-50 border dark:border-slate-700 border-emerald-100 rounded-lg p-3 mb-4">
+          <p class="text-[11px] font-black text-emerald-800 uppercase tracking-wider mb-2">📅 Seleccionar fecha de clase rápida:</p>
+          <div id="quickDatesButtons" class="flex flex-wrap gap-2">
+            <!-- Botones generados dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Botonera Acciones -->
+        <div class="flex gap-2 mb-4">
+          <button onclick="app.llenarPresentes()" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg shadow hover:bg-emerald-700 transition flex justify-center items-center gap-1.5">
+            <i class="ph ph-check-square-offset text-lg"></i> <span>Llenar todos con Presente 'P'</span>
+          </button>
+        </div>
+
+        <!-- Lista de Alumnos -->
+        <div class="border dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+          <div class="flex bg-slate-100 dark:bg-slate-900 p-3 border-b dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase">
+            <div class="flex-1">Alumno / Grupo</div>
+            <div class="w-32 text-center">Asistencia</div>
+          </div>
+          <div id="listaTomaDiaria" class="max-h-[45vh] overflow-y-auto no-scrollbar bg-white dark:bg-slate-800">
+            <p class="text-sm text-slate-400 text-center py-8">Seleccione curso y fecha para listar alumnos activos en dicho periodo.</p>
+          </div>
+        </div>
+
+        <button id="btnGuardarAsistencia" onclick="app.guardarAsistencia()" class="w-full mt-6 bg-blue-600 text-white font-bold text-lg py-4 rounded-xl shadow-md hover:bg-blue-700 transition flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="ph ph-floppy-disk text-xl" id="iconGuardarAsistencia"></i> <span id="textGuardarAsistencia">GUARDAR ASISTENCIA EN BASE DE DATOS</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- PANTALLA: PLANILLA EN GRILLA (REGISTRO MASIVO) -->
+    <section id="planillaGrilla" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col h-full">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b dark:border-slate-700 pb-4 mb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-table text-emerald-500"></i> Planilla de Registro Masivo
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Editá directamente las celdas como en Sheets y guardá los cambios masivamente.</p>
+          </div>
+          
+          <div class="flex flex-wrap gap-2 w-full md:w-auto">
+            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+              <option value="">Seleccione división...</option>
+            </select>
+            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
+              <option value="CLASES REGULARES">CLASES REGULARES</option>
+              <option value="1er BIMESTRE">1er BIMESTRE</option>
+              <option value="2do BIMESTRE">2do BIMESTRE</option>
+              <option value="3er BIMESTRE">3er BIMESTRE</option>
+              <option value="4to BIMESTRE">4to BIMESTRE</option>
+              <option value="1er CUATRIMESTRE">1er CUATRIMESTRE</option>
+              <option value="2do CUATRIMESTRE">2do CUATRIMESTRE</option>
+              <option value="PO DIC">PO DIC</option>
+              <option value="PO FEB-MAR">PO FEB-MAR</option>
+              <option value="MARZO 2026">MARZO 2026</option>
+              <option value="ABRIL 2026">ABRIL 2026</option>
+              <option value="MAYO 2026">MAYO 2026</option>
+              <option value="JUNIO 2026">JUNIO 2026</option>
+              <option value="JULIO 2026">JULIO 2026</option>
+              <option value="AGOSTO 2026">AGOSTO 2026</option>
+              <option value="SEPTIEMBRE 2026">SEPTIEMBRE 2026</option>
+              <option value="OCTUBRE 2026">OCTUBRE 2026</option>
+              <option value="NOVIEMBRE 2026">NOVIEMBRE 2026</option>
+              <option value="DICIEMBRE 2026">DICIEMBRE 2026</option>
+              <option value="ENERO 2026">ENERO 2026 (2027)</option>
+              <option value="FEBRERO 2026">FEBRERO 2026 (2027)</option>
+            </select>
+
+            <button onclick="app.abrirModalNuevaColumna()" class="bg-indigo-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1">
+              <i class="ph ph-plus-circle text-lg"></i> <span class="hidden sm:inline">Nueva Clase</span>
+            </button>
+            <button onclick="app.exportarGrillaCSV()" class="bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-slate-700 transition flex items-center gap-1" title="Exportar planilla a CSV">
+              <i class="ph ph-file-csv text-lg"></i> <span class="hidden sm:inline">CSV</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Contenedor de la Grilla Tipo Planilla (Sticky headers y sticky first column) -->
+        <div class="flex-1 overflow-x-auto w-full max-w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[55vh]">
+          <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
+            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
+              <tr id="grillaHeader">
+                <th class="px-4 py-3 sticky-header-col w-64 text-left">Estudiante</th>
+                <th class="px-4 py-3 text-center text-gray-300 italic min-w-80">Por favor seleccione un curso y período.</th>
+              </tr>
+            </thead>
+            <tbody id="grillaBody" class="divide-y divide-gray-200">
+              <!-- Renderizado dinámico -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Guardado flotante de la grilla -->
+        <div id="grillaFooterGuardado" class="mt-4 p-4 bg-emerald-50 border dark:border-slate-700 border-emerald-200 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-3 hidden">
+          <div class="flex items-center gap-2 text-emerald-800 font-semibold text-sm">
+            <i class="ph ph-warning-circle text-xl animate-bounce"></i>
+            <span>¡Hay modificaciones sin guardar en la planilla!</span>
+          </div>
+          <button id="btnGuardarGrilla" onclick="app.guardarCambiosMasivosGrilla()" class="w-full sm:w-auto bg-emerald-600 text-white font-bold px-6 py-2.5 rounded-lg shadow hover:bg-emerald-700 transition flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="ph ph-floppy-disk text-lg" id="iconGuardarGrilla"></i> <span id="textGuardarGrilla">GUARDAR TODOS LOS CAMBIOS DE LA PLANILLA</span>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PANTALLA: PANEL BI -->
+    <section id="panelBI" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-6xl mx-auto space-y-6">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-chart-pie-slice text-emerald-500"></i> Dashboard de Asistencia (Panel BI)
+          </h2>
+          
+          <!-- Filtros BI -->
+          <div class="flex flex-wrap gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border dark:border-slate-700 w-full md:w-auto">
+            <select id="biCurso" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+              <option value="">Curso...</option>
+            </select>
+            
+            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
+              <option value="CLASES REGULARES">CLASES REGULARES</option>
+              <option value="1er BIMESTRE">1er BIMESTRE</option>
+              <option value="2do BIMESTRE">2do BIMESTRE</option>
+              <option value="3er BIMESTRE">3er BIMESTRE</option>
+              <option value="4to BIMESTRE">4to BIMESTRE</option>
+              <option value="1er CUATRIMESTRE">1er CUATRIMESTRE</option>
+              <option value="2do CUATRIMESTRE">2do CUATRIMESTRE</option>
+              <option value="PO DIC">PO DIC</option>
+              <option value="PO FEB-MAR">PO FEB-MAR</option>
+              <option value="MARZO 2026">MARZO 2026</option>
+              <option value="ABRIL 2026">ABRIL 2026</option>
+              <option value="MAYO 2026">MAYO 2026</option>
+              <option value="JUNIO 2026">JUNIO 2026</option>
+              <option value="JULIO 2026">JULIO 2026</option>
+              <option value="AGOSTO 2026">AGOSTO 2026</option>
+              <option value="SEPTIEMBRE 2026">SEPTIEMBRE 2026</option>
+              <option value="OCTUBRE 2026">OCTUBRE 2026</option>
+              <option value="NOVIEMBRE 2026">NOVIEMBRE 2026</option>
+              <option value="DICIEMBRE 2026">DICIEMBRE 2026</option>
+              <option value="ENERO 2026">ENERO 2026 (2027)</option>
+              <option value="FEBRERO 2026">FEBRERO 2026 (2027)</option>
+              <option value="FECHA MANUAL">FECHA MANUAL</option>
+            </select>
+
+            <div id="biFechasManuales" class="hidden flex gap-1 items-center">
+              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
+              <span class="text-xs text-slate-400">a</span>
+              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
+            </div>
+            
+            <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700"><i class="ph ph-arrows-clockwise"></i></button>
+            <button onclick="app.exportarBICSV()" class="p-2 bg-slate-600 text-white rounded hover:bg-slate-700 flex items-center gap-1 text-sm font-semibold" title="Exportar reporte a CSV">
+              <i class="ph ph-file-csv"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tarjetas de KPIs -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-slate-800 text-white p-4 rounded-xl shadow-md border-l-4 border-blue-400">
+            <p class="text-xs text-gray-300 font-bold tracking-wider mb-1">ALUMNOS MATRICULADOS</p>
+            <h3 id="kpiTotal" class="text-3xl font-black">-</h3>
+          </div>
+          <div class="bg-slate-800 text-white p-4 rounded-xl shadow-md border-l-4 border-emerald-400">
+            <p class="text-xs text-gray-300 font-bold tracking-wider mb-1">PROMEDIO DE ASISTENCIA</p>
+            <h3 id="kpiPromedio" class="text-3xl font-black">-</h3>
+          </div>
+          <div class="bg-slate-800 text-white p-4 rounded-xl shadow-md border-l-4 border-amber-400">
+            <p class="text-xs text-gray-300 font-bold tracking-wider mb-1">TOTAL PRESENTES (P)</p>
+            <h3 id="kpiPresentes" class="text-3xl font-black">-</h3>
+          </div>
+          <div class="bg-slate-800 text-white p-4 rounded-xl shadow-md border-l-4 border-red-400">
+            <p class="text-xs text-gray-300 font-bold tracking-wider mb-1">TOTAL AUSENTES (A)</p>
+            <h3 id="kpiAusencias" class="text-3xl font-black">-</h3>
+          </div>
+        </div>
+
+        <!-- Tabla de Datos -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-800 text-white text-xs uppercase font-semibold">
+                <tr>
+                  <th class="px-4 py-3 w-10 text-center">N°</th>
+                  <th class="px-4 py-3">Alumno</th>
+                  <th class="px-4 py-3">Grupo</th>
+                  <th class="px-4 py-3 text-center">Presentes (P)</th>
+                  <th class="px-4 py-3 text-center">Ausentes (A)</th>
+                  <th class="px-4 py-3 text-center">Justificadas (ACP)</th>
+                  <th class="px-4 py-3 text-center">Sin Registro (-)</th>
+                  <th class="px-4 py-3 text-center">% Asist.</th>
+                  <th class="px-4 py-3 w-32">Semáforo</th>
+                </tr>
+              </thead>
+              <tbody id="tablaBI" class="divide-y divide-gray-200">
+                <tr>
+                  <td colspan="9" class="px-4 py-8 text-center text-slate-400 italic">Configure el curso y fechas en los filtros superiores para generar la planilla de control de gestión.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PANTALLA: GESTIÓN DE MATRÍCULA Y CONFIGURACIÓN -->
+    <section id="gestionAlumnos" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-4xl mx-auto space-y-6">
+        
+        <!-- Tarjeta Alumnos -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b dark:border-slate-700 pb-3 mb-4 gap-2">
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-student text-emerald-500"></i> Gestión de Matrícula (Estudiantes)
+            </h2>
+            <button onclick="app.abrirModalAlumno()" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 transition flex items-center gap-1.5 text-sm">
+              <i class="ph ph-plus-circle text-lg"></i> Agregar Estudiante
+            </button>
+          </div>
+
+          <!-- Filtro Curso -->
+          <div class="mb-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-700">
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+              <div class="flex-1">
+                <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FILTRAR DIVISIÓN PARA GESTIONAR</label>
+                <select id="mCurso" onchange="app.cargarAlumnosMatricula()" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none bg-white dark:bg-slate-800 font-medium select-curso-global">
+                  <option value="">Seleccione...</option>
+                  <option value="__TODOS__" class="font-bold text-indigo-700">📋 TODOS LOS ESTUDIANTES</option>
+                </select>
+              </div>
+              <button id="btnFusion" onclick="app.abrirModalFusion()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-orange-600 transition flex items-center gap-1.5 text-sm whitespace-nowrap">
+                <i class="ph ph-git-merge text-lg"></i> Fusionar Duplicados
+              </button>
+            </div>
+          </div>
+
+          <!-- Tabla de Matrícula -->
+          <div class="border dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700">
+                  <tr>
+                    <th class="px-4 py-3">Estudiante</th>
+                    <th class="px-4 py-3">Historial por División</th>
+                    <th class="px-4 py-3 text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="tablaMatricula" class="divide-y divide-gray-200">
+                  <tr>
+                    <td colspan="4" class="px-4 py-8 text-center text-slate-400 italic">Seleccione un curso para ver la matrícula actual de alumnos.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta Configuración de Días de Dictado de Clase -->
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
+          <h2 class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
+            <i class="ph ph-gear text-emerald-500"></i> Días de Dictado de Clase (Horarios)
+          </h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Configurá qué días de la semana dictás clase en cada materia. El validador y las fechas rápidas usarán esta configuración en tiempo real.</p>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CURSO A CONFIGURAR</label>
+              <select id="cfgCurso" onchange="app.cargarDiasDeClase()" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-curso-global">
+                <option value="">Seleccione división...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">SELECCIONAR DÍAS DE CURSADA</label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia1" class="w-4 h-4 rounded"> Lunes
+                </label>
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia2" class="w-4 h-4 rounded"> Martes
+                </label>
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia3" class="w-4 h-4 rounded"> Miércoles
+                </label>
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia4" class="w-4 h-4 rounded"> Jueves
+                </label>
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia5" class="w-4 h-4 rounded"> Viernes
+                </label>
+                <label class="flex items-center gap-1.5 p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 cursor-pointer text-xs font-semibold select-none">
+                  <input type="checkbox" id="chkDia6" class="w-4 h-4 rounded"> Sábado
+                </label>
+              </div>
+              <button onclick="app.guardarDiasDeClase()" class="w-full mt-4 bg-emerald-600 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-700 shadow transition flex justify-center items-center gap-1">
+                <i class="ph ph-floppy-disk text-lg"></i> Guardar Configuración de Horario
+              </button>
+            </div>
+          </div>
+        </div>
+
+        </div>
+
+        <!-- Tarjeta Backup y Herramientas Administrativas -->
+        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-800/50 p-6 relative overflow-hidden">
+          <div class="absolute -right-10 -top-10 text-emerald-500/10 dark:text-emerald-500/5">
+            <i class="ph-fill ph-shield-check text-[150px]"></i>
+          </div>
+          <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div class="flex-1">
+              <h2 class="text-xl font-black text-emerald-800 dark:text-emerald-400 mb-2 flex items-center gap-2">
+                <i class="ph-fill ph-shield-check text-2xl"></i> Salvaguarda y Backup
+              </h2>
+              <p class="text-sm text-emerald-700/80 dark:text-emerald-200/70 font-medium max-w-xl">
+                Exportá una copia completa de todos los datos (estudiantes, asistencias, horarios) a un archivo JSON. Recomendamos realizar este proceso periódicamente o antes de operaciones críticas.
+              </p>
+            </div>
+            <div class="flex-shrink-0">
+              <button onclick="app.exportarBackup()" id="btnBackup" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 text-sm">
+                <i class="ph ph-cloud-arrow-down text-xl" id="iconBackup"></i>
+                <span id="textBackup">Exportar JSON</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PANTALLA: GESTIÓN DE MATERIAS -->
+    <section id="gestionMaterias" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-4xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-700 pb-4 mb-4 gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-books text-indigo-600"></i> Gestión de Materias
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Configuración de cursos y horarios de cursada</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="app.migrarMateriasHistoricas()" id="btnMigrarMaterias"
+              class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 transition flex items-center gap-2 shadow-sm"
+              title="Escanea las asistencias históricas y crea en Firestore las materias que faltan">
+              <i class="ph ph-clock-clockwise text-lg"></i> Migrar Materias Históricas
+            </button>
+            <button onclick="app.abrirModalMateria()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
+              <i class="ph ph-plus-circle text-lg"></i> Crear Materia
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm border-collapse">
+            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider">
+              <tr>
+                <th class="px-4 py-3 text-left w-1/3">Nombre del Curso</th>
+                <th class="px-4 py-3 text-left w-1/2">Días y Horarios</th>
+                <th class="px-4 py-3 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="listaMateriasAdmin" class="divide-y divide-gray-200">
+              <!-- Renderizado dinámico -->
+              <tr><td colspan="3" class="px-4 py-8 text-center text-slate-400">Cargando materias...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- PANTALLA: GESTIÓN DE DOCENTES -->
+    <section id="gestionDocentes" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-users text-indigo-600"></i> Gestión de Docentes
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Administrá los roles y las materias asignadas a cada usuario.</p>
+          </div>
+          <button onclick="app.cargarListaUsuarios()" class="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-600 transition flex items-center gap-2 shadow-sm">
+            <i class="ph ph-arrows-clockwise text-lg"></i> Actualizar lista
+          </button>
+        </div>
+
+        <div id="listaDocentes" class="space-y-4">
+          <p class="text-center text-slate-400 py-8">Seleccioná el tab para cargar los usuarios.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODAL DE MATERIAS -->
+    <div id="modalMateria" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+        <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
+          <h3 id="modalMateriaTitulo" class="text-xl font-bold text-slate-800 dark:text-slate-100">Nueva Materia</h3>
+          <button onclick="app.cerrarModalMateria()" class="text-slate-400 hover:text-red-500 transition">
+            <i class="ph ph-x text-2xl"></i>
+          </button>
+        </div>
+        <input type="hidden" id="formMateriaId">
+        
+        <div class="space-y-4 mb-6">
+          <div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MATERIA / ASIGNATURA *</label>
+                <input type="text" id="formMateriaBase" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: Matemática">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">DIVISIÓN (opcional)</label>
+                <input type="text" id="formMateriaDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1ro A">
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <div class="flex justify-between items-end mb-2">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">DÍAS Y HORARIOS DE CURSADA</label>
+              <button onclick="app.agregarDiaMateria()" class="text-[10px] bg-slate-100 dark:bg-slate-900 hover:bg-gray-200 text-slate-700 dark:text-slate-200 px-2 py-1 rounded font-bold transition flex items-center gap-1">
+                <i class="ph ph-plus"></i> Añadir día
+              </button>
+            </div>
+            <div id="materiaDiasContainer" class="space-y-2">
+              <!-- Se generan dinámicamente -->
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="app.guardarMateria()" id="btnGuardarMateria" class="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 transition flex justify-center items-center gap-2">
+            <i id="iconGuardarMateria" class="ph ph-floppy-disk text-lg"></i> <span id="textGuardarMateria">GUARDAR MATERIA</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: PERFIL / DOSSIER DE ALUMNO -->
+    <div id="modalPerfilAlumno" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border dark:border-slate-700 max-w-md w-full p-6 fade-in">
+
+        <!-- Header: Avatar + Nombre -->
+        <div class="flex justify-between items-start mb-5">
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 shadow-md">
+              <span id="perfilAvatar" class="text-white text-xl font-black tracking-wider">??</span>
+            </div>
+            <div>
+              <h3 id="perfilNombre" class="text-lg font-black text-slate-800 dark:text-slate-100">Cargando...</h3>
+              <p id="perfilSubtitulo" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5"></p>
+            </div>
+          </div>
+          <button onclick="app.cerrarPerfilAlumno()" class="text-slate-400 hover:text-red-500 transition p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30">
+            <i class="ph ph-x text-xl"></i>
+          </button>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-4 gap-2 mb-5">
+          <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-3 text-center">
+            <p class="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">Presentes</p>
+            <p id="perfilKpiP" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">—</p>
+          </div>
+          <div class="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 text-center">
+            <p class="text-[9px] font-bold text-red-700 dark:text-red-300 uppercase tracking-wider mb-1">Ausentes</p>
+            <p id="perfilKpiA" class="text-2xl font-black text-red-600 dark:text-red-400">—</p>
+          </div>
+          <div class="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-3 text-center">
+            <p class="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-1">Justif.</p>
+            <p id="perfilKpiACP" class="text-2xl font-black text-amber-500">—</p>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-center">
+            <p class="text-[9px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">% Asist.</p>
+            <p id="perfilKpiPct" class="text-2xl font-black text-slate-700 dark:text-slate-200">—</p>
+          </div>
+        </div>
+
+        <!-- Barra de progreso semáforo -->
+        <div>
+          <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Nivel de Asistencia</p>
+          <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-5 overflow-hidden shadow-inner">
+            <div id="perfilBarra" class="h-full rounded-full bg-slate-300 transition-all duration-700 ease-out" style="width:0%"></div>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-400 mt-1.5 px-0.5">
+            <span>0%</span>
+            <span class="text-amber-500 font-bold">60%</span>
+            <span class="text-emerald-500 font-bold">80%</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MODAL DE FUSIÓN DE ESTUDIANTES -->
+    <div id="modalFusion" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+        <h3 class="text-xl font-bold text-orange-600 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
+          <i class="ph ph-git-merge text-2xl"></i> Fusionar Estudiantes Duplicados
+        </h3>
+        <div class="bg-orange-50 border dark:border-slate-700 border-orange-200 rounded-lg p-3 mb-5 text-xs text-orange-800">
+          <strong>⚠️ Operación destructiva.</strong> Se recomienda exportar un backup antes de proceder. El estudiante secundario será eliminado permanentemente y sus registros de asistencia serán transferidos al primario.
+        </div>
+        <div class="mb-4">
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">BUSCAR ESTUDIANTE (nombre o DNI)</label>
+          <input type="text" id="fusionBusqueda" oninput="app.buscarParaFusion()" placeholder="Ej: Pérez, García, 44123..." class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-orange-400 bg-white dark:bg-slate-800 text-sm">
+          <div id="fusionResultados" class="mt-2 border dark:border-slate-700 rounded-lg max-h-40 overflow-y-auto hidden"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-5">
+          <div>
+            <p class="text-xs font-bold text-emerald-700 mb-1">✅ PRIMARIO (se conserva)</p>
+            <div id="fusionPrimario" class="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-3 min-h-[80px] text-xs text-slate-500 dark:text-slate-400 italic flex items-center justify-center">Ninguno seleccionado</div>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-red-700 mb-1">🗑️ SECUNDARIO (se elimina)</p>
+            <div id="fusionSecundario" class="bg-red-50 border-2 border-red-300 rounded-lg p-3 min-h-[80px] text-xs text-slate-500 dark:text-slate-400 italic flex items-center justify-center">Ninguno seleccionado</div>
+          </div>
+        </div>
+        <div id="fusionResumen" class="hidden bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-lg p-3 mb-4 text-xs text-slate-600 dark:text-slate-300"></div>
+        <div class="flex gap-2 border-t dark:border-slate-700 pt-4 justify-end">
+          <button onclick="app.cerrarModalFusion()" class="px-4 py-2 bg-gray-200 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-gray-300 transition text-sm">Cancelar</button>
+          <button onclick="app.ejecutarFusion()" id="btnFusionar" disabled class="px-6 py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition text-sm disabled:opacity-40 disabled:cursor-not-allowed">
+            <i class="ph ph-git-merge"></i> Confirmar Fusión
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div id="modalAlumno" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+        <h3 id="modalTitle" class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4">Agregar Nuevo Estudiante</h3>
+        <input type="hidden" id="formId">
+        <div class="space-y-4">
+          <!-- Fila: Apellido + Nombre -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">APELLIDO *</label>
+              <input type="text" id="formApellido" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE *</label>
+              <input type="text" id="formNombre" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold">
+            </div>
+          </div>
+          <!-- Fila: Apodo + DNI -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">APODO / NOMBRE SOCIAL</label>
+              <input type="text" id="formApodo" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Rodri, Santi">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">DNI / LEGAJO</label>
+              <input type="text" id="formDni" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-mono" placeholder="Ej: 44123456">
+            </div>
+          </div>
+          <!-- Se eliminó el Grupo + Estado global porque ahora va por materia -->
+          <!-- Panel de Materias e Inscripciones -->
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">DIVISIONES ASIGNADAS E HISTORIAL</label>
+            <div id="formMateriasContainer" class="flex flex-col gap-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 max-h-[50vh] overflow-y-auto">
+              <!-- Se generan dinámicamente en app.js -->
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">Tildá las divisiones donde asiste este estudiante. Para configurar ingresos, egresos y grupos específicos, desplegá las opciones de cada materia tildada.</p>
+          </div>
+          <!-- Se eliminaron las fechas globales -->
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOTAS / COMENTARIOS</label>
+            <textarea id="formNotas" rows="2" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Es asmático, Pase de escuela, etc."></textarea>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6 border-t dark:border-slate-700 pt-4 justify-end">
+          <button onclick="app.cerrarModalAlumno()" class="px-4 py-2 bg-gray-200 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-gray-300 transition text-sm">Cancelar</button>
+          <button onclick="app.guardarAlumnoMatricula()" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm">Guardar Ficha</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL NUEVA FECHA PARA LA GRILLA -->
+    <div id="modalNuevaColumna" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl border dark:border-slate-700 max-w-sm w-full p-6 fade-in">
+        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-1.5">
+          <i class="ph ph-calendar text-indigo-500"></i> Agregar Fecha a Planilla
+        </h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE NUEVA CLASE</label>
+            <input type="date" id="formGrillaFecha" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-sm font-semibold">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO DE DÍA</label>
+            <select id="formGrillaTipo" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-sm font-semibold">
+              <option value="CLASE">CLASE</option>
+              <option value="FERIADO">FERIADO</option>
+              <option value="PARO">PARO</option>
+              <option value="JORNADA">JORNADA</option>
+              <option value="LICENCIA">LICENCIA</option>
+              <option value="OTROS">OTROS</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6 border-t dark:border-slate-700 pt-4 justify-end">
+          <button onclick="app.cerrarModalNuevaColumna()" class="px-4 py-2 bg-gray-200 text-slate-700 dark:text-slate-200 font-bold rounded hover:bg-gray-300 transition text-xs">Cancelar</button>
+          <button onclick="app.crearColumnaPlanilla()" class="px-5 py-2 bg-indigo-600 text-white font-bold rounded hover:bg-indigo-700 transition text-xs">Crear Columna</button>
+        </div>
+      </div>
+    </div>
+  </main>
+  </div> <!-- Cierra appContainer -->
+  
+  <script type="module" src="js/app.js?v=9.0"></script>
+</body>
+</html>

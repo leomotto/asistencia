@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // FUNCIONES AUXILIARES DE SEGURIDAD (RBAC)
+    // ==========================================
+
+    function hasUserRecord() {
+      return exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) ||
+             exists(/databases/$(database)/documents/artifacts/mi-app-asistencia/public/data/usuarios/$(request.auth.uid));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthed() && hasUserRecord() && getUserData().rol == 'ADMIN';
+    }
+
+    // Docente O Admin — tienen acceso operativo
+    function isDocente() {
+      return isAuthed() && hasUserRecord() && (getUserData().rol == 'DOCENTE' || getUserData().rol == 'ADMIN');
+    }
+
+    // Docente con materia específica asignada en su perfil
+    function docenteTieneCurso(curso) {
+      return isDocente() && getUserData().materias.hasAny([curso]);
+    }
+
+    // ==========================================
+    // REGLAS PARA LA COLECCIÓN: usuarios
+    // ==========================================
+    match /{path=**}/usuarios/{userId} {
+      allow read: if isAuthed();
+
+      // Bootstraping: primer usuario se registra como ADMIN o PENDIENTE
+      allow create: if isAuthed() && request.auth.uid == userId &&
+                    request.resource.data.keys().hasAll(['email', 'rol']) &&
+                    (request.resource.data.rol == 'PENDIENTE' || request.resource.data.rol == 'ADMIN');
+
+      // Un usuario solo puede actualizar su propio nombre; rol y materias solo el ADMIN
+      allow update: if isAuthed() && (
+        isAdmin() ||
+        (
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // REGLAS PARA COLECCIONES: materias y horarios
+    // (solo secretaría/admin puede modificar la estructura curricular)
+    // ==========================================
+    match /{path=**}/materias/{docId} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    match /{path=**}/horarios/{docId} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // REGLAS PARA COLECCIÓN: estudiantes
+    // Lectura: Docentes y Admin (para tomar lista).
+    // Escritura: SOLO Admin (inscripciones, bajas, fusiones).
+    // ==========================================
+    match /{path=**}/estudiantes/{docId} {
+      allow read:  if isDocente();
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // REGLAS PARA COLECCIÓN: asistencias
+    // Admin: acceso total.
+    // Docente: solo puede leer y escribir registros de SUS materias asignadas.
+    // ==========================================
+    match /{path=**}/asistencias/{docId} {
+
+      // Admin: lectura y escritura irrestrictas
+      allow read:   if isAdmin();
+      allow write:  if isAdmin();
+
+      // Docente — lectura: solo asistencias del curso que dicta
+      // (para list queries, resource.data.curso aplica a cada doc del resultado)
+      allow read:   if isDocente() &&
+                       resource != null &&
+                       docenteTieneCurso(resource.data.curso);
+
+      // Docente — escritura: solo crear/actualizar registros en sus materias
+      allow create, update: if isDocente() &&
+                               docenteTieneCurso(request.resource.data.curso);
+
+      // Docente — borrado: solo en sus materias (raro, pero cubierto)
+      allow delete: if isDocente() &&
+                       resource != null &&
+                       docenteTieneCurso(resource.data.curso);
+    }
+
+  }
+}

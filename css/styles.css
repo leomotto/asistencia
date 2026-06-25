@@ -1,0 +1,37 @@
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.fade-in { animation: fadeIn 0.2s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* Columna sticky de nombre en la grilla de planilla */
+.sticky-student-col {
+  position: sticky;
+  left: 0;
+  background-color: #ffffff;
+  z-index: 10;                       /* td: z-index 10 */
+  box-shadow: 4px 0 8px -4px rgba(0,0,0,0.15);
+}
+.sticky-header-col {
+  position: sticky;
+  left: 0;
+  background-color: #1e293b;
+  z-index: 20;                       /* th: z-index 20, siempre por encima de td */
+  box-shadow: 4px 0 8px -4px rgba(0,0,0,0.15);
+}
+tr:nth-child(even) .sticky-student-col {
+  background-color: #f8fafc;
+}
+
+/* Dark mode para columnas sticky */
+.dark .sticky-student-col {
+  background-color: #1e293b;
+}
+.dark tr:nth-child(even) .sticky-student-col {
+  background-color: #0f172a;
+}
+
+/* Menú lateral móvil: transición suave */
+#sideNav {
+  will-change: transform;
+}
