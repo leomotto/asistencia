@@ -12,7 +12,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.1">
+  <link rel="stylesheet" href="css/styles.css?v=9.2">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -75,8 +75,9 @@
     <div class="mb-0 md:mb-6 flex items-center gap-2">
       <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0 sidebar-logo-icon"></i>
       <h1 class="text-xl font-bold tracking-wider sidebar-brand hidden md:block flex-1 min-w-0 truncate">ASISTENCIA PRO</h1>
-      <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition text-slate-400 hover:text-white flex-shrink-0" title="Colapsar menú">
-        <i class="ph ph-caret-left text-sm" id="iconCollapseNav"></i>
+      <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 transition text-slate-300 hover:text-white flex-shrink-0" title="Colapsar / expandir menú">
+        <span id="iconCollapseSide" class="text-xl font-bold leading-none select-none">‹</span>
+        <span id="iconExpandSide"   class="text-xl font-bold leading-none select-none hidden">›</span>
       </button>
     </div>
     
@@ -110,7 +111,7 @@
     <div id="authStatus" class="mt-auto hidden md:block text-xs text-slate-400">
       <i class="ph ph-spinner animate-spin"></i> Conectando DB...
     </div>
-    <div class="sidebar-version hidden md:block text-[10px] text-slate-600 mt-1 font-mono tracking-widest">v9.1.0</div>
+    <div class="sidebar-version hidden md:block text-[10px] text-slate-400 mt-1 font-mono tracking-widest">v9.2.0</div>
   </nav>
 
   <!-- Contenedor Principal -->
@@ -731,6 +732,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.1"></script>
+  <script type="module" src="js/app.js?v=9.2"></script>
 </body>
 </html>

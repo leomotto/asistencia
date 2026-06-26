@@ -32,21 +32,33 @@
   nav#sideNav.sidebar-collapsed {
     width: 4rem !important;
     min-width: 4rem;
+    overflow: hidden;
+    /* Quitar padding lateral para que los botones puedan usar el ancho completo */
+    padding-left: 0;
+    padding-right: 0;
   }
+  /* Ocultar texto y elementos no esenciales */
   nav#sideNav.sidebar-collapsed .nav-label,
   nav#sideNav.sidebar-collapsed .sidebar-brand,
+  nav#sideNav.sidebar-collapsed .sidebar-logo-icon,
+  nav#sideNav.sidebar-collapsed .nav-divider,
   nav#sideNav.sidebar-collapsed #authStatus,
   nav#sideNav.sidebar-collapsed .sidebar-version {
     display: none;
   }
-  nav#sideNav.sidebar-collapsed nav button,
-  nav#sideNav.sidebar-collapsed .flex-row > button,
-  nav#sideNav.sidebar-collapsed .flex-col > button {
+  /* Header: centrar el botón de colapso */
+  nav#sideNav.sidebar-collapsed > div:first-child {
+    justify-content: center;
+    padding: 0.5rem;
+  }
+  /* Botones de nav: ancho completo, ícono centrado */
+  nav#sideNav.sidebar-collapsed button {
+    width: 100%;
     justify-content: center;
   }
-  /* Botón de colapso: invertir ícono */
-  nav#sideNav.sidebar-collapsed #iconCollapseNav::before {
-    content: "\e5e1"; /* ph-caret-right — se maneja desde JS */
+  /* Status y version al fondo */
+  nav#sideNav.sidebar-collapsed > div:last-child {
+    display: none;
   }
 }
 

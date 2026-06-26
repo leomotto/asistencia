@@ -120,20 +120,19 @@ export function popularCursos() {
 }
 
 export function toggleSidebar() {
-  const nav  = document.getElementById('sideNav');
-  const icon = document.getElementById('iconCollapseNav');
+  const nav = document.getElementById('sideNav');
   if (!nav) return;
   const collapsed = nav.classList.toggle('sidebar-collapsed');
   localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
-  if (icon) icon.className = collapsed ? 'ph ph-caret-right text-sm' : 'ph ph-caret-left text-sm';
+  document.getElementById('iconCollapseSide')?.classList.toggle('hidden', collapsed);
+  document.getElementById('iconExpandSide')?.classList.toggle('hidden', !collapsed);
 }
 
 export function initSidebar() {
   if (localStorage.getItem('sidebarCollapsed') === '1') {
-    const nav  = document.getElementById('sideNav');
-    const icon = document.getElementById('iconCollapseNav');
-    if (nav)  nav.classList.add('sidebar-collapsed');
-    if (icon) icon.className = 'ph ph-caret-right text-sm';
+    document.getElementById('sideNav')?.classList.add('sidebar-collapsed');
+    document.getElementById('iconCollapseSide')?.classList.add('hidden');
+    document.getElementById('iconExpandSide')?.classList.remove('hidden');
   }
 }
 
