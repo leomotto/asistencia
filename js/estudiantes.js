@@ -4,7 +4,7 @@ import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } f
 import { db, getPath } from "./firebase-config.js?v=9.0";
 import { showToast } from "./ui.js?v=9.0";
 import { HORARIOS_DINAMICOS } from "./materias.js?v=9.0";
-import { normalizeDateToISO, formatISOToDisplay } from "./utils.js?v=9.0";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.0";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -40,8 +40,8 @@ export async function cargarAlumnosMatricula() {
 
     tabla.innerHTML = '';
     window.app.alumnosMatriculaCache.forEach(est => {
-      const apodoStr = est.apodo ? ` (${est.apodo})` : "";
-      const notasStr = est.notas ? `<p class="text-xs text-amber-600 italic">📌 ${est.notas}</p>` : "";
+      const apodoStr = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
+      const notasStr = est.notas ? `<p class="text-xs text-amber-600 italic">📌 ${escaparHTML(est.notas)}</p>` : "";
       const materiasAMostrar = esTodos
         ? (est.materias || [est.curso])
         : (est.materias || [est.curso]).filter(m => m === curso);
@@ -81,7 +81,7 @@ export async function cargarAlumnosMatricula() {
       tr.className = "hover:bg-slate-100 dark:hover:bg-slate-700/50 border-b transition-colors text-slate-700 dark:text-slate-200";
       tr.innerHTML = `
         <td class="px-4 py-3 align-top">
-          <p class="font-bold text-slate-800 dark:text-slate-100">${est.apellido}, ${est.nombre}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${est.dni}</span>` : ''}</p>
+          <p class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
           ${notasStr}
         </td>
         <td class="px-4 py-3"><div class="flex flex-wrap gap-2">${materiasHtml}</div></td>
@@ -322,6 +322,9 @@ export async function guardarAlumnoMatricula() {
 
   if (!apellido || !nombre) { showToast('⚠️ Apellido y Nombre son requeridos.', 'error'); return; }
 
+  // Recuperar el alumno original del caché para preservar el historial de inscripciones
+  const alumnoActual = id ? (window.app.alumnosMatriculaCache?.find(a => a.id === id) || null) : null;
+
   const materiasSeleccionadas = [], gruposMap = {}, inscripcionesMap = {};
   document.querySelectorAll('.cb-materia:checked').forEach(cb => {
     const mat    = cb.value;
@@ -332,7 +335,12 @@ export async function guardarAlumnoMatricula() {
     const hasta  = row?.querySelector('.sel-hasta-materia')?.value  || "";
     materiasSeleccionadas.push(mat);
     gruposMap[mat] = grupo;
-    inscripcionesMap[mat] = [{ grupo, estado, desde: normalizeDateToISO(desde), hasta: normalizeDateToISO(hasta) }];
+    // Preservar todas las inscripciones históricas; reemplazar solo la última entrada
+    const nuevoRegistro = { grupo, estado, desde: normalizeDateToISO(desde), hasta: normalizeDateToISO(hasta) };
+    const historialPrevio = alumnoActual?.inscripciones?.[mat] || [];
+    inscripcionesMap[mat] = historialPrevio.length > 0
+      ? [...historialPrevio.slice(0, -1), nuevoRegistro]
+      : [nuevoRegistro];
   });
 
   try {
@@ -476,12 +484,12 @@ export function buscarParaFusion() {
     ? '<p class="text-xs text-slate-400 p-2 text-center">Sin resultados.</p>'
     : encontrados.map(a => `
         <div class="p-2 border-b dark:border-slate-700 text-xs hover:bg-orange-50 flex justify-between items-center gap-2">
-          <span class="font-bold">${a.apellido}, ${a.nombre}</span>
-          <span class="text-slate-400">${a.dni || ''}</span>
-          <span class="text-indigo-600 text-[10px]">${(a.materias || [a.curso]).join(', ')}</span>
+          <span class="font-bold">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</span>
+          <span class="text-slate-400">${escaparHTML(a.dni || '')}</span>
+          <span class="text-indigo-600 text-[10px]">${(a.materias || [a.curso]).map(escaparHTML).join(', ')}</span>
           <div class="flex gap-1 ml-auto">
-            <button onclick="app.seleccionarParaFusion('primario','${a.id}')" class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600">Primario</button>
-            <button onclick="app.seleccionarParaFusion('secundario','${a.id}')" class="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold hover:bg-red-600">Secundario</button>
+            <button onclick="app.seleccionarParaFusion('primario',${JSON.stringify(a.id)})" class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600">Primario</button>
+            <button onclick="app.seleccionarParaFusion('secundario',${JSON.stringify(a.id)})" class="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold hover:bg-red-600">Secundario</button>
           </div>
         </div>`).join('');
   resultadosDiv.classList.remove('hidden');
@@ -493,10 +501,10 @@ export function seleccionarParaFusion(rol, id) {
   fusionState[rol] = alumno;
   document.getElementById(`fusion${rol.charAt(0).toUpperCase() + rol.slice(1)}`).innerHTML = `
     <div class="text-left not-italic">
-      <p class="font-bold text-slate-800 dark:text-slate-100">${alumno.apellido}, ${alumno.nombre}</p>
-      ${alumno.dni ? `<p class="text-slate-500 dark:text-slate-400 font-mono">DNI: ${alumno.dni}</p>` : ''}
-      <p class="text-indigo-600 mt-1">${(alumno.materias || [alumno.curso]).join(', ')}</p>
-      <p class="text-slate-400 text-[10px] mt-1">ID: ${alumno.id}</p>
+      <p class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(alumno.apellido)}, ${escaparHTML(alumno.nombre)}</p>
+      ${alumno.dni ? `<p class="text-slate-500 dark:text-slate-400 font-mono">DNI: ${escaparHTML(alumno.dni)}</p>` : ''}
+      <p class="text-indigo-600 mt-1">${(alumno.materias || [alumno.curso]).map(escaparHTML).join(', ')}</p>
+      <p class="text-slate-400 text-[10px] mt-1">ID: ${escaparHTML(alumno.id)}</p>
     </div>`;
   _actualizarResumenFusion();
 }
@@ -513,10 +521,10 @@ function _actualizarResumenFusion() {
   const materiasUnidas = [...new Set([...(primario.materias || [primario.curso]), ...(secundario.materias || [secundario.curso])])];
   resumenDiv.innerHTML = `
     <p class="font-bold text-slate-700 dark:text-slate-200 mb-1">📋 Resultado de la fusión:</p>
-    <p>→ <strong>${primario.apellido}, ${primario.nombre}</strong> conservará el ID <code class="bg-gray-200 px-1 rounded">${primario.id}</code></p>
-    <p>→ Se fusionarán sus materias: <strong class="text-indigo-600">${materiasUnidas.join(', ')}</strong></p>
-    <p>→ Todos los registros del secundario (<code class="bg-gray-200 px-1 rounded">${secundario.id}</code>) serán reescritos.</p>
-    <p class="text-red-600 mt-1">→ El documento del secundario (<strong>${secundario.apellido}, ${secundario.nombre}</strong>) será eliminado.</p>
+    <p>→ <strong>${escaparHTML(primario.apellido)}, ${escaparHTML(primario.nombre)}</strong> conservará el ID <code class="bg-gray-200 px-1 rounded">${escaparHTML(primario.id)}</code></p>
+    <p>→ Se fusionarán sus materias: <strong class="text-indigo-600">${materiasUnidas.map(escaparHTML).join(', ')}</strong></p>
+    <p>→ Todos los registros del secundario (<code class="bg-gray-200 px-1 rounded">${escaparHTML(secundario.id)}</code>) serán reescritos.</p>
+    <p class="text-red-600 mt-1">→ El documento del secundario (<strong>${escaparHTML(secundario.apellido)}, ${escaparHTML(secundario.nombre)}</strong>) será eliminado.</p>
   `;
   resumenDiv.classList.remove('hidden');
   btnFusion.disabled = false;
@@ -574,9 +582,10 @@ export async function abrirPerfilAlumno(uid, curso) {
   const modal = document.getElementById('modalPerfilAlumno');
   if (!modal) return;
 
-  // Buscar alumno en caché local (toma diaria o matrícula)
+  // Buscar alumno en caché local (toma diaria, matrícula o grilla)
   const al = window.app.alumnosActivos?.find(a => a.id === uid)
-          || window.app.alumnosMatriculaCache?.find(a => a.id === uid);
+          || window.app.alumnosMatriculaCache?.find(a => a.id === uid)
+          || window.app._grillaData?.alumnos?.find(a => a.id === uid);
 
   if (!al) { showToast('❌ No se encontró el perfil.', 'error'); return; }
 

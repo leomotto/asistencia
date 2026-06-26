@@ -99,15 +99,16 @@ export async function cargarListaMateriasAdmin() {
       const horarioStr = diasParsed.length > 0
         ? diasParsed.map(formatDiaHorario).join(' | ')
         : 'Sin días configurados';
+      const nombreSeguro = mat.nombre.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `
         <tr class="hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
-          <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">${mat.nombre}</td>
+          <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">${nombreSeguro}</td>
           <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">${horarioStr}</td>
           <td class="px-4 py-3 text-center">
-            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded" title="Editar">
+            <button onclick="app.abrirModalMateria(${JSON.stringify(mat.id)})" class="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded" title="Editar">
               <i class="ph ph-pencil-simple text-lg"></i>
             </button>
-            <button onclick="app.eliminarMateria('${mat.id}', '${mat.nombre}')" class="text-red-600 hover:text-red-800 p-1 bg-red-50 rounded ml-2" title="Eliminar">
+            <button onclick="app.eliminarMateria(${JSON.stringify(mat.id)}, ${JSON.stringify(mat.nombre)})" class="text-red-600 hover:text-red-800 p-1 bg-red-50 rounded ml-2" title="Eliminar">
               <i class="ph ph-trash text-lg"></i>
             </button>
           </td>

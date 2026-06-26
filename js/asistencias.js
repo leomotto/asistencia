@@ -5,7 +5,7 @@ import { db, getPath } from "./firebase-config.js?v=9.0";
 import { showToast } from "./ui.js?v=9.0";
 import { PERIODOS_CALENDARIO } from "./constants.js?v=9.0";
 import { HORARIOS_DINAMICOS } from "./materias.js?v=9.0";
-import { normalizeDateToISO, formatISOToDisplay } from "./utils.js?v=9.0";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.0";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -116,18 +116,19 @@ export async function cargarAlumnos() {
 
     contenedor.innerHTML = '';
     window.app.alumnosActivos.forEach((est, index) => {
-      const apodo      = est.apodo ? ` (${est.apodo})` : "";
-      const notas      = (est.notes || est.notas) ? `<p class="text-xs text-amber-600 bg-amber-50 p-1.5 rounded mt-1 border dark:border-slate-700 border-amber-200">📌 ${est.notes || est.notas}</p>` : "";
+      const apodo      = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
+      const notasTxt   = est.notes || est.notas;
+      const notas      = notasTxt ? `<p class="text-xs text-amber-600 bg-amber-50 p-1.5 rounded mt-1 border dark:border-slate-700 border-amber-200">📌 ${escaparHTML(notasTxt)}</p>` : "";
       const grupoCurso = (est.grupos && est.grupos[curso]) || est.grupo || 'GENERAL';
       const grupoTag   = grupoCurso !== 'GENERAL'
-        ? `<span class="text-[10px] bg-amber-100 text-amber-700 border dark:border-slate-700 border-amber-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">${grupoCurso}</span>`
+        ? `<span class="text-[10px] bg-amber-100 text-amber-700 border dark:border-slate-700 border-amber-200 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">${escaparHTML(grupoCurso)}</span>`
         : '';
 
       const fila = document.createElement('div');
       fila.className = `flex flex-col sm:flex-row p-3 border-b ${index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50'}`;
       fila.innerHTML = `
         <div class="flex-1 mb-2 sm:mb-0">
-          <p class="font-bold text-sm"><span class="cursor-pointer hover:underline text-indigo-600 dark:text-indigo-400 font-bold" onclick="app.abrirPerfilAlumno('${est.id}','${curso}')">${est.apellido}, ${est.nombre}</span><span class="text-blue-600 font-medium">${apodo}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${est.dni}</span>` : ''}</p>
+          <p class="font-bold text-sm"><span class="cursor-pointer hover:underline text-indigo-600 dark:text-indigo-400 font-bold perfil-link" data-id="${escaparHTML(est.id)}" data-curso="${escaparHTML(curso)}">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}</span><span class="text-blue-600 font-medium">${apodo}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
           <div class="flex flex-wrap gap-1.5 items-center mt-0.5">${grupoTag}<span class="text-[10px] text-slate-400">Ingreso: ${formatISOToDisplay(est.fechaIngreso)}</span></div>
           ${notas}
         </div>
@@ -140,6 +141,8 @@ export async function cargarAlumnos() {
           </select>
         </div>
       `;
+      const perfilLink = fila.querySelector('.perfil-link');
+      if (perfilLink) perfilLink.addEventListener('click', () => app.abrirPerfilAlumno(perfilLink.dataset.id, perfilLink.dataset.curso));
       contenedor.appendChild(fila);
 
       // A11y: navegación por teclado en el select de asistencia
@@ -348,11 +351,11 @@ export async function cargarPlanillaGrilla() {
       } else if (al.estado) {
         estadoActual = al.estado;
       }
-      const apodoStr = al.apodo ? ` (${al.apodo})` : "";
+      const apodoStr = al.apodo ? ` (${escaparHTML(al.apodo)})` : "";
       let htmlFila = `
         <td class="px-4 py-3 sticky-student-col text-xs border-r dark:border-slate-700 shadow">
-          <span class="cursor-pointer hover:underline text-indigo-600 dark:text-indigo-400 font-bold" onclick="app.abrirPerfilAlumno('${al.id}','${curso}')">${al.apellido}, ${al.nombre}</span><span class="text-blue-600 text-[11px] font-medium">${apodoStr}</span>
-          ${estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${estadoActual}</span>` : ''}
+          <span class="cursor-pointer hover:underline text-indigo-600 dark:text-indigo-400 font-bold perfil-link" data-id="${escaparHTML(al.id)}" data-curso="${escaparHTML(curso)}">${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}</span><span class="text-blue-600 text-[11px] font-medium">${apodoStr}</span>
+          ${estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${escaparHTML(estadoActual)}</span>` : ''}
         </td>`;
       asistencias.forEach(asist => {
         const valor = (asist.registros && asist.registros[al.id]) ? asist.registros[al.id] : "-";
@@ -371,6 +374,8 @@ export async function cargarPlanillaGrilla() {
           </td>`;
       });
       tr.innerHTML = htmlFila;
+      const perfilLink = tr.querySelector('.perfil-link');
+      if (perfilLink) perfilLink.addEventListener('click', () => app.abrirPerfilAlumno(perfilLink.dataset.id, perfilLink.dataset.curso));
       gridBody.appendChild(tr);
     });
   } catch (e) {
@@ -402,21 +407,27 @@ export async function guardarCambiosMasivosGrilla() {
   btn.disabled = true; icon.className = "ph ph-spinner animate-spin text-lg"; text.innerText = "GUARDANDO CAMBIOS...";
 
   try {
-    const batch = writeBatch(db);
+    const LIMITE_BATCH = 450;
+    const fechas = Object.keys(window.app.cambiosPendientesGrilla);
     let totalChanges = 0;
 
-    for (const fecha of Object.keys(window.app.cambiosPendientesGrilla)) {
-      const docId  = `${curso.replace(/\s+/g, '')}_${fecha}`;
-      const docRef = doc(db, getPath("asistencias"), docId);
-      const snap   = await getDoc(docRef);
-      const registrosActuales = snap.exists() ? (snap.data().registros || {}) : {};
-      const tipoClase         = snap.exists() ? (snap.data().tipoClase || "CLASE") : "CLASE";
-      Object.assign(registrosActuales, window.app.cambiosPendientesGrilla[fecha]);
-      batch.set(docRef, { curso, fecha, tipoClase, registros: registrosActuales, timestamp: new Date().toISOString() });
-      totalChanges++;
+    // Procesar en chunks para no superar el límite de 500 operaciones por batch
+    for (let i = 0; i < fechas.length; i += LIMITE_BATCH) {
+      const chunk = fechas.slice(i, i + LIMITE_BATCH);
+      const batch = writeBatch(db);
+      for (const fecha of chunk) {
+        const docId  = `${curso.replace(/\s+/g, '')}_${fecha}`;
+        const docRef = doc(db, getPath("asistencias"), docId);
+        const snap   = await getDoc(docRef);
+        const registrosActuales = snap.exists() ? (snap.data().registros || {}) : {};
+        const tipoClase         = snap.exists() ? (snap.data().tipoClase || "CLASE") : "CLASE";
+        Object.assign(registrosActuales, window.app.cambiosPendientesGrilla[fecha]);
+        batch.set(docRef, { curso, fecha, tipoClase, registros: registrosActuales, timestamp: new Date().toISOString() });
+        totalChanges++;
+      }
+      await batch.commit();
     }
 
-    if (totalChanges > 0) await batch.commit();
     invalidarCacheBI();
     showToast("🎉 ¡La planilla se guardó correctamente en Firestore!");
     cargarPlanillaGrilla();
@@ -578,16 +589,16 @@ function _renderizarTablaBI(tabla, alumnos, asistenciasValidas, curso) {
       else if (porcentaje >= 60) { colorPorcentaje = "text-amber-500";   colorBarra = "bg-amber-500"; }
       else                       { colorPorcentaje = "text-red-600";     colorBarra = "bg-red-500"; }
     }
-    const apodoStr = est.apodo ? ` (${est.apodo})` : "";
+    const apodoStr = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
     const fila = document.createElement('tr');
     fila.className = `border-b hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors ${index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white dark:bg-transparent'}`;
     fila.innerHTML = `
       <td class="px-4 py-2 text-center text-slate-400 font-mono">${index + 1}</td>
       <td class="px-4 py-2">
-        <span class="font-bold text-slate-800 dark:text-slate-100">${est.apellido}, ${est.nombre}</span><span class="text-blue-600 text-xs font-semibold">${apodoStr}</span>
-        ${estadoActual && estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${estadoActual}</span>` : ''}
+        <span class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}</span><span class="text-blue-600 text-xs font-semibold">${apodoStr}</span>
+        ${estadoActual && estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${escaparHTML(estadoActual)}</span>` : ''}
       </td>
-      <td class="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">${(est.materias || [est.curso]).join(', ')}</td>
+      <td class="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">${(est.materias || [est.curso]).map(escaparHTML).join(', ')}</td>
       <td class="px-4 py-2 text-center font-bold text-emerald-600">${p}</td>
       <td class="px-4 py-2 text-center font-bold text-red-600">${a}</td>
       <td class="px-4 py-2 text-center font-bold text-amber-500">${acp}</td>

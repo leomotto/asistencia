@@ -1,6 +1,6 @@
 // js/auth.js — Sesión, login, logout y listener de autenticación
 
-import { doc, setDoc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.0";
 import { showToast } from "./ui.js?v=9.0";
@@ -65,16 +65,11 @@ export function setupAuthListener() {
           if (userDoc.exists()) {
             userData = userDoc.data();
           } else {
-            // Primer usuario → ADMIN; siguientes → PENDIENTE
-            const snapAdmins = await getDocs(query(collection(db, getPath("usuarios")), where("rol", "==", "ADMIN")));
-            if (snapAdmins.empty) {
-              userData = { rol: "ADMIN", materias: [], email: user.email, nombre: user.displayName };
-              await setDoc(doc(db, getPath("usuarios"), user.uid), userData);
-            } else {
-              await setDoc(doc(db, getPath("usuarios"), user.uid), {
-                rol: "PENDIENTE", email: user.email, nombre: user.displayName
-              });
-            }
+            // Usuario nuevo → siempre PENDIENTE (promover el primer admin desde Firebase Console)
+            userData = { rol: "PENDIENTE", materias: [] };
+            await setDoc(doc(db, getPath("usuarios"), user.uid), {
+              rol: "PENDIENTE", email: user.email || '', nombre: user.displayName || ''
+            });
           }
         }
         window.app.currentUser = { uid: user.uid, email: user.email, ...userData };
