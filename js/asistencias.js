@@ -1,11 +1,11 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.0";
-import { showToast } from "./ui.js?v=9.0";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.0";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.0";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.0";
+import { db, getPath } from "./firebase-config.js?v=9.1";
+import { showToast } from "./ui.js?v=9.1";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.1";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.1";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.1";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -345,6 +345,7 @@ export async function cargarPlanillaGrilla() {
     alumnos.forEach((al, index) => {
       const tr = document.createElement('tr');
       tr.className = `hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors ${index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white dark:bg-transparent'}`;
+      const stickyBg = index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-800';
       let estadoActual = "ACTIVO";
       if (al.inscripciones && al.inscripciones[curso] && al.inscripciones[curso].length > 0) {
         estadoActual = al.inscripciones[curso][al.inscripciones[curso].length - 1].estado || "ACTIVO";
@@ -353,7 +354,7 @@ export async function cargarPlanillaGrilla() {
       }
       const apodoStr = al.apodo ? ` (${escaparHTML(al.apodo)})` : "";
       let htmlFila = `
-        <td class="px-4 py-3 sticky-student-col text-xs border-r dark:border-slate-700 shadow">
+        <td class="px-4 py-3 sticky-student-col ${stickyBg} text-xs border-r dark:border-slate-700 shadow">
           <span class="cursor-pointer hover:underline text-indigo-600 dark:text-indigo-400 font-bold perfil-link" data-id="${escaparHTML(al.id)}" data-curso="${escaparHTML(curso)}">${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}</span><span class="text-blue-600 text-[11px] font-medium">${apodoStr}</span>
           ${estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${escaparHTML(estadoActual)}</span>` : ''}
         </td>`;

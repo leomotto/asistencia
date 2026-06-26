@@ -4,34 +4,53 @@
 .fade-in { animation: fadeIn 0.2s ease-in-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* Columna sticky de nombre en la grilla de planilla */
+/* Columna sticky de nombre en la grilla — bg heredado del tr vía JS */
 .sticky-student-col {
   position: sticky;
   left: 0;
-  background-color: #ffffff;
-  z-index: 10;                       /* td: z-index 10 */
+  z-index: 10;
   box-shadow: 4px 0 8px -4px rgba(0,0,0,0.15);
 }
 .sticky-header-col {
   position: sticky;
   left: 0;
   background-color: #1e293b;
-  z-index: 20;                       /* th: z-index 20, siempre por encima de td */
+  z-index: 20;
   box-shadow: 4px 0 8px -4px rgba(0,0,0,0.15);
 }
-tr:nth-child(even) .sticky-student-col {
-  background-color: #f8fafc;
-}
 
-/* Dark mode para columnas sticky */
-.dark .sticky-student-col {
-  background-color: #1e293b;
-}
-.dark tr:nth-child(even) .sticky-student-col {
-  background-color: #0f172a;
-}
-
-/* Menú lateral móvil: transición suave */
+/* Menú lateral: transición suave (móvil y colapso desktop) */
 #sideNav {
   will-change: transform;
+  transition: transform 0.3s ease, width 0.25s ease;
+}
+
+/* ================================================
+   SIDEBAR COLAPSABLE — solo desktop (md+)
+   ================================================ */
+@media (min-width: 768px) {
+  nav#sideNav.sidebar-collapsed {
+    width: 4rem !important;
+    min-width: 4rem;
+  }
+  nav#sideNav.sidebar-collapsed .nav-label,
+  nav#sideNav.sidebar-collapsed .sidebar-brand,
+  nav#sideNav.sidebar-collapsed #authStatus,
+  nav#sideNav.sidebar-collapsed .sidebar-version {
+    display: none;
+  }
+  nav#sideNav.sidebar-collapsed nav button,
+  nav#sideNav.sidebar-collapsed .flex-row > button,
+  nav#sideNav.sidebar-collapsed .flex-col > button {
+    justify-content: center;
+  }
+  /* Botón de colapso: invertir ícono */
+  nav#sideNav.sidebar-collapsed #iconCollapseNav::before {
+    content: "\e5e1"; /* ph-caret-right — se maneja desde JS */
+  }
+}
+
+/* Fuerza el contenedor principal a no desbordar horizontalmente */
+#appContainer > main > section {
+  overflow-x: hidden;
 }

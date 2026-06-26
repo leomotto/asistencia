@@ -91,6 +91,24 @@ export function popularCursos() {
   }
 }
 
+export function toggleSidebar() {
+  const nav  = document.getElementById('sideNav');
+  const icon = document.getElementById('iconCollapseNav');
+  if (!nav) return;
+  const collapsed = nav.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  if (icon) icon.className = collapsed ? 'ph ph-caret-right text-sm' : 'ph ph-caret-left text-sm';
+}
+
+export function initSidebar() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    const nav  = document.getElementById('sideNav');
+    const icon = document.getElementById('iconCollapseNav');
+    if (nav)  nav.classList.add('sidebar-collapsed');
+    if (icon) icon.className = 'ph ph-caret-right text-sm';
+  }
+}
+
 export function initTheme() {
   const prefersDark = !('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches;
   if (localStorage.theme === 'dark' || prefersDark) {

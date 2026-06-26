@@ -12,7 +12,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.0">
+  <link rel="stylesheet" href="css/styles.css?v=9.1">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -72,41 +72,45 @@
   </div>
 
     <nav id="sideNav" class="bg-slate-800 text-white fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-64 md:flex-shrink-0 flex flex-col justify-between p-4 shadow-lg z-40 -translate-x-full md:translate-x-0 transition-transform duration-300">
-    <div class="mb-0 md:mb-8 flex items-center gap-2">
-      <i class="ph ph-books text-3xl text-emerald-400"></i>
-      <h1 class="text-xl font-bold tracking-wider hidden md:block">ASISTENCIA PRO</h1>
+    <div class="mb-0 md:mb-6 flex items-center gap-2">
+      <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0"></i>
+      <h1 class="text-xl font-bold tracking-wider sidebar-brand hidden md:block flex-1 min-w-0 truncate">ASISTENCIA PRO</h1>
+      <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition text-slate-400 hover:text-white flex-shrink-0" title="Colapsar menú">
+        <i class="ph ph-caret-left text-sm" id="iconCollapseNav"></i>
+      </button>
     </div>
     
     <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
-      <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 bg-white/10 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
-        <i class="ph ph-list-checks text-xl"></i> <span class="hidden md:inline">Toma Diaria</span>
+      <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 bg-white/10 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Toma Diaria">
+        <i class="ph ph-list-checks text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Toma Diaria</span>
       </button>
-      <button onclick="switchTab('planillaGrilla')" id="btnGrilla" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
-        <i class="ph ph-table text-xl"></i> <span class="hidden md:inline">Planilla (Grilla)</span>
+      <button onclick="switchTab('planillaGrilla')" id="btnGrilla" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Planilla (Grilla)">
+        <i class="ph ph-table text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Planilla (Grilla)</span>
       </button>
-      <button onclick="switchTab('panelBI')" id="btnPanel" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
-        <i class="ph ph-chart-bar text-xl"></i> <span class="hidden md:inline">Panel BI</span>
+      <button onclick="switchTab('panelBI')" id="btnPanel" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Panel BI">
+        <i class="ph ph-chart-bar text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Panel BI</span>
       </button>
-      <button onclick="switchTab('gestionAlumnos')" id="btnGestion" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
-        <i class="ph ph-student text-xl"></i> <span class="hidden md:inline">Matrícula</span>
+      <button onclick="switchTab('gestionAlumnos')" id="btnGestion" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Matrícula">
+        <i class="ph ph-student text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Matrícula</span>
       </button>
-      <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden">
-        <i class="ph ph-books text-xl"></i> <span class="hidden md:inline">Materias</span>
+      <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Materias">
+        <i class="ph ph-books text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Materias</span>
       </button>
-      <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden">
-        <i class="ph ph-users text-xl"></i> <span class="hidden md:inline">Docentes</span>
+      <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Docentes">
+        <i class="ph ph-users text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Docentes</span>
       </button>
-      
+
       <div class="md:mt-auto pt-4 border-t dark:border-slate-700 border-white/20 hidden md:block"></div>
-      
-      <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold">
-        <i class="ph ph-moon text-xl" id="iconTheme"></i> <span class="hidden md:inline" id="textTheme">Modo Noche</span>
+
+      <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Cambiar tema">
+        <i class="ph ph-moon text-xl flex-shrink-0" id="iconTheme"></i> <span class="hidden md:inline nav-label" id="textTheme">Modo Noche</span>
       </button>
     </div>
-    
+
     <div id="authStatus" class="mt-auto hidden md:block text-xs text-slate-400">
       <i class="ph ph-spinner animate-spin"></i> Conectando DB...
     </div>
+    <div class="sidebar-version hidden md:block text-[10px] text-slate-600 mt-1 font-mono tracking-widest">v9.1.0</div>
   </nav>
 
   <!-- Contenedor Principal -->
@@ -182,22 +186,22 @@
     </section>
 
     <!-- PANTALLA: PLANILLA EN GRILLA (REGISTRO MASIVO) -->
-    <section id="planillaGrilla" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
-      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col h-full">
-        
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b dark:border-slate-700 pb-4 mb-4">
-          <div>
-            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <i class="ph ph-table text-emerald-500"></i> Planilla de Registro Masivo
+    <section id="planillaGrilla" class="h-full overflow-y-auto p-2 md:p-8 fade-in hidden">
+      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-3 md:p-6 flex flex-col">
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
+          <div class="min-w-0">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-table text-emerald-500"></i> Registro Masivo
             </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Editá directamente las celdas como en Sheets y guardá los cambios masivamente.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Editá directamente las celdas como en Sheets y guardá los cambios masivamente.</p>
           </div>
-          
+
           <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
               <option value="">Seleccione división...</option>
             </select>
-            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
+            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
               <option value="CLASES REGULARES">CLASES REGULARES</option>
               <option value="1er BIMESTRE">1er BIMESTRE</option>
               <option value="2do BIMESTRE">2do BIMESTRE</option>
@@ -231,12 +235,12 @@
         </div>
 
         <!-- Contenedor de la Grilla Tipo Planilla (Sticky headers y sticky first column) -->
-        <div class="flex-1 overflow-x-auto w-full max-w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[55vh]">
+        <div class="overflow-x-auto overflow-y-auto w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[45vh] md:max-h-[58vh]">
           <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="grillaHeader">
                 <th class="px-4 py-3 sticky-header-col w-64 text-left">Estudiante</th>
-                <th class="px-4 py-3 text-center text-gray-300 italic min-w-80">Por favor seleccione un curso y período.</th>
+                <th class="px-4 py-3 text-center text-gray-300 italic min-w-[180px]">Por favor seleccione un curso y período.</th>
               </tr>
             </thead>
             <tbody id="grillaBody" class="divide-y divide-gray-200">
@@ -765,6 +769,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.0"></script>
+  <script type="module" src="js/app.js?v=9.1"></script>
 </body>
 </html>
