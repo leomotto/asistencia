@@ -1,23 +1,34 @@
-export const PERIODOS_CALENDARIO = {
-  "CLASES REGULARES":  { desde: "2026-03-02", hasta: "2026-12-03" },
-  "1er BIMESTRE":      { desde: "2026-03-02", hasta: "2026-05-07" },
-  "2do BIMESTRE":      { desde: "2026-05-08", hasta: "2026-07-17" },
-  "3er BIMESTRE":      { desde: "2026-08-03", hasta: "2026-10-02" },
-  "4to BIMESTRE":      { desde: "2026-10-05", hasta: "2026-12-03" },
-  "1er CUATRIMESTRE":  { desde: "2026-03-02", hasta: "2026-07-17" },
-  "2do CUATRIMESTRE":  { desde: "2026-08-03", hasta: "2026-12-03" },
-  "PO DIC":            { desde: "2026-12-04", hasta: "2026-12-18" },
-  "PO FEB-MAR":        { desde: "2027-02-01", hasta: "2027-02-28" },
-  "MARZO 2026":        { desde: "2026-03-01", hasta: "2026-03-31" },
-  "ABRIL 2026":        { desde: "2026-04-01", hasta: "2026-04-30" },
-  "MAYO 2026":         { desde: "2026-05-01", hasta: "2026-05-31" },
-  "JUNIO 2026":        { desde: "2026-06-01", hasta: "2026-06-30" },
-  "JULIO 2026":        { desde: "2026-07-01", hasta: "2026-07-31" },
-  "AGOSTO 2026":       { desde: "2026-08-01", hasta: "2026-08-31" },
-  "SEPTIEMBRE 2026":   { desde: "2026-09-01", hasta: "2026-09-30" },
-  "OCTUBRE 2026":      { desde: "2026-10-01", hasta: "2026-10-31" },
-  "NOVIEMBRE 2026":    { desde: "2026-11-01", hasta: "2026-11-30" },
-  "DICIEMBRE 2026":    { desde: "2026-12-01", hasta: "2026-12-31" },
-  "ENERO 2026":        { desde: "2027-01-01", hasta: "2027-01-31" },
-  "FEBRERO 2026":      { desde: "2027-02-01", hasta: "2027-02-28" }
+// Año lectivo: marzo–diciembre del año corriente (enero/febrero pertenecen al año anterior)
+const hoy  = new Date();
+const Y    = hoy.getMonth() >= 2 ? hoy.getFullYear() : hoy.getFullYear() - 1;
+const Y1   = Y + 1;
+
+// Último día de cada mes según año
+const ult = (mes) => new Date(Y, mes, 0).getDate();
+
+const _cal = {
+  "CLASES REGULARES":  { desde: `${Y}-03-02`,  hasta: `${Y}-12-03`  },
+  "1er BIMESTRE":      { desde: `${Y}-03-02`,  hasta: `${Y}-05-07`  },
+  "2do BIMESTRE":      { desde: `${Y}-05-08`,  hasta: `${Y}-07-17`  },
+  "3er BIMESTRE":      { desde: `${Y}-08-03`,  hasta: `${Y}-10-02`  },
+  "4to BIMESTRE":      { desde: `${Y}-10-05`,  hasta: `${Y}-12-03`  },
+  "1er CUATRIMESTRE":  { desde: `${Y}-03-02`,  hasta: `${Y}-07-17`  },
+  "2do CUATRIMESTRE":  { desde: `${Y}-08-03`,  hasta: `${Y}-12-03`  },
+  "PO DIC":            { desde: `${Y}-12-04`,  hasta: `${Y}-12-18`  },
+  "PO FEB-MAR":        { desde: `${Y1}-02-01`, hasta: `${Y1}-02-${new Date(Y1, 1, 0).getDate()}` },
 };
+
+// Meses marzo–diciembre del año lectivo
+[['MARZO',3],['ABRIL',4],['MAYO',5],['JUNIO',6],['JULIO',7],
+ ['AGOSTO',8],['SEPTIEMBRE',9],['OCTUBRE',10],['NOVIEMBRE',11],['DICIEMBRE',12]
+].forEach(([n, m]) => {
+  const num = String(m).padStart(2, '0');
+  _cal[`${n} ${Y}`] = { desde: `${Y}-${num}-01`, hasta: `${Y}-${num}-${ult(m)}` };
+});
+
+// Enero y febrero del año siguiente (aún pertenecen al ciclo lectivo)
+_cal[`ENERO ${Y}`]   = { desde: `${Y1}-01-01`, hasta: `${Y1}-01-31` };
+_cal[`FEBRERO ${Y}`] = { desde: `${Y1}-02-01`, hasta: `${Y1}-02-${new Date(Y1, 1, 0).getDate()}` };
+
+export const PERIODOS_CALENDARIO = _cal;
+export const SCHOOL_YEAR = Y;

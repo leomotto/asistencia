@@ -83,6 +83,11 @@ export async function cargarAlumnos() {
   const fechaSeleccionada = document.getElementById('tomaFecha').value;
   const contenedor        = document.getElementById('listaTomaDiaria');
 
+  // Persistir último curso usado para restaurarlo al volver
+  if (curso) localStorage.setItem('lastCurso', curso);
+  // Resetear badge "ya guardada" al cambiar curso o fecha
+  document.getElementById('badgeGuardada')?.classList.add('hidden');
+
   if (!curso || !fechaSeleccionada) {
     contenedor.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">Complete curso y fecha para listar alumnos activos.</p>';
     window.app.alumnosActivos = [];
@@ -219,6 +224,7 @@ export async function guardarAsistencia() {
       curso, fecha, tipoClase, registros, timestamp: new Date().toISOString()
     });
     invalidarCacheBI();
+    document.getElementById('badgeGuardada')?.classList.remove('hidden');
     showToast(`✅ Asistencia de ${curso} guardada con éxito.`);
   } catch (error) {
     console.error(error);
@@ -236,6 +242,7 @@ export async function traerAsistencia(silent = false) {
   const docId = `${curso.replace(/\s+/g, '')}_${fecha}`;
   try {
     const docSnap = await getDoc(doc(db, getPath("asistencias"), docId));
+    const badgeGuardada = document.getElementById('badgeGuardada');
     if (docSnap.exists()) {
       const data = docSnap.data();
       document.getElementById('tomaTipo').value = data.tipoClase || "CLASE";
@@ -245,8 +252,10 @@ export async function traerAsistencia(silent = false) {
           sel.value = data.registros[est.id] === "-" ? "" : data.registros[est.id];
         }
       });
+      badgeGuardada?.classList.remove('hidden');
       if (!silent) showToast('📥 Datos históricos importados.', 'info');
     } else {
+      badgeGuardada?.classList.add('hidden');
       if (!silent) showToast('ℹ️ No existen registros previos para esta fecha.', 'info');
     }
   } catch (error) {

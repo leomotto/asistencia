@@ -65,6 +65,34 @@ export function toggleDarkMode() {
   else        { icon.className = "ph ph-moon text-xl text-indigo-200"; text.innerText = "Modo Noche"; }
 }
 
+export function popularPeriodos() {
+  const hoy  = new Date();
+  const Y    = hoy.getMonth() >= 2 ? hoy.getFullYear() : hoy.getFullYear() - 1;
+  const Y1   = Y + 1;
+  const MESES = ['MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+
+  const opciones = [
+    ['CLASES REGULARES', 'CLASES REGULARES'],
+    ['1er BIMESTRE',     '1er BIMESTRE'],
+    ['2do BIMESTRE',     '2do BIMESTRE'],
+    ['3er BIMESTRE',     '3er BIMESTRE'],
+    ['4to BIMESTRE',     '4to BIMESTRE'],
+    ['1er CUATRIMESTRE', '1er CUATRIMESTRE'],
+    ['2do CUATRIMESTRE', '2do CUATRIMESTRE'],
+    ['PO DIC',           'PO DIC'],
+    ['PO FEB-MAR',       'PO FEB-MAR'],
+    ...MESES.map(m => [`${m} ${Y}`, `${m} ${Y}`]),
+    [`ENERO ${Y}`,       `ENERO ${Y} (${Y1})`],
+    [`FEBRERO ${Y}`,     `FEBRERO ${Y} (${Y1})`],
+  ];
+
+  const html = opciones.map(([v, t]) => `<option value="${v}">${t}</option>`).join('');
+  document.querySelectorAll('.select-periodo-global').forEach(sel => {
+    const hasFechaManual = sel.dataset.fechaManual === 'true';
+    sel.innerHTML = html + (hasFechaManual ? '<option value="FECHA MANUAL">FECHA MANUAL</option>' : '');
+  });
+}
+
 export function popularCursos() {
   const esDocente          = window.app.currentUser?.rol === 'DOCENTE';
   const materiasPermitidas = window.app.currentUser?.materias || [];

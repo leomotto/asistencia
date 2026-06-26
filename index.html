@@ -73,7 +73,7 @@
 
     <nav id="sideNav" class="bg-slate-800 text-white fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-64 md:flex-shrink-0 flex flex-col justify-between p-4 shadow-lg z-40 -translate-x-full md:translate-x-0 transition-transform duration-300">
     <div class="mb-0 md:mb-6 flex items-center gap-2">
-      <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0"></i>
+      <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0 sidebar-logo-icon"></i>
       <h1 class="text-xl font-bold tracking-wider sidebar-brand hidden md:block flex-1 min-w-0 truncate">ASISTENCIA PRO</h1>
       <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition text-slate-400 hover:text-white flex-shrink-0" title="Colapsar menú">
         <i class="ph ph-caret-left text-sm" id="iconCollapseNav"></i>
@@ -100,7 +100,7 @@
         <i class="ph ph-users text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Docentes</span>
       </button>
 
-      <div class="md:mt-auto pt-4 border-t dark:border-slate-700 border-white/20 hidden md:block"></div>
+      <div class="nav-divider md:mt-auto pt-4 border-t dark:border-slate-700 border-white/20 hidden md:block"></div>
 
       <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Cambiar tema">
         <i class="ph ph-moon text-xl flex-shrink-0" id="iconTheme"></i> <span class="hidden md:inline nav-label" id="textTheme">Modo Noche</span>
@@ -135,7 +135,10 @@
           <div>
             <div class="flex justify-between items-center mb-1">
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">FECHA DE CLASE</label>
-              <span id="badgeHorario" class="hidden text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-black uppercase"></span>
+              <div class="flex gap-1 items-center">
+                <span id="badgeHorario" class="hidden text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-black uppercase"></span>
+                <span id="badgeGuardada" class="hidden text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-black uppercase">✓ GUARDADA</span>
+              </div>
             </div>
             <input type="date" id="tomaFecha" class="w-full p-2 border dark:border-slate-700 rounded-md focus:ring-2 focus:ring-slate-500 outline-none bg-white dark:bg-slate-800 font-medium">
             <span id="alertaDiaSemana" class="hidden text-[10px] text-red-600 font-bold block mt-1">⚠️ No es un día habitual de clase</span>
@@ -201,28 +204,8 @@
             <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
               <option value="">Seleccione división...</option>
             </select>
-            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
-              <option value="CLASES REGULARES">CLASES REGULARES</option>
-              <option value="1er BIMESTRE">1er BIMESTRE</option>
-              <option value="2do BIMESTRE">2do BIMESTRE</option>
-              <option value="3er BIMESTRE">3er BIMESTRE</option>
-              <option value="4to BIMESTRE">4to BIMESTRE</option>
-              <option value="1er CUATRIMESTRE">1er CUATRIMESTRE</option>
-              <option value="2do CUATRIMESTRE">2do CUATRIMESTRE</option>
-              <option value="PO DIC">PO DIC</option>
-              <option value="PO FEB-MAR">PO FEB-MAR</option>
-              <option value="MARZO 2026">MARZO 2026</option>
-              <option value="ABRIL 2026">ABRIL 2026</option>
-              <option value="MAYO 2026">MAYO 2026</option>
-              <option value="JUNIO 2026">JUNIO 2026</option>
-              <option value="JULIO 2026">JULIO 2026</option>
-              <option value="AGOSTO 2026">AGOSTO 2026</option>
-              <option value="SEPTIEMBRE 2026">SEPTIEMBRE 2026</option>
-              <option value="OCTUBRE 2026">OCTUBRE 2026</option>
-              <option value="NOVIEMBRE 2026">NOVIEMBRE 2026</option>
-              <option value="DICIEMBRE 2026">DICIEMBRE 2026</option>
-              <option value="ENERO 2026">ENERO 2026 (2027)</option>
-              <option value="FEBRERO 2026">FEBRERO 2026 (2027)</option>
+            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global">
+              <!-- Poblado dinámicamente por popularPeriodos() -->
             </select>
 
             <button onclick="app.abrirModalNuevaColumna()" class="bg-indigo-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1">
@@ -278,29 +261,8 @@
               <option value="">Curso...</option>
             </select>
             
-            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
-              <option value="CLASES REGULARES">CLASES REGULARES</option>
-              <option value="1er BIMESTRE">1er BIMESTRE</option>
-              <option value="2do BIMESTRE">2do BIMESTRE</option>
-              <option value="3er BIMESTRE">3er BIMESTRE</option>
-              <option value="4to BIMESTRE">4to BIMESTRE</option>
-              <option value="1er CUATRIMESTRE">1er CUATRIMESTRE</option>
-              <option value="2do CUATRIMESTRE">2do CUATRIMESTRE</option>
-              <option value="PO DIC">PO DIC</option>
-              <option value="PO FEB-MAR">PO FEB-MAR</option>
-              <option value="MARZO 2026">MARZO 2026</option>
-              <option value="ABRIL 2026">ABRIL 2026</option>
-              <option value="MAYO 2026">MAYO 2026</option>
-              <option value="JUNIO 2026">JUNIO 2026</option>
-              <option value="JULIO 2026">JULIO 2026</option>
-              <option value="AGOSTO 2026">AGOSTO 2026</option>
-              <option value="SEPTIEMBRE 2026">SEPTIEMBRE 2026</option>
-              <option value="OCTUBRE 2026">OCTUBRE 2026</option>
-              <option value="NOVIEMBRE 2026">NOVIEMBRE 2026</option>
-              <option value="DICIEMBRE 2026">DICIEMBRE 2026</option>
-              <option value="ENERO 2026">ENERO 2026 (2027)</option>
-              <option value="FEBRERO 2026">FEBRERO 2026 (2027)</option>
-              <option value="FECHA MANUAL">FECHA MANUAL</option>
+            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global" data-fecha-manual="true">
+              <!-- Poblado dinámicamente por popularPeriodos() -->
             </select>
 
             <div id="biFechasManuales" class="hidden flex gap-1 items-center">

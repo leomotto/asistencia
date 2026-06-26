@@ -1,6 +1,6 @@
 // js/auth.js — Sesión, login, logout y listener de autenticación
 
-import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.1";
 import { showToast } from "./ui.js?v=9.1";
@@ -124,6 +124,35 @@ export function setupAuthListener() {
       document.getElementById('biFechaHasta').value = limites.hasta;
 
       window.app.popularCursos();
+
+      // #1 Restaurar último curso usado en Toma Diaria
+      const lastCurso = localStorage.getItem('lastCurso');
+      if (lastCurso) {
+        const selCurso = document.getElementById('tomaCurso');
+        if (selCurso && [...selCurso.options].some(o => o.value === lastCurso)) {
+          selCurso.value = lastCurso;
+          window.app.actualizarHorariosYFechasRapidas?.();
+          window.app.cargarAlumnos?.();
+        }
+      }
+
+      // #3 Badge de usuarios PENDIENTE para admin
+      if (esAdmin) {
+        try {
+          const pendSnap = await getDocs(query(collection(db, getPath('usuarios')), where('rol', '==', 'PENDIENTE')));
+          if (pendSnap.size > 0) {
+            const btnDoc = document.getElementById('btnDocentes');
+            if (btnDoc) {
+              btnDoc.querySelector('#pendientesBadge')?.remove();
+              const badge = document.createElement('span');
+              badge.id = 'pendientesBadge';
+              badge.className = 'ml-auto flex-shrink-0 inline-flex items-center justify-center min-w-[1rem] h-4 px-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full';
+              badge.textContent = pendSnap.size;
+              btnDoc.appendChild(badge);
+            }
+          }
+        } catch(e) { console.warn('No se pudo verificar usuarios pendientes:', e); }
+      }
 
     } else {
       // Sin sesión: ocultar carga, mostrar login
