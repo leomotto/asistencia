@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.7";
-import { showToast } from "./ui.js?v=9.7";
-import { escaparHTML } from "./utils.js?v=9.7";
+import { db, getPath } from "./firebase-config.js?v=9.8";
+import { showToast } from "./ui.js?v=9.8";
+import { escaparHTML } from "./utils.js?v=9.8";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -337,10 +337,10 @@ export function registrarCambioEvaluacion(alumnoId, campo, valor) {
   }
 }
 
-// Helper para generar opciones del 1 al 10 en el select
+// Helper para generar opciones del 10 al 1 en el select (orden descendente)
 function _getOptionsNumericas(selectedVal) {
   let html = `<option value="" ${selectedVal === '' ? 'selected' : ''}>-</option>`;
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 10; i >= 1; i--) {
     html += `<option value="${i}" ${parseFloat(selectedVal) === i ? 'selected' : ''}>${i}</option>`;
   }
   return html;
