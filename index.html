@@ -12,7 +12,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.6">
+  <link rel="stylesheet" href="css/styles.css?v=9.7">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -130,7 +130,7 @@
         <div id="authStatus" class="text-xs text-slate-400">
           <i class="ph ph-spinner animate-spin"></i> Conectando DB...
         </div>
-        <div class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">v9.6.0</div>
+        <div class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">v9.7.0</div>
       </div>
     </nav>
 
@@ -214,11 +214,13 @@
       <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
-          <div class="min-w-0">
+          <div class="min-w-0 flex items-center gap-2 flex-wrap">
             <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <i class="ph ph-exam text-emerald-500"></i> Planilla de Calificaciones
             </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Control y registro de notas bimonestrales, promedios y períodos de orientación (PO) en tiempo real.</p>
+            <span id="badgeEvalBloqueada" class="hidden text-xs bg-orange-100 text-orange-850 px-2 py-1 rounded-md font-bold flex items-center gap-1 border border-orange-200">
+              <i class="ph ph-lock-key"></i> BLOQUEADA
+            </span>
           </div>
 
           <div class="flex flex-wrap gap-2 w-full md:w-auto">
@@ -226,8 +228,48 @@
               <option value="">Seleccione división...</option>
               <!-- Dinámico -->
             </select>
+            <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla contra cambios involuntarios">
+              <i class="ph ph-lock-key"></i> <span class="hidden sm:inline">Bloquear Planilla</span>
+            </button>
             <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
               <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar Notas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- PANEL DE CONFIGURACIÓN ADMIN: Habilitación de Periodos (solo visible para Admin) -->
+        <div id="panelAdminConfigEval" class="hidden bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl p-4 mb-4">
+          <p class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <i class="ph ph-sliders"></i> Habilitación de Carga de Periodos (Solo Administradores)
+          </p>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgB1" class="h-4 w-4 text-indigo-600 rounded">
+              <span>1er Bim (Val.)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgB2" class="h-4 w-4 text-indigo-600 rounded">
+              <span>2do Bim (Num.)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgB3" class="h-4 w-4 text-indigo-600 rounded">
+              <span>3er Bim (Val.)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgB4" class="h-4 w-4 text-indigo-600 rounded">
+              <span>4to Bim (Num.)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgPoDic" class="h-4 w-4 text-indigo-600 rounded">
+              <span>PO Dic (Num.)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+              <input type="checkbox" id="cfgPoFeb" class="h-4 w-4 text-indigo-600 rounded">
+              <span>PO Feb (Num.)</span>
+            </label>
+            
+            <button onclick="app.guardarConfiguracionHabilitacion()" id="btnGuardarConfigEval" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-indigo-700 transition flex items-center gap-1 sm:ml-auto">
+              <i class="ph ph-floppy-disk"></i> Guardar Periodos
             </button>
           </div>
         </div>
@@ -238,14 +280,14 @@
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr>
                 <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
-                <th class="px-2 py-3 text-center min-w-[60px]">1° Bim</th>
-                <th class="px-2 py-3 text-center min-w-[60px]">2° Bim</th>
-                <th class="px-2 py-3 text-center min-w-[60px]">3° Bim</th>
-                <th class="px-2 py-3 text-center min-w-[60px]">4° Bim</th>
-                <th class="px-3 py-3 text-center min-w-[80px] bg-slate-700">Prom</th>
-                <th class="px-2 py-3 text-center min-w-[60px] border-l dark:border-slate-700">PO Dic</th>
-                <th class="px-2 py-3 text-center min-w-[60px]">PO Feb</th>
-                <th class="px-3 py-3 text-center min-w-[80px] bg-slate-700">Final</th>
+                <th class="px-2 py-3 text-center min-w-[140px]">1er Bim (Val)</th>
+                <th class="px-2 py-3 text-center min-w-[80px]">2do Bim (Num)</th>
+                <th class="px-2 py-3 text-center min-w-[140px]">3er Bim (Val)</th>
+                <th class="px-2 py-3 text-center min-w-[80px]">4to Bim (Num)</th>
+                <th class="px-3 py-3 text-center min-w-[90px] bg-slate-700/80">Calif. Final</th>
+                <th class="px-2 py-3 text-center min-w-[80px] border-l dark:border-slate-700">PO Dic</th>
+                <th class="px-2 py-3 text-center min-w-[80px]">PO Feb</th>
+                <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
                 <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
               </tr>
             </thead>
@@ -803,6 +845,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.6"></script>
+  <script type="module" src="js/app.js?v=9.7"></script>
 </body>
 </html>

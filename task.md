@@ -28,3 +28,10 @@
 - `[x]` Diseñar planilla interactiva de carga de notas en `index.html` con soporte sticky responsivo.
 - `[x]` Configurar reglas de seguridad en `firestore.rules` específicas para la colección `evaluaciones` (RBAC).
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.5`.
+
+## 6. Panel de Bloqueo y Habilitación de Periodos (v9.7) *[COMPLETADO]*
+- `[x]` Reemplazar inputs de calificaciones numéricas por cajas de elección (`<select>` del 1 al 10).
+- `[x]` Añadir panel para que Administradores habiliten/deshabiliten periodos de carga.
+- `[x]` Implementar sistema de bloqueo de planilla por materia/curso para evitar cambios involuntarios.
+- `[x]` Configurar seguridad de Firestore para los documentos de configuración y bloqueo.
+- `[x]` Cache busting general mediante incremento de versiones a `?v=9.7`.

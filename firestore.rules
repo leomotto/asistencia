@@ -73,6 +73,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /{path=**}/config/{docId} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin();
+    }
+
+    match /{path=**}/evaluaciones_locks/{docId} {
+      allow read:  if isAuthed();
+      // Un docente puede bloquear el curso asignado; el admin puede bloquear y desbloquear cualquier curso
+      allow write: if isAdmin() || (isDocente() && docenteTieneCurso(docId));
+    }
+
     // ==========================================
     // REGLAS PARA COLECCIÓN: estudiantes
     // Lectura: Docentes y Admin (para tomar lista).

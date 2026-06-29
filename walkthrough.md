@@ -153,4 +153,34 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 ## 🧹 4. Cache Busting (v9.5.0)
 - Se incrementó el query de versión a `?v=9.5` en todas las referencias del proyecto para garantizar la descarga de los scripts nuevos.
 
+---
+
+# 🔒 Fase 13: Bloqueo de Planillas y Configuración de Fechas de Carga (v9.7)
+
+## 🎛️ 1. Panel de Configuración Administrativa (Habilitación de Periodos)
+- Se incorporó un panel administrativo oculto para los docentes y visible únicamente para administradores (`rol === 'ADMIN'`).
+- Permite habilitar o deshabilitar la visualización y edición del próximo periodo (1er Bimestre, 2do Bimestre, etc.) mediante checkboxes sencillos en la base de datos Firestore (`config/evaluaciones`).
+- Cuando un periodo no está habilitado, los dropdowns correspondientes se renderizan con el atributo `disabled`, impidiendo ediciones accidentales fuera de las fechas estipuladas.
+
+## 🔐 2. Bloqueo de Planilla de Cursada
+- Se implementó un botón interactivo **Bloquear Planilla / Desbloquear Planilla** que guarda el estado de bloqueo para el curso actual en la colección `evaluaciones_locks/{materia}`.
+- Un docente puede bloquear su planilla al finalizar la carga para evitar cambios involuntarios. Una vez bloqueada, la planilla solo puede ser desbloqueada por un administrador del sistema.
+- Se añadió un badge visual animado `🔒 BLOQUEADA` en la cabecera cuando el curso seleccionado se encuentra protegido.
+
+## 🔢 3. Cajas de Selección para Calificaciones Numéricas
+- Se reemplazaron los inputs de texto manuales de las calificaciones de B2, B4, PO Dic y PO Feb por cajas de elección desplegables (`<select>`) de valores del `1` al `10` y `-` para estado vacío, eliminando por completo cualquier error de entrada manual.
+
+## 📝 4. Estructura Curricular y Libro Matriz
+- Estructura definitiva de la planilla en [`index.html`](file:///home/leo/proyectos/asistencia/index.html):
+  - **1er Bim (Val)**
+  - **2do Bim (Num)**
+  - **3er Bim (Val)**
+  - **4to Bim (Num)**
+  - **Calif. Final** (Redondeo de cursada regular, correspondiente a B4)
+  - **PO Dic** (Período complementario)
+  - **PO Feb** (Período complementario)
+  - **Calif. Definitiva** (Resultado final del año lectivo, a volcarse al Libro Matriz).
+- Se añadieron reglas de seguridad en [`firestore.rules`](file:///home/leo/proyectos/asistencia/firestore.rules) específicas para proteger las colecciones `/config` y `/evaluaciones_locks`.
+- Cache busting incrementado a `v9.7.0`.
+
 
