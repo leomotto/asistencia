@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.5";
-import { showToast } from "./ui.js?v=9.5";
-import { escaparHTML } from "./utils.js?v=9.5";
+import { db, getPath } from "./firebase-config.js?v=9.6";
+import { showToast } from "./ui.js?v=9.6";
+import { escaparHTML } from "./utils.js?v=9.6";
 
 // Cambios pendientes locales antes de guardar en Firestore: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -16,67 +16,58 @@ export function limpiarCambiosEvaluaciones() {
 }
 
 // ==========================================
-// CÁLCULO EN TIEMPO REAL
+// CÁLCULO EN TIEMPO REAL (LÓGICA PONDERADA v9.5)
 // ==========================================
 
 export function calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb) {
-  // Convertir a float o null
   const parseVal = (val) => {
     if (val === undefined || val === null || val === '') return null;
     const n = parseFloat(val);
     return isNaN(n) ? null : n;
   };
 
-  const n1 = parseVal(b1);
   const n2 = parseVal(b2);
-  const n3 = parseVal(b3);
   const n4 = parseVal(b4);
   const pDic = parseVal(poDic);
   const pFeb = parseVal(poFeb);
 
-  // Verificar si hay bimestres cargados
-  const notasCargadas = [n1, n2, n3, n4].filter(n => n !== null);
-  
-  if (notasCargadas.length === 0) {
-    return { promedio: null, final: null, condicion: 'CURSANDO', colorClass: 'bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-400' };
-  }
+  // Promedio de los bimestres numéricos cargados (b2 y b4)
+  const nums = [n2, n4].filter(n => n !== null);
+  const promedioNum = nums.length > 0 ? (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1) : null;
 
-  // Calcular promedio de bimestres cargados
-  const promedio = notasCargadas.reduce((a, b) => a + b, 0) / notasCargadas.length;
-
-  // Si no se han cargado los 4 bimestres, aún está cursando
-  if (notasCargadas.length < 4) {
+  // Si el 4to bimestre no está cargado, aún está cursando
+  if (n4 === null) {
     return { 
-      promedio: promedio.toFixed(2), 
+      promedio: promedioNum, 
       final: null, 
       condicion: 'CURSANDO', 
       colorClass: 'bg-slate-100 text-slate-700 dark:bg-slate-900/50 dark:text-slate-400' 
     };
   }
 
-  // 4 bimestres completos: evaluar condición
-  if (promedio >= 7.0) {
+  // 4to bimestre cargado: se aprueba con 6 o más
+  if (n4 >= 6.0) {
     return { 
-      promedio: promedio.toFixed(2), 
-      final: Math.round(promedio), 
+      promedio: promedioNum, 
+      final: n4, 
       condicion: 'APROBADO', 
       colorClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold' 
     };
   }
 
-  // Promedio < 7: requiere Período de Orientación Diciembre (PO DIC)
+  // 4to bimestre < 6: requiere Período de Orientación Diciembre (PO DIC)
   if (pDic === null) {
     return { 
-      promedio: promedio.toFixed(2), 
+      promedio: promedioNum, 
       final: null, 
       condicion: 'A PO DIC', 
       colorClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold' 
     };
   }
 
-  if (pDic >= 7.0) {
+  if (pDic >= 6.0) {
     return { 
-      promedio: promedio.toFixed(2), 
+      promedio: promedioNum, 
       final: pDic, 
       condicion: 'APROBADO (PO DIC)', 
       colorClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-medium' 
@@ -86,25 +77,25 @@ export function calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb) {
   // Falló PO DIC: requiere Período de Orientación Febrero (PO FEB)
   if (pFeb === null) {
     return { 
-      promedio: promedio.toFixed(2), 
+      promedio: promedioNum, 
       final: null, 
       condicion: 'A PO FEB', 
       colorClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold animate-pulse' 
     };
   }
 
-  if (pFeb >= 7.0) {
+  if (pFeb >= 6.0) {
     return { 
-      promedio: promedio.toFixed(2), 
+      promedio: promedioNum, 
       final: pFeb, 
       condicion: 'APROBADO (PO FEB)', 
       colorClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-medium' 
     };
   }
 
-  // Falló PO FEB: Desaprobado (Previa)
+  // Falló PO FEB: Desaprobado
   return { 
-    promedio: promedio.toFixed(2), 
+    promedio: promedioNum, 
     final: pFeb, 
     condicion: 'DESAPROBADO', 
     colorClass: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 font-black' 
@@ -118,38 +109,48 @@ export function calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb) {
 export function registrarCambioEvaluacion(alumnoId, campo, valor) {
   // Asegurar registro local del alumno
   if (!cambiosPendientesEvaluaciones[alumnoId]) {
-    // Leer valores originales cargados en el DOM para ese alumno
     const tr = document.querySelector(`tr[data-alumno-id="${alumnoId}"]`);
     if (tr) {
       cambiosPendientesEvaluaciones[alumnoId] = {
-        b1: tr.querySelector('.input-b1').value,
-        b2: tr.querySelector('.input-b2').value,
-        b3: tr.querySelector('.input-b3').value,
-        b4: tr.querySelector('.input-b4').value,
-        po_dic: tr.querySelector('.input-po-dic').value,
-        po_feb: tr.querySelector('.input-po-feb').value,
+        b1: tr.querySelector('.sel-b1')?.value || '',
+        b2: tr.querySelector('.input-b2')?.value || '',
+        b3: tr.querySelector('.sel-b3')?.value || '',
+        b4: tr.querySelector('.input-b4')?.value || '',
+        po_dic: tr.querySelector('.input-po-dic')?.value || '',
+        po_feb: tr.querySelector('.input-po-feb')?.value || '',
       };
     } else {
       cambiosPendientesEvaluaciones[alumnoId] = { b1:'', b2:'', b3:'', b4:'', po_dic:'', po_feb:'' };
     }
   }
 
-  // Validar nota (rango 1 a 10, o vacía)
+  // Validaciones según el tipo de campo
   const valTrim = valor.trim();
-  if (valTrim !== '') {
-    const num = parseFloat(valTrim);
-    if (isNaN(num) || num < 1 || num > 10) {
-      showToast('⚠️ Las calificaciones deben ser números entre 1 y 10.', 'error');
-      // Reestablecer valor en el input
-      const tr = document.querySelector(`tr[data-alumno-id="${alumnoId}"]`);
-      if (tr) {
-        tr.querySelector(`.input-${campo.replace('_', '-')}`).value = cambiosPendientesEvaluaciones[alumnoId][campo] || '';
-      }
+  if (campo === 'b1' || campo === 'b3') {
+    // Cualitativos: EN PROCESO, SUFICIENTE, AVANZADO o vacío
+    const validos = ['', 'EN PROCESO', 'SUFICIENTE', 'AVANZADO'];
+    if (!validos.includes(valTrim)) {
+      showToast('⚠️ Calificación cualitativa inválida.', 'error');
       return;
+    }
+  } else {
+    // Numéricos: 1 a 10
+    if (valTrim !== '') {
+      const num = parseFloat(valTrim);
+      if (isNaN(num) || num < 1 || num > 10) {
+        showToast('⚠️ Las calificaciones numéricas deben ser números entre 1 y 10.', 'error');
+        // Restaurar valor original en el input
+        const tr = document.querySelector(`tr[data-alumno-id="${alumnoId}"]`);
+        if (tr) {
+          const el = tr.querySelector(`.input-${campo.replace('_', '-')}`);
+          if (el) el.value = cambiosPendientesEvaluaciones[alumnoId][campo] || '';
+        }
+        return;
+      }
     }
   }
 
-  // Guardar cambio
+  // Guardar el cambio localmente
   cambiosPendientesEvaluaciones[alumnoId][campo] = valTrim;
 
   // Habilitar botón de guardado
@@ -168,7 +169,7 @@ export function registrarCambioEvaluacion(alumnoId, campo, valor) {
 
     const res = calcularNotaFinalYCondicion(b1Val, b2Val, b3Val, b4Val, poDicVal, poFebVal);
 
-    // Actualizar celdas del DOM
+    // Actualizar celdas de promedio y final
     tr.querySelector('.cell-promedio').innerText = res.promedio !== null ? res.promedio : '—';
     tr.querySelector('.cell-final').innerText = res.final !== null ? res.final : '—';
     
@@ -176,9 +177,11 @@ export function registrarCambioEvaluacion(alumnoId, campo, valor) {
     condBadge.innerText = res.condicion;
     condBadge.className = `badge-condicion text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}`;
 
-    // Marcar input editado visualmente
-    const input = tr.querySelector(`.input-${campo.replace('_', '-')}`);
-    if (input) input.classList.add('bg-orange-50', 'dark:bg-orange-950/20', 'border-orange-300');
+    // Marcar el elemento modificado visualmente
+    const inputField = campo === 'b1' || campo === 'b3'
+      ? tr.querySelector(`.sel-${campo}`)
+      : tr.querySelector(`.input-${campo.replace('_', '-')}`);
+    if (inputField) inputField.classList.add('bg-orange-50', 'dark:bg-orange-950/20', 'border-orange-300');
   }
 }
 
@@ -201,7 +204,7 @@ export async function cargarPlanillaEvaluaciones() {
   limpiarCambiosEvaluaciones();
 
   try {
-    // 1. Obtener estudiantes del curso
+    // 1. Obtener estudiantes activos del curso
     const snapEst = await getDocs(collection(db, getPath("estudiantes")));
     let alumnos = [];
     snapEst.forEach(d => {
@@ -249,36 +252,55 @@ export async function cargarPlanillaEvaluaciones() {
         <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 sticky-student-col bg-white dark:bg-slate-800 border-r dark:border-slate-700 w-64 truncate">
           ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}
         </td>
+        <!-- 1° Bimestre (Valorativo) -->
         <td class="px-2 py-2 text-center">
-          <input type="text" class="input-b1 w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${b1}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b1', this.value)">
+          <select class="sel-b1 w-32 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
+            onchange="app.registrarCambioEvaluacion('${al.id}', 'b1', this.value)">
+            <option value="" ${b1 === '' ? 'selected' : ''}>-</option>
+            <option value="EN PROCESO" ${b1 === 'EN PROCESO' ? 'selected' : ''}>EN PROCESO</option>
+            <option value="SUFICIENTE" ${b1 === 'SUFICIENTE' ? 'selected' : ''}>SUFICIENTE</option>
+            <option value="AVANZADO" ${b1 === 'AVANZADO' ? 'selected' : ''}>AVANZADO</option>
+          </select>
         </td>
+        <!-- 2° Bimestre (Numérico) -->
         <td class="px-2 py-2 text-center">
           <input type="text" class="input-b2 w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${b2}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b2', this.value)">
+            placeholder="-" value="${b2}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b2', this.value)">
         </td>
+        <!-- 3° Bimestre (Valorativo) -->
         <td class="px-2 py-2 text-center">
-          <input type="text" class="input-b3 w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${b3}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b3', this.value)">
+          <select class="sel-b3 w-32 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
+            onchange="app.registrarCambioEvaluacion('${al.id}', 'b3', this.value)">
+            <option value="" ${b3 === '' ? 'selected' : ''}>-</option>
+            <option value="EN PROCESO" ${b3 === 'EN PROCESO' ? 'selected' : ''}>EN PROCESO</option>
+            <option value="SUFICIENTE" ${b3 === 'SUFICIENTE' ? 'selected' : ''}>SUFICIENTE</option>
+            <option value="AVANZADO" ${b3 === 'AVANZADO' ? 'selected' : ''}>AVANZADO</option>
+          </select>
         </td>
+        <!-- 4° Bimestre (Numérico) -->
         <td class="px-2 py-2 text-center">
           <input type="text" class="input-b4 w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${b4}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b4', this.value)">
+            placeholder="-" value="${b4}" onchange="app.registrarCambioEvaluacion('${al.id}', 'b4', this.value)">
         </td>
+        <!-- Promedio Numérico (de B2 y B4) -->
         <td class="px-3 py-3 text-center font-bold text-slate-800 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-900/30 cell-promedio">
           ${res.promedio !== null ? res.promedio : '—'}
         </td>
+        <!-- PO Diciembre (Numérico) -->
         <td class="px-2 py-2 text-center border-l dark:border-slate-700">
           <input type="text" class="input-po-dic w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${poDic}" onchange="app.registrarCambioEvaluacion('${al.id}', 'po_dic', this.value)">
+            placeholder="-" value="${poDic}" onchange="app.registrarCambioEvaluacion('${al.id}', 'po_dic', this.value)">
         </td>
+        <!-- PO Febrero (Numérico) -->
         <td class="px-2 py-2 text-center">
           <input type="text" class="input-po-feb w-12 text-center p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-sm font-semibold outline-none focus:ring-1 focus:ring-indigo-500" 
-            value="${poFeb}" onchange="app.registrarCambioEvaluacion('${al.id}', 'po_feb', this.value)">
+            placeholder="-" value="${poFeb}" onchange="app.registrarCambioEvaluacion('${al.id}', 'po_feb', this.value)">
         </td>
+        <!-- Nota Final -->
         <td class="px-3 py-3 text-center font-black text-indigo-600 dark:text-indigo-400 bg-slate-50/50 dark:bg-slate-900/30 cell-final">
           ${res.final !== null ? res.final : '—'}
         </td>
+        <!-- Condición Estudiante -->
         <td class="px-3 py-3 text-center">
           <span class="badge-condicion text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">
             ${res.condicion}
