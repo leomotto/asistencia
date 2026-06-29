@@ -40,3 +40,8 @@
 - `[x]` Conservar y mostrar estudiantes inactivos/históricos con notas ya cargadas en la planilla de calificaciones (con badge aclaratorio).
 - `[x]` Filtrar asignaturas que contengan la palabra "Taller" del selector de calificaciones, manteniendo las académicas como "ARTES".
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.10`.
+
+## 8. Cambio de Identidad Visual y Favicon (v9.11) *[COMPLETADO]*
+- `[x]` Diseñar y crear el favicon en formato SVG corporativo (`favicon.svg`).
+- `[x]` Renombrar la aplicación de "ASISTENCIA PRO" a "SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC" en toda la interfaz.
+- `[x]` Cache busting general mediante incremento de versiones a `?v=9.11`.

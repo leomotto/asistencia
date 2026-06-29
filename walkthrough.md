@@ -198,4 +198,23 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 ## 🧹 3. Cache Busting (v9.10.0)
 - Se actualizó el versionado a `?v=9.10` en todas las referencias para asegurar la aplicación inmediata de estas mejoras de filtrado y coherencia histórica.
 
+---
+
+# 🎨 Fase 15: Cambio de Identidad Visual y Favicon Corporativo - SIDEAC (v9.11)
+
+## 🏛️ 1. Redefinición de Identidad de Marca
+- La aplicación dejó de llamarse **ASISTENCIA PRO** y fue renombrada a **SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC** en todas las secciones clave:
+  - Título global del documento (`<title>`).
+  - Encabezado de la pantalla de carga (Splash Screen).
+  - Título y descripción de la pantalla de acceso (Login).
+  - Cabecera en la vista móvil.
+  - Sección superior del menú de navegación lateral (Sidebar).
+
+## 🛡️ 2. Favicon Corporativo en Formato SVG
+- Se diseñó y creó el archivo **[favicon.svg](file:///home/leo/proyectos/asistencia/favicon.svg)**, el cual consta de un escudo con degradado en tonos de azul/índigo, combinado con un visto de verificación verde menta que representa la exactitud académica y evaluativa.
+- Se enlazó este icono vectorizado en la cabecera HTML para que se cargue dinámicamente sin importar el dispositivo del usuario.
+
+## 🧹 3. Cache Busting (v9.11.0)
+- Se actualizó el versionado a `?v=9.11` en todas las referencias de recursos y scripts para forzar la actualización inmediata de la identidad del sistema.
+
 

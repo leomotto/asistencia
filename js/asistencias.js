@@ -1,11 +1,11 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.10";
-import { showToast } from "./ui.js?v=9.10";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.10";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.10";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.10";
+import { db, getPath } from "./firebase-config.js?v=9.11";
+import { showToast } from "./ui.js?v=9.11";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.11";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.11";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.11";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
