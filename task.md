@@ -35,3 +35,8 @@
 - `[x]` Implementar sistema de bloqueo de planilla por materia/curso para evitar cambios involuntarios.
 - `[x]` Configurar seguridad de Firestore para los documentos de configuración y bloqueo.
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.7`.
+
+## 7. Registro Histórico y Filtro de Talleres (v9.10) *[COMPLETADO]*
+- `[x]` Conservar y mostrar estudiantes inactivos/históricos con notas ya cargadas en la planilla de calificaciones (con badge aclaratorio).
+- `[x]` Filtrar asignaturas que contengan la palabra "Taller" del selector de calificaciones, manteniendo las académicas como "ARTES".
+- `[x]` Cache busting general mediante incremento de versiones a `?v=9.10`.

@@ -183,4 +183,19 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 - Se añadieron reglas de seguridad en [`firestore.rules`](file:///home/leo/proyectos/asistencia/firestore.rules) específicas para proteger las colecciones `/config` y `/evaluaciones_locks`.
 - Cache busting incrementado a `v9.7.0`.
 
+---
+
+# 🎓 Fase 14: Registro de Calificaciones Históricas y Exclusión de Espacios de Taller (v9.10)
+
+## 📋 1. Conservación de Estudiantes Históricos (Bajas o Traslados)
+- Se optimizó la consulta en **[js/evaluaciones.js](file:///home/leo/proyectos/asistencia/js/evaluaciones.js#L372-L400)** para evitar que estudiantes que abandonaron o se trasladaron de una división desaparezcan de la planilla escolar si ya poseen calificaciones previas registradas.
+- Estos alumnos históricos se listan al final de la planilla con una opacidad reducida (`opacity-70`), texto en cursiva y un badge identificatorio `TRASLADO / BAJA`, asegurando que el docente o preceptor pueda visualizar y exportar las notas correspondientes al plazo en el que perteneció a la división.
+
+## 🚫 2. Filtro de Espacios de "Taller" en Calificaciones
+- Dado que las materias de Taller son espacios interdisciplinarios que no conllevan evaluaciones numéricas o cualitativas en esta planilla (sino que corresponden a talleres particulares de asistencia y aprobación interna), se modificó la carga de cursos en **[js/ui.js](file:///home/leo/proyectos/asistencia/js/ui.js#L104-L113)**.
+- El selector `#evalCurso` en la pestaña de calificaciones ahora **excluye** automáticamente cualquier materia que contenga la palabra `"Taller"` (caso insensible), manteniendo activas únicamente las materias teóricas y especiales como **"ARTES"**.
+
+## 🧹 3. Cache Busting (v9.10.0)
+- Se actualizó el versionado a `?v=9.10` en todas las referencias para asegurar la aplicación inmediata de estas mejoras de filtrado y coherencia histórica.
+
 

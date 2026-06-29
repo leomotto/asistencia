@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.9";
-import { showToast } from "./ui.js?v=9.9";
-import { escaparHTML } from "./utils.js?v=9.9";
+import { db, getPath } from "./firebase-config.js?v=9.10";
+import { showToast } from "./ui.js?v=9.10";
+import { escaparHTML } from "./utils.js?v=9.10";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -369,25 +369,7 @@ export async function cargarPlanillaEvaluaciones() {
   limpiarCambiosEvaluaciones();
 
   try {
-    // 1. Obtener estudiantes activos del curso
-    const snapEst = await getDocs(collection(db, getPath("estudiantes")));
-    let alumnos = [];
-    snapEst.forEach(d => {
-      const data = { id: d.id, ...d.data() };
-      const inscrip = data.inscripciones?.[curso] || [];
-      const ultimoEstado = inscrip.length > 0 ? inscrip[inscrip.length - 1].estado : data.estado || 'ACTIVO';
-      if ((data.curso === curso || data.materias?.includes(curso)) && ultimoEstado === 'ACTIVO') {
-        alumnos.push(data);
-      }
-    });
-    alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
-
-    if (alumnos.length === 0) {
-      tablaBody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-amber-600 font-bold">No hay alumnos activos en esta materia.</td></tr>';
-      return;
-    }
-
-    // 2. Obtener calificaciones registradas en Firestore
+    // 1. Obtener calificaciones registradas en Firestore
     const snapEval = await getDocs(collection(db, getPath("evaluaciones")));
     const notasMap = {}; // { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
     snapEval.forEach(d => {
@@ -396,6 +378,29 @@ export async function cargarPlanillaEvaluaciones() {
         notasMap[data.alumnoId] = data;
       }
     });
+
+    // 2. Obtener estudiantes del curso (activos o históricos con notas registradas)
+    const snapEst = await getDocs(collection(db, getPath("estudiantes")));
+    let alumnos = [];
+    snapEst.forEach(d => {
+      const data = { id: d.id, ...d.data() };
+      const inscrip = data.inscripciones?.[curso] || [];
+      const ultimoEstado = inscrip.length > 0 ? inscrip[inscrip.length - 1].estado : data.estado || 'ACTIVO';
+      
+      const esActivo = (data.curso === curso || data.materias?.includes(curso)) && ultimoEstado === 'ACTIVO';
+      const tieneNotas = !!notasMap[data.id];
+
+      if (esActivo || tieneNotas) {
+        data.esHistorico = !esActivo && tieneNotas;
+        alumnos.push(data);
+      }
+    });
+    alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
+
+    if (alumnos.length === 0) {
+      tablaBody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-amber-600 font-bold">No hay alumnos registrados en esta materia.</td></tr>';
+      return;
+    }
 
     const esAdmin = window.app.currentUser?.rol === 'ADMIN';
 
@@ -426,12 +431,16 @@ export async function cargarPlanillaEvaluaciones() {
       const disPoDic = isPeriodoHabilitado('po_dic') ? '' : 'disabled';
       const disPoFeb = isPeriodoHabilitado('po_feb') ? '' : 'disabled';
 
+      const labelHistorico = al.esHistorico 
+        ? `<span class="ml-1.5 text-[8px] bg-slate-100 text-slate-500 border border-slate-200 px-1.5 py-0.5 rounded font-black tracking-wider dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800" title="Estudiante ya no pertenece a esta división, pero posee calificaciones previas">TRASLADO / BAJA</span>` 
+        : '';
+
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-100 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200";
+      tr.className = `hover:bg-slate-100 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 ${al.esHistorico ? 'opacity-70 italic' : ''}`;
       tr.dataset.alumnoId = al.id;
       tr.innerHTML = `
         <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 sticky-student-col bg-white dark:bg-slate-800 border-r dark:border-slate-700 w-64 truncate">
-          ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}
+          ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}
         </td>
         <!-- 1er Bim (Valorativo) -->
         <td class="px-2 py-2 text-center">

@@ -106,6 +106,12 @@ export function popularCursos() {
     window.app.cursos.forEach(mat => {
       // RBAC: docentes solo ven sus materias asignadas
       if (esDocente && !materiasPermitidas.includes(mat)) return;
+      
+      // Filtrar Talleres en el módulo de evaluaciones
+      if (select.id === 'evalCurso' && mat.toLowerCase().includes('taller')) {
+        return;
+      }
+      
       const opt = document.createElement('option');
       opt.value = mat; opt.innerText = mat;
       select.appendChild(opt);

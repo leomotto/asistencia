@@ -1,8 +1,8 @@
 // js/materias.js — Gestión de materias/divisiones y horarios dinámicos
 
 import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.9";
-import { showToast } from "./ui.js?v=9.9";
+import { db, getPath } from "./firebase-config.js?v=9.10";
+import { showToast } from "./ui.js?v=9.10";
 
 export const HORARIOS_DINAMICOS = {};
 
