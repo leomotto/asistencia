@@ -158,3 +158,16 @@ export function initTheme() {
     document.documentElement.classList.remove('dark');
   }
 }
+
+export async function cargarVersion() {
+  const el = document.getElementById('appVersion');
+  if (!el) return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now());
+    if (!r.ok) { el.textContent = 'dev'; return; }
+    const { hash, date } = await r.json();
+    el.textContent = `${hash} · ${date}`;
+  } catch {
+    el.textContent = 'dev';
+  }
+}

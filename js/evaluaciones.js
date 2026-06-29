@@ -603,16 +603,22 @@ export async function cargarPlanillaEvaluaciones() {
     const cols = configEstructuraEvaluaciones[periodo] || [{ key: 'nota', label: 'Calificación', type: 'principal' }];
 
     const headerRow = document.getElementById('evalHeaders');
+    // Periodos donde se muestran las columnas de resumen (Final / Definitiva / Condición)
+    const PERIODOS_CON_RESUMEN = ['b4', 'po_dic', 'po_feb'];
+    const mostrarResumen = PERIODOS_CON_RESUMEN.includes(periodo);
+
     if (headerRow) {
       let headersHtml = `<th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>`;
       cols.forEach(col => {
         headersHtml += `<th class="px-2 py-3 text-center min-w-[120px]">${escaparHTML(col.label)}</th>`;
       });
-      headersHtml += `
-        <th class="px-3 py-3 text-center min-w-[90px] bg-slate-700/80">Calif. Final</th>
-        <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
-        <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
-      `;
+      if (mostrarResumen) {
+        headersHtml += `
+          <th class="px-3 py-3 text-center min-w-[90px] bg-slate-700/80">Calif. Final</th>
+          <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
+          <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
+        `;
+      }
       headerRow.innerHTML = headersHtml;
     }
 
@@ -684,19 +690,37 @@ export async function cargarPlanillaEvaluaciones() {
         }
       });
 
-      colsHtml += `
-        <td class="px-3 py-3 text-center font-bold text-slate-800 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-900/30 cell-final">
-          ${res.final !== null ? res.final : '—'}
-        </td>
-        <td class="px-3 py-3 text-center font-black text-indigo-600 dark:text-indigo-400 bg-slate-50/50 dark:bg-slate-900/30 cell-definitiva">
-          ${res.definitiva !== null ? res.definitiva : '—'}
-        </td>
-        <td class="px-3 py-3 text-center cell-condicion">
-          <span class="badge-condicion text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">
-            ${res.condicion}
-          </span>
-        </td>
-      `;
+      // Columnas de resumen: Calif. Final, Definitiva y Condición
+      // b4: siempre se muestran las tres (el alumno está cerrando el año)
+      // po_dic / po_feb: solo si el alumno está pendiente (aún no aprobó)
+      if (mostrarResumen) {
+        const esPendientePO = periodo !== 'b4' &&
+          (res.condicion === 'A PO DIC' || res.condicion === 'A PO FEB' ||
+           res.condicion === 'DESAPROBADO' || res.condicion === 'APROBADO (PO DIC)' ||
+           res.condicion === 'APROBADO (PO FEB)');
+        const verColumnas = periodo === 'b4' || esPendientePO;
+
+        if (verColumnas) {
+          colsHtml += `
+            <td class="px-3 py-3 text-center font-bold text-slate-800 dark:text-slate-100 bg-slate-50/50 dark:bg-slate-900/30">
+              ${res.final !== null ? res.final : '—'}
+            </td>
+            <td class="px-3 py-3 text-center font-black text-indigo-600 dark:text-indigo-400 bg-slate-50/50 dark:bg-slate-900/30">
+              ${res.definitiva !== null ? res.definitiva : '—'}
+            </td>
+            <td class="px-3 py-3 text-center">
+              <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">
+                ${res.condicion}
+              </span>
+            </td>
+          `;
+        } else {
+          // Alumno ya aprobado en periodo regular (b4 >=6) → no necesita PO
+          colsHtml += `<td colspan="3" class="px-3 py-3 text-center">
+            <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">${res.condicion}</span>
+          </td>`;
+        }
+      }
 
       tr.innerHTML = colsHtml;
       tablaBody.appendChild(tr);
