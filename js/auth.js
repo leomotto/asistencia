@@ -125,6 +125,9 @@ export function setupAuthListener() {
 
       window.app.popularCursos();
 
+      // Cargar configuración de evaluaciones (columnas habilitadas) — requiere auth
+      window.app.cargarConfiguracionHabilitacion?.();
+
       // #1 Restaurar último curso usado en Toma Diaria
       const lastCurso = localStorage.getItem('lastCurso');
       if (lastCurso) {

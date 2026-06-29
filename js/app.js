@@ -19,9 +19,9 @@ window.app = {
   cambiosPendientesGrilla: {},
 
   tienePermiso: function(curso) {
-    if (!app.currentUser) return false;
-    if (app.currentUser.rol === 'ADMIN') return true;
-    if (app.currentUser.rol === 'DOCENTE' && app.currentUser.materias?.includes(curso)) return true;
+    if (!this.currentUser) return false;
+    if (this.currentUser.rol === 'ADMIN') return true;
+    if (this.currentUser.rol === 'DOCENTE' && this.currentUser.materias?.includes(curso)) return true;
     return false;
   }
 };
@@ -101,6 +101,7 @@ window.app.cargarPlanillaEvaluaciones      = cargarPlanillaEvaluaciones;
 window.app.guardarCambiosEvaluaciones      = guardarCambiosEvaluaciones;
 window.app.toggleBloqueoCurso              = toggleBloqueoCurso;
 window.app.guardarConfiguracionHabilitacion = guardarConfiguracionHabilitacion;
+window.app.cargarConfiguracionHabilitacion = cargarConfiguracionHabilitacion;
 window.app.agregarColumnaAdicional         = agregarColumnaAdicional;
 window.app.eliminarColumnaAdicional        = eliminarColumnaAdicional;
 window.app.moverColumnaAdicional           = moverColumnaAdicional;
@@ -137,4 +138,3 @@ popularPeriodos();
 setupAuthListener();
 initAuth();
 showDevButton();
-cargarConfiguracionHabilitacion();
