@@ -110,3 +110,22 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 
 > **Frontend Desplegado (v9.0):** El código JavaScript e Interfaz ya están en el servidor Alwaysdata.
 > **Backend Pendiente:** Las reglas de seguridad de Firestore requieren un despliegue manual mediante CLI.
+
+---
+
+# 🛡️ Fase 11: Auditoría de Seguridad y Coherencia de Datos (v9.4)
+
+## 🔒 1. Correcciones de Seguridad de Firebase
+- **Protección contra Alteración de Curso (Update Bypass):** Se corrigió una vulnerabilidad en las reglas de `asistencias` de [`firestore.rules`](file:///home/leo/proyectos/asistencia/firestore.rules) donde un docente malintencionado o erróneo podía actualizar un documento de asistencia de otra división cambiando el curso a uno propio en su payload. Ahora, la regla de actualización requiere que el usuario dicte clases tanto en el curso original (`resource.data.curso`) como en el nuevo curso (`request.resource.data.curso`).
+- **Compatibilidad con Entornos de Prueba/Sandbox:** Se ajustó la función de seguridad `getUserData()` para soportar dinámicamente las rutas de usuario prefijadas (`artifacts/...`), previniendo que los accesos administrativos o docentes fallen al validarse en entornos virtuales.
+
+## ⚡ 2. Coherencia en Panel BI (Caché Reactiva)
+- **Invalidación Cruzada:** La función de limpieza de caché `invalidarCacheBI` fue expuesta de forma global en `window.app.invalidarCacheBI` y ahora se ejecuta automáticamente al:
+  1. Registrar cambios de matrícula o crear un estudiante en [`js/estudiantes.js`](file:///home/leo/proyectos/asistencia/js/estudiantes.js).
+  2. Fusionar estudiantes duplicados en [`js/estudiantes.js`](file:///home/leo/proyectos/asistencia/js/estudiantes.js).
+  3. Crear o eliminar materias en [`js/materias.js`](file:///home/leo/proyectos/asistencia/js/materias.js).
+- **Resultado:** Las métricas y estadísticas del Panel BI se recalculan y muestran siempre información 100% fresca después de cualquier cambio organizativo en la institución.
+
+## 🧹 3. Prevención de Caché (Cache Busting)
+- Se incrementaron todas las llamadas a archivos internos e importaciones a la versión `v9.4` en [`index.html`](file:///home/leo/proyectos/asistencia/index.html) y los módulos de [`js/`](file:///home/leo/proyectos/asistencia/js), asegurando que los navegadores recarguen los módulos frescos del servidor.
+

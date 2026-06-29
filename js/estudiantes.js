@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.2";
-import { showToast } from "./ui.js?v=9.2";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.2";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.2";
+import { db, getPath } from "./firebase-config.js?v=9.4";
+import { showToast } from "./ui.js?v=9.4";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.4";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.4";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -356,6 +356,7 @@ export async function guardarAlumnoMatricula() {
       curso:    materiasSeleccionadas.length > 0 ? materiasSeleccionadas[0] : (curso || "")
     });
 
+    window.app.invalidarCacheBI?.();
     showToast('✅ Ficha de matrícula actualizada correctamente.');
     cerrarModalAlumno();
     await cargarAlumnosMatricula();
@@ -564,6 +565,7 @@ export async function ejecutarFusion() {
     batch.delete(doc(db, getPath('estudiantes'), secundario.id));
     await batch.commit();
 
+    window.app.invalidarCacheBI?.();
     showToast(`✅ Fusión completada. ${reescrituras} registros de asistencia transferidos.`);
     cerrarModalFusion();
     await cargarAlumnosMatricula();

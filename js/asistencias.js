@@ -1,11 +1,11 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.2";
-import { showToast } from "./ui.js?v=9.2";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.2";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.2";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.2";
+import { db, getPath } from "./firebase-config.js?v=9.4";
+import { showToast } from "./ui.js?v=9.4";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.4";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.4";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.4";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -502,7 +502,7 @@ export function seleccionarPeriodo() {
 const _biCache = {};
 const BI_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-function invalidarCacheBI() {
+export function invalidarCacheBI() {
   Object.keys(_biCache).forEach(k => delete _biCache[k]);
 }
 

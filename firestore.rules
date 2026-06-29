@@ -12,7 +12,9 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+      return exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data
+        : get(/databases/$(database)/documents/artifacts/mi-app-asistencia/public/data/usuarios/$(request.auth.uid)).data;
     }
 
     function isAuthed() {
@@ -99,8 +101,12 @@ service cloud.firestore {
                        docenteTieneCurso(resource.data.curso);
 
       // Docente — escritura: solo crear/actualizar registros en sus materias
-      allow create, update: if isDocente() &&
-                               docenteTieneCurso(request.resource.data.curso);
+      allow create: if isDocente() &&
+                       docenteTieneCurso(request.resource.data.curso);
+      allow update: if isDocente() &&
+                       resource != null &&
+                       docenteTieneCurso(resource.data.curso) &&
+                       docenteTieneCurso(request.resource.data.curso);
 
       // Docente — borrado: solo en sus materias (raro, pero cubierto)
       allow delete: if isDocente() &&

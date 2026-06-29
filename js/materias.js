@@ -1,8 +1,8 @@
 // js/materias.js — Gestión de materias/divisiones y horarios dinámicos
 
 import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.2";
-import { showToast } from "./ui.js?v=9.2";
+import { db, getPath } from "./firebase-config.js?v=9.4";
+import { showToast } from "./ui.js?v=9.4";
 
 export const HORARIOS_DINAMICOS = {};
 
@@ -244,6 +244,7 @@ export async function guardarMateria() {
     if (id) await setDoc(doc(db, getPath("materias"), id), payload, { merge: true });
     else    await addDoc(collection(db, getPath("materias")), payload);
     showToast('✅ Materia guardada correctamente');
+    window.app.invalidarCacheBI?.();
     cerrarModalMateria();
     await cargarMateriasDinamicas();
     window.app.popularCursos();
@@ -261,6 +262,7 @@ export async function eliminarMateria(id, nombre) {
   try {
     await deleteDoc(doc(db, getPath("materias"), id));
     showToast(`✅ Materia ${nombre} eliminada.`);
+    window.app.invalidarCacheBI?.();
     await cargarMateriasDinamicas();
     window.app.popularCursos();
     await cargarListaMateriasAdmin();

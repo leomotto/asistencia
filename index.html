@@ -12,7 +12,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.2">
+  <link rel="stylesheet" href="css/styles.css?v=9.4">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -71,48 +71,64 @@
     </button>
   </div>
 
-    <nav id="sideNav" class="bg-slate-800 text-white fixed md:relative top-0 left-0 h-full md:h-auto w-64 md:w-64 md:flex-shrink-0 flex flex-col justify-between p-4 shadow-lg z-40 -translate-x-full md:translate-x-0 transition-transform duration-300">
-    <div class="mb-0 md:mb-6 flex items-center gap-2">
-      <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0 sidebar-logo-icon"></i>
-      <h1 class="text-xl font-bold tracking-wider sidebar-brand hidden md:block flex-1 min-w-0 truncate">ASISTENCIA PRO</h1>
-      <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 transition text-slate-300 hover:text-white flex-shrink-0" title="Colapsar / expandir menú">
-        <span id="iconCollapseSide" class="text-xl font-bold leading-none select-none">‹</span>
-        <span id="iconExpandSide"   class="text-xl font-bold leading-none select-none hidden">›</span>
-      </button>
-    </div>
-    
-    <div class="flex flex-row md:flex-col gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
-      <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 bg-white/10 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Toma Diaria">
-        <i class="ph ph-list-checks text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Toma Diaria</span>
-      </button>
-      <button onclick="switchTab('planillaGrilla')" id="btnGrilla" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Planilla (Grilla)">
-        <i class="ph ph-table text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Planilla (Grilla)</span>
-      </button>
-      <button onclick="switchTab('panelBI')" id="btnPanel" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Panel BI">
-        <i class="ph ph-chart-bar text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Panel BI</span>
-      </button>
-      <button onclick="switchTab('gestionAlumnos')" id="btnGestion" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Matrícula">
-        <i class="ph ph-student text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Matrícula</span>
-      </button>
-      <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Materias">
-        <i class="ph ph-books text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Materias</span>
-      </button>
-      <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Docentes">
-        <i class="ph ph-users text-xl flex-shrink-0"></i> <span class="hidden md:inline nav-label">Docentes</span>
-      </button>
+    <nav id="sideNav" class="bg-slate-800 text-white fixed md:relative top-0 left-0 h-full md:h-auto w-72 md:w-64 md:flex-shrink-0 flex flex-col p-4 shadow-xl md:shadow-lg z-40 -translate-x-full md:translate-x-0 transition-transform duration-300">
 
-      <div class="nav-divider md:mt-auto pt-4 border-t dark:border-slate-700 border-white/20 hidden md:block"></div>
+      <!-- Encabezado -->
+      <div class="mb-6 flex items-center gap-3">
+        <i class="ph ph-books text-3xl text-emerald-400 flex-shrink-0 sidebar-logo-icon"></i>
+        <div class="flex-1 min-w-0 sidebar-brand">
+          <h1 class="text-base font-black tracking-widest uppercase truncate text-white">Asistencia Pro</h1>
+          <p class="text-[10px] text-emerald-400 font-medium tracking-wider uppercase">Sistema escolar</p>
+        </div>
+        <button onclick="app.toggleSidebar()" id="btnCollapseNav" class="hidden md:flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 transition text-slate-300 hover:text-white flex-shrink-0" title="Colapsar / expandir menú">
+          <span id="iconCollapseSide" class="text-xl font-bold leading-none select-none">‹</span>
+          <span id="iconExpandSide"   class="text-xl font-bold leading-none select-none hidden">›</span>
+        </button>
+      </div>
 
-      <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex-shrink-0 flex items-center justify-center md:justify-start gap-2 p-3 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Cambiar tema">
-        <i class="ph ph-moon text-xl flex-shrink-0" id="iconTheme"></i> <span class="hidden md:inline nav-label" id="textTheme">Modo Noche</span>
-      </button>
-    </div>
+      <!-- Navegación principal -->
+      <div class="flex flex-col gap-1 w-full flex-1">
+        <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex w-full items-center justify-start gap-3 bg-white/10 px-3 py-2.5 rounded-lg hover:bg-white/20 transition text-sm font-semibold" title="Toma Diaria">
+          <i class="ph ph-list-checks text-xl flex-shrink-0"></i>
+          <span class="nav-label">Toma Diaria</span>
+        </button>
+        <button onclick="switchTab('planillaGrilla')" id="btnGrilla" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Planilla (Grilla)">
+          <i class="ph ph-table text-xl flex-shrink-0"></i>
+          <span class="nav-label">Planilla (Grilla)</span>
+        </button>
+        <button onclick="switchTab('panelBI')" id="btnPanel" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Panel BI">
+          <i class="ph ph-chart-bar text-xl flex-shrink-0"></i>
+          <span class="nav-label">Panel BI</span>
+        </button>
+        <button onclick="switchTab('gestionAlumnos')" id="btnGestion" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Matrícula">
+          <i class="ph ph-student text-xl flex-shrink-0"></i>
+          <span class="nav-label">Matrícula</span>
+        </button>
+        <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Materias">
+          <i class="ph ph-books text-xl flex-shrink-0"></i>
+          <span class="nav-label">Materias</span>
+        </button>
+        <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Docentes">
+          <i class="ph ph-users text-xl flex-shrink-0"></i>
+          <span class="nav-label">Docentes</span>
+        </button>
 
-    <div id="authStatus" class="mt-auto hidden md:block text-xs text-slate-400">
-      <i class="ph ph-spinner animate-spin"></i> Conectando DB...
-    </div>
-    <div class="sidebar-version hidden md:block text-[10px] text-slate-400 mt-1 font-mono tracking-widest">v9.2.0</div>
-  </nav>
+        <!-- Separador + modo oscuro al fondo del grupo de nav -->
+        <div class="nav-divider mt-auto pt-3 border-t border-white/15"></div>
+        <button onclick="app.toggleDarkMode()" id="btnTheme" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Cambiar tema">
+          <i class="ph ph-moon text-xl flex-shrink-0" id="iconTheme"></i>
+          <span class="nav-label" id="textTheme">Modo Noche</span>
+        </button>
+      </div>
+
+      <!-- Footer: sesión + versión -->
+      <div class="mt-4 pt-3 border-t border-white/15">
+        <div id="authStatus" class="text-xs text-slate-400">
+          <i class="ph ph-spinner animate-spin"></i> Conectando DB...
+        </div>
+        <div class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">v9.3.0</div>
+      </div>
+    </nav>
 
   <!-- Contenedor Principal -->
   <main class="flex-1 overflow-hidden relative">
@@ -732,6 +748,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.2"></script>
+  <script type="module" src="js/app.js?v=9.4"></script>
 </body>
 </html>

@@ -20,7 +20,9 @@ export function switchTab(tabId) {
   ['tomaDiaria', 'planillaGrilla', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
-  document.getElementById(tabId)?.classList.remove('hidden');
+  const targetSection = document.getElementById(tabId);
+  targetSection?.classList.remove('hidden');
+  targetSection?.scrollTo({ top: 0, behavior: 'instant' });
 
   ['btnToma', 'btnGrilla', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
     document.getElementById(id)?.classList.remove('bg-white/10');
