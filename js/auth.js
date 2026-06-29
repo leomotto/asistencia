@@ -174,4 +174,20 @@ export function setupAuthListener() {
 
 export function initAuth() {
   fbInitAuth();
+
+  // Seguridad: si Firebase Auth no responde en 10 segundos (dominio no autorizado, red caída, etc.)
+  // forzamos la transición a la pantalla de login para evitar el loader eterno.
+  const TIMEOUT_MS = 10_000;
+  const safetyTimer = setTimeout(() => {
+    const loadingScreen = document.getElementById('loadingScreen');
+    const loginScreen   = document.getElementById('loginScreen');
+    if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+      console.warn('[SIDEAC] Firebase Auth no respondió en ' + TIMEOUT_MS + 'ms. Mostrando pantalla de login.');
+      loadingScreen.classList.add('hidden');
+      if (loginScreen) loginScreen.classList.remove('hidden');
+    }
+  }, TIMEOUT_MS);
+
+  // Si la auth sí responde (exitosa o no), cancelamos el timer
+  onAuthStateChanged(auth, () => clearTimeout(safetyTimer));
 }
