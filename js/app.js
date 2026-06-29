@@ -111,18 +111,18 @@ window.app.registrarCambioAdicionalEvaluacion = registrarCambioAdicionalEvaluaci
 // ==========================================
 // ESCUCHAS DOM
 // ==========================================
-document.getElementById('tomaCurso').addEventListener('change', () => {
+document.getElementById('tomaCurso')?.addEventListener('change', () => {
   actualizarHorariosYFechasRapidas();
   cargarAlumnos();
 });
-document.getElementById('tomaFecha').addEventListener('change', () => {
+document.getElementById('tomaFecha')?.addEventListener('change', () => {
   verificarDiaSemana();
   cargarAlumnos();
 });
-document.getElementById('evalCurso').addEventListener('change', () => {
+document.getElementById('evalCurso')?.addEventListener('change', () => {
   cargarPlanillaEvaluaciones();
 });
-document.getElementById('evalPeriodo').addEventListener('change', () => {
+document.getElementById('evalPeriodo')?.addEventListener('change', () => {
   cargarPlanillaEvaluaciones();
 });
 
@@ -132,9 +132,16 @@ window.switchTab = switchTab;
 // ==========================================
 // ARRANQUE
 // ==========================================
-initTheme();
-initSidebar();
-popularPeriodos();
-setupAuthListener();
-initAuth();
-showDevButton();
+try {
+  initTheme();
+  initSidebar();
+  popularPeriodos();
+  setupAuthListener();
+  initAuth();
+  showDevButton();
+} catch (bootError) {
+  console.error('[SIDEAC] Error fatal en el arranque de la aplicación:', bootError);
+  // Mostrar login en lugar del loader para que el usuario no quede bloqueado
+  document.getElementById('loadingScreen')?.classList.add('hidden');
+  document.getElementById('loginScreen')?.classList.remove('hidden');
+}
