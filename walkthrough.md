@@ -129,3 +129,28 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 ## 🧹 3. Prevención de Caché (Cache Busting)
 - Se incrementaron todas las llamadas a archivos internos e importaciones a la versión `v9.4` en [`index.html`](file:///home/leo/proyectos/asistencia/index.html) y los módulos de [`js/`](file:///home/leo/proyectos/asistencia/js), asegurando que los navegadores recarguen los módulos frescos del servidor.
 
+---
+
+# 📝 Fase 12: Módulo de Calificaciones de Bimestres y Períodos de Orientación (v9.5)
+
+## 📊 1. Nueva Planilla de Calificaciones (Tab Evaluaciones)
+- Se añadió un nuevo módulo completo para el control escolar de notas: [`js/evaluaciones.js`](file:///home/leo/proyectos/asistencia/js/evaluaciones.js).
+- Permite cargar notas del **1er al 4to Bimestre**, además de las calificaciones de exámenes complementarios de **Diciembre (PO DIC)** y **Febrero/Marzo (PO FEB)**.
+- **Cálculo Reactivo:** Al cargar notas en la grilla, el sistema calcula de forma instantánea:
+  - **Promedio:** Promedio flotante del transcurso del año.
+  - **Calificación Final:** Calificación definitiva redondeada/obtenida.
+  - **Condición (Semáforo Dinámico):** Badge coloreado automático que indica si el estudiante está `CURSANDO`, `APROBADO`, `A PO DIC`, `A PO FEB` o `DESAPROBADO`.
+
+## ♿ 2. Interfaz Fluida y Responsiva
+- **Diseño Integrado:** Se añadió el botón **Calificaciones** al menú lateral de [`index.html`](file:///home/leo/proyectos/asistencia/index.html).
+- **Control Sticky:** La columna del estudiante y la cabecera de la tabla de calificaciones usan las clases `.sticky-student-col` y `.sticky-header-col` para garantizar una lectura idónea al deslizarse lateralmente en dispositivos móviles.
+
+## 🔐 3. Seguridad de Notas a Nivel Servidor (RBAC)
+- Añadida la regla para la nueva colección `evaluaciones` en [`firestore.rules`](file:///home/leo/proyectos/asistencia/firestore.rules):
+  - Los **Admin** tienen permisos irrestrictos de lectura y escritura.
+  - Los **Docentes** solo pueden leer y guardar calificaciones que correspondan a su asignatura (`docenteTieneCurso(materia)`).
+
+## 🧹 4. Cache Busting (v9.5.0)
+- Se incrementó el query de versión a `?v=9.5` en todas las referencias del proyecto para garantizar la descarga de los scripts nuevos.
+
+

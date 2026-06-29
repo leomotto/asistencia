@@ -1,11 +1,12 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar } from "./ui.js?v=9.4";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.4";
-import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas } from "./materias.js?v=9.4";
-import { cargarAlumnosMatricula, abrirModalAlumnoConId, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, cargarDiasDeClase, guardarDiasDeClase, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.4";
-import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.4";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI } from "./asistencias.js?v=9.4";
+import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar } from "./ui.js?v=9.5";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.5";
+import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas } from "./materias.js?v=9.5";
+import { cargarAlumnosMatricula, abrirModalAlumnoConId, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, cargarDiasDeClase, guardarDiasDeClase, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.5";
+import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.5";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI } from "./asistencias.js?v=9.5";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones } from "./evaluaciones.js?v=9.5";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
@@ -93,6 +94,11 @@ window.app.exportarGrillaCSV               = exportarGrillaCSV;
 window.app.exportarBICSV                   = exportarBICSV;
 window.app.invalidarCacheBI                = invalidarCacheBI;
 
+// evaluaciones.js
+window.app.registrarCambioEvaluacion       = registrarCambioEvaluacion;
+window.app.cargarPlanillaEvaluaciones      = cargarPlanillaEvaluaciones;
+window.app.guardarCambiosEvaluaciones      = guardarCambiosEvaluaciones;
+
 // ==========================================
 // ESCUCHAS DOM
 // ==========================================
@@ -103,6 +109,9 @@ document.getElementById('tomaCurso').addEventListener('change', () => {
 document.getElementById('tomaFecha').addEventListener('change', () => {
   verificarDiaSemana();
   cargarAlumnos();
+});
+document.getElementById('evalCurso').addEventListener('change', () => {
+  cargarPlanillaEvaluaciones();
 });
 
 // Alias global requerido por atributos onclick="switchTab(...)" en el HTML

@@ -12,7 +12,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.4">
+  <link rel="stylesheet" href="css/styles.css?v=9.5">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -96,6 +96,10 @@
           <i class="ph ph-table text-xl flex-shrink-0"></i>
           <span class="nav-label">Planilla (Grilla)</span>
         </button>
+        <button onclick="switchTab('evaluaciones')" id="btnEval" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Calificaciones">
+          <i class="ph ph-exam text-xl flex-shrink-0"></i>
+          <span class="nav-label">Calificaciones</span>
+        </button>
         <button onclick="switchTab('panelBI')" id="btnPanel" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold" title="Panel BI">
           <i class="ph ph-chart-bar text-xl flex-shrink-0"></i>
           <span class="nav-label">Panel BI</span>
@@ -126,7 +130,7 @@
         <div id="authStatus" class="text-xs text-slate-400">
           <i class="ph ph-spinner animate-spin"></i> Conectando DB...
         </div>
-        <div class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">v9.4.0</div>
+        <div class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">v9.5.0</div>
       </div>
     </nav>
 
@@ -202,6 +206,57 @@
         <button id="btnGuardarAsistencia" onclick="app.guardarAsistencia()" class="w-full mt-6 bg-blue-600 text-white font-bold text-lg py-4 rounded-xl shadow-md hover:bg-blue-700 transition flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           <i class="ph ph-floppy-disk text-xl" id="iconGuardarAsistencia"></i> <span id="textGuardarAsistencia">GUARDAR ASISTENCIA EN BASE DE DATOS</span>
         </button>
+      </div>
+    </section>
+
+    <!-- PANTALLA: CALIFICACIONES (BIMESTRES Y PO) -->
+    <section id="evaluaciones" class="h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
+          <div class="min-w-0">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-exam text-emerald-500"></i> Planilla de Calificaciones
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Control y registro de notas bimonestrales, promedios y períodos de orientación (PO) en tiempo real.</p>
+          </div>
+
+          <div class="flex flex-wrap gap-2 w-full md:w-auto">
+            <select id="evalCurso" class="flex-1 min-w-[200px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+              <option value="">Seleccione división...</option>
+              <!-- Dinámico -->
+            </select>
+            <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar Notas</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabla Planilla de Calificaciones -->
+        <div class="overflow-x-auto w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[60vh]">
+          <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
+            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
+              <tr>
+                <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
+                <th class="px-2 py-3 text-center min-w-[60px]">1° Bim</th>
+                <th class="px-2 py-3 text-center min-w-[60px]">2° Bim</th>
+                <th class="px-2 py-3 text-center min-w-[60px]">3° Bim</th>
+                <th class="px-2 py-3 text-center min-w-[60px]">4° Bim</th>
+                <th class="px-3 py-3 text-center min-w-[80px] bg-slate-700">Prom</th>
+                <th class="px-2 py-3 text-center min-w-[60px] border-l dark:border-slate-700">PO Dic</th>
+                <th class="px-2 py-3 text-center min-w-[60px]">PO Feb</th>
+                <th class="px-3 py-3 text-center min-w-[80px] bg-slate-700">Final</th>
+                <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
+              </tr>
+            </thead>
+            <tbody id="evalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+              <tr>
+                <td colspan="10" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </section>
 
@@ -748,6 +803,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.4"></script>
+  <script type="module" src="js/app.js?v=9.5"></script>
 </body>
 </html>

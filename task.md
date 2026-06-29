@@ -22,3 +22,9 @@
 - `[x]` Hardening de `firestore.rules` (control de update bypass en asistencias y corrección de ruta en sandbox `getUserData`).
 - `[x]` Desacoplamiento e invalidación de caché del Panel BI al agregar/editar alumnos o materias.
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.4`.
+
+## 5. Módulo de Calificaciones de Bimestres y PO (v9.5) *[COMPLETADO]*
+- `[x]` Crear modulo de calificaciones (`js/evaluaciones.js`) con cálculo automático de promedios, notas finales y condición del estudiante.
+- `[x]` Diseñar planilla interactiva de carga de notas en `index.html` con soporte sticky responsivo.
+- `[x]` Configurar reglas de seguridad en `firestore.rules` específicas para la colección `evaluaciones` (RBAC).
+- `[x]` Cache busting general mediante incremento de versiones a `?v=9.5`.

@@ -114,5 +114,33 @@ service cloud.firestore {
                        docenteTieneCurso(resource.data.curso);
     }
 
+    // ==========================================
+    // REGLAS PARA COLECCIÓN: evaluaciones
+    // Admin: acceso total.
+    // Docente: solo puede leer y escribir calificaciones de sus materias asignadas.
+    // ==========================================
+    match /{path=**}/evaluaciones/{docId} {
+      // Admin: lectura y escritura total
+      allow read, write: if isAdmin();
+
+      // Docente — lectura: solo si tiene asignada la materia del registro
+      allow read: if isDocente() &&
+                     resource != null &&
+                     docenteTieneCurso(resource.data.materia);
+
+      // Docente — escritura (crear, actualizar): solo para sus materias
+      allow create: if isDocente() &&
+                       docenteTieneCurso(request.resource.data.materia);
+      allow update: if isDocente() &&
+                       resource != null &&
+                       docenteTieneCurso(resource.data.materia) &&
+                       docenteTieneCurso(request.resource.data.materia);
+
+      // Docente — borrado: restringido (solo admin o docente si el curso le pertenece)
+      allow delete: if isDocente() &&
+                       resource != null &&
+                       docenteTieneCurso(resource.data.materia);
+    }
+
   }
 }

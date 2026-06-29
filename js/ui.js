@@ -17,19 +17,20 @@ export function switchTab(tabId) {
     showToast('⚠️ Tu cuenta está pendiente de autorización por un Administrador.', 'error');
     return;
   }
-  ['tomaDiaria', 'planillaGrilla', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
+  ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
   const targetSection = document.getElementById(tabId);
   targetSection?.classList.remove('hidden');
   targetSection?.scrollTo({ top: 0, behavior: 'instant' });
 
-  ['btnToma', 'btnGrilla', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
+  ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
     document.getElementById(id)?.classList.remove('bg-white/10');
   });
   const btnMap = {
     tomaDiaria:      'btnToma',
     planillaGrilla:  'btnGrilla',
+    evaluaciones:    'btnEval',
     panelBI:         'btnPanel',
     gestionAlumnos:  'btnGestion',
     gestionMaterias: 'btnMaterias',
@@ -38,6 +39,7 @@ export function switchTab(tabId) {
   if (btnMap[tabId]) document.getElementById(btnMap[tabId])?.classList.add('bg-white/10');
 
   if (tabId === 'planillaGrilla')  window.app.cargarPlanillaGrilla();
+  if (tabId === 'evaluaciones')    window.app.cargarPlanillaEvaluaciones();
   if (tabId === 'gestionAlumnos')  window.app.cargarAlumnosMatricula();
   if (tabId === 'gestionMaterias') window.app.cargarListaMateriasAdmin();
   if (tabId === 'gestionDocentes') window.app.cargarListaUsuarios();
