@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.8";
-import { showToast } from "./ui.js?v=9.8";
-import { escaparHTML } from "./utils.js?v=9.8";
+import { db, getPath } from "./firebase-config.js?v=9.9";
+import { showToast } from "./ui.js?v=9.9";
+import { escaparHTML } from "./utils.js?v=9.9";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -435,34 +435,34 @@ export async function cargarPlanillaEvaluaciones() {
         </td>
         <!-- 1er Bim (Valorativo) -->
         <td class="px-2 py-2 text-center">
-          <select ${disB1} class="sel-b1 w-32 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disB1} class="sel-b1 w-20 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'b1', this.value)">
             <option value="" ${b1 === '' ? 'selected' : ''}>-</option>
-            <option value="EN PROCESO" ${b1 === 'EN PROCESO' ? 'selected' : ''}>EN PROCESO</option>
-            <option value="SUFICIENTE" ${b1 === 'SUFICIENTE' ? 'selected' : ''}>SUFICIENTE</option>
-            <option value="AVANZADO" ${b1 === 'AVANZADO' ? 'selected' : ''}>AVANZADO</option>
+            <option value="EN PROCESO" ${b1 === 'EN PROCESO' ? 'selected' : ''}>EP</option>
+            <option value="SUFICIENTE" ${b1 === 'SUFICIENTE' ? 'selected' : ''}>S</option>
+            <option value="AVANZADO" ${b1 === 'AVANZADO' ? 'selected' : ''}>A</option>
           </select>
         </td>
         <!-- 2do Bim (Numérico) -->
         <td class="px-2 py-2 text-center">
-          <select ${disB2} class="sel-b2 w-16 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disB2} class="sel-b2 w-14 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'b2', this.value)">
             ${_getOptionsNumericas(b2)}
           </select>
         </td>
         <!-- 3er Bim (Valorativo) -->
         <td class="px-2 py-2 text-center">
-          <select ${disB3} class="sel-b3 w-32 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disB3} class="sel-b3 w-20 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'b3', this.value)">
             <option value="" ${b3 === '' ? 'selected' : ''}>-</option>
-            <option value="EN PROCESO" ${b3 === 'EN PROCESO' ? 'selected' : ''}>EN PROCESO</option>
-            <option value="SUFICIENTE" ${b3 === 'SUFICIENTE' ? 'selected' : ''}>SUFICIENTE</option>
-            <option value="AVANZADO" ${b3 === 'AVANZADO' ? 'selected' : ''}>AVANZADO</option>
+            <option value="EN PROCESO" ${b3 === 'EN PROCESO' ? 'selected' : ''}>EP</option>
+            <option value="SUFICIENTE" ${b3 === 'SUFICIENTE' ? 'selected' : ''}>S</option>
+            <option value="AVANZADO" ${b3 === 'AVANZADO' ? 'selected' : ''}>A</option>
           </select>
         </td>
         <!-- 4to Bim (Numérico) -->
         <td class="px-2 py-2 text-center">
-          <select ${disB4} class="sel-b4 w-16 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disB4} class="sel-b4 w-14 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'b4', this.value)">
             ${_getOptionsNumericas(b4)}
           </select>
@@ -473,14 +473,14 @@ export async function cargarPlanillaEvaluaciones() {
         </td>
         <!-- PO Diciembre (Numérico) -->
         <td class="px-2 py-2 text-center border-l dark:border-slate-700">
-          <select ${disPoDic} class="sel-po-dic w-16 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disPoDic} class="sel-po-dic w-14 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'po_dic', this.value)">
             ${_getOptionsNumericas(poDic)}
           </select>
         </td>
         <!-- PO Febrero (Numérico) -->
         <td class="px-2 py-2 text-center">
-          <select ${disPoFeb} class="sel-po-feb w-16 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
+          <select ${disPoFeb} class="sel-po-feb w-14 p-1 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-semibold outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed" 
             onchange="app.registrarCambioEvaluacion('${al.id}', 'po_feb', this.value)">
             ${_getOptionsNumericas(poFeb)}
           </select>
