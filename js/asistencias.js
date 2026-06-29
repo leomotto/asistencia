@@ -1,11 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.11";
-import { showToast } from "./ui.js?v=9.11";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.11";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.11";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.11";
+import { db, getPath } from "./firebase-config.js?v=9.12";
+import { showToast } from "./ui.js?v=9.12";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.12";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.12";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.12";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.12";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -497,13 +498,35 @@ export function seleccionarPeriodo() {
   }
 }
 
-// Cache del Panel BI: evita re-consultar Firestore si los parámetros son idénticos y
-// los datos tienen menos de 5 minutos de antigüedad o no hubo escrituras desde la última carga.
 const _biCache = {};
-const BI_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const BI_CACHE_TTL_MS = 5 * 60 * 1000;
+
+export let biActiveView = 'asistencia';
 
 export function invalidarCacheBI() {
   Object.keys(_biCache).forEach(k => delete _biCache[k]);
+}
+
+export function setBiView(view) {
+  biActiveView = view;
+  
+  const btnAsist = document.getElementById('btnBiViewAsist');
+  const btnEval = document.getElementById('btnBiViewEval');
+  
+  if (btnAsist && btnEval) {
+    if (view === 'asistencia') {
+      btnAsist.className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow transition-all";
+      btnEval.className = "px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all";
+      document.getElementById('biPeriodo')?.classList.remove('hidden');
+    } else {
+      btnEval.className = "px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow transition-all";
+      btnAsist.className = "px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all";
+      document.getElementById('biPeriodo')?.classList.add('hidden');
+      document.getElementById('biFechasManuales')?.classList.add('hidden');
+    }
+  }
+  
+  cargarPanelBI();
 }
 
 export async function cargarPanelBI() {
@@ -512,15 +535,59 @@ export async function cargarPanelBI() {
   const fHasta = document.getElementById('biFechaHasta').value;
   const tabla  = document.getElementById('tablaBI');
 
-  if (!curso) { tabla.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Seleccione un curso.</td></tr>'; return; }
+  if (!curso) { 
+    tabla.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-slate-400">Seleccione un curso.</td></tr>'; 
+    return; 
+  }
 
-  // Clave única para este conjunto de parámetros
+  // Si la vista es calificaciones
+  if (biActiveView === 'calificaciones') {
+    const cacheKey = `${curso}|calificaciones`;
+    const ahora = Date.now();
+    const entrada = _biCache[cacheKey];
+
+    if (entrada && (ahora - entrada.ts) < BI_CACHE_TTL_MS) {
+      _renderizarTablaBICalificaciones(tabla, entrada.alumnos, entrada.notasMap);
+      _actualizarKPIsCalificaciones(entrada.alumnos, entrada.notasMap);
+      return;
+    }
+
+    tabla.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-indigo-500 animate-pulse">Analizando rendimiento académico...</td></tr>';
+    try {
+      const snapAlumnos = await getDocs(collection(db, getPath("estudiantes")));
+      let alumnos = [];
+      snapAlumnos.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        if (data.curso === curso || (data.materias && data.materias.includes(curso))) alumnos.push(data);
+      });
+      alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
+
+      const snapEval = await getDocs(collection(db, getPath("evaluaciones")));
+      const notasMap = {};
+      snapEval.forEach(d => {
+        const data = d.data();
+        if (data.materia === curso) {
+          notasMap[data.alumnoId] = data;
+        }
+      });
+
+      _biCache[cacheKey] = { ts: Date.now(), alumnos, notasMap };
+
+      _renderizarTablaBICalificaciones(tabla, alumnos, notasMap);
+      _actualizarKPIsCalificaciones(alumnos, notasMap);
+    } catch(error) {
+      console.error(error);
+      tabla.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-red-500">Error interno al procesar los datos de calificaciones.</td></tr>';
+    }
+    return;
+  }
+
+  // Vista Asistencia (Original con caché)
   const cacheKey = `${curso}|${fDesde}|${fHasta}`;
   const ahora    = Date.now();
   const entrada  = _biCache[cacheKey];
 
   if (entrada && (ahora - entrada.ts) < BI_CACHE_TTL_MS) {
-    // Datos frescos en caché → renderizar sin llamar a Firestore
     _renderizarTablaBI(tabla, entrada.alumnos, entrada.asistenciasValidas, curso);
     _actualizarKPIs(entrada.alumnos, entrada.asistenciasValidas);
     return;
@@ -564,6 +631,23 @@ export async function cargarPanelBI() {
 // --- Funciones privadas de renderizado del BI ---
 
 function _renderizarTablaBI(tabla, alumnos, asistenciasValidas, curso) {
+  const header = tabla.closest('table').querySelector('thead');
+  if (header) {
+    header.innerHTML = `
+      <tr class="bg-slate-800 text-white text-xs uppercase font-semibold">
+        <th class="px-4 py-3 w-10 text-center">N°</th>
+        <th class="px-4 py-3">Alumno</th>
+        <th class="px-4 py-3">Grupo</th>
+        <th class="px-4 py-3 text-center">Presentes (P)</th>
+        <th class="px-4 py-3 text-center">Ausentes (A)</th>
+        <th class="px-4 py-3 text-center">Justificadas (ACP)</th>
+        <th class="px-4 py-3 text-center">Sin Registro (-)</th>
+        <th class="px-4 py-3 text-center">% Asist.</th>
+        <th class="px-4 py-3 w-32">Semáforo</th>
+      </tr>
+    `;
+  }
+
   tabla.innerHTML = '';
   if (alumnos.length === 0) {
     tabla.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-amber-600">No se encontraron alumnos registrados para este curso.</td></tr>';
@@ -591,55 +675,241 @@ function _renderizarTablaBI(tabla, alumnos, asistenciasValidas, curso) {
       }
     });
 
-    const totalConRegistros = p + a + acp;
-    const porcentaje        = totalConRegistros > 0 ? (p / totalConRegistros) * 100 : 0;
-    let colorPorcentaje = "text-slate-500", colorBarra = "bg-gray-300";
-    if (totalConRegistros > 0) {
-      if      (porcentaje >= 80) { colorPorcentaje = "text-emerald-600"; colorBarra = "bg-emerald-500"; }
-      else if (porcentaje >= 60) { colorPorcentaje = "text-amber-500";   colorBarra = "bg-amber-500"; }
-      else                       { colorPorcentaje = "text-red-600";     colorBarra = "bg-red-500"; }
+    const totalRegistros = p + a + acp;
+    const porcentaje = totalRegistros > 0 ? ((p / totalRegistros) * 100).toFixed(1) : "0.0";
+    const claseInactivo = estadoActual === "BAJA" || estadoActual === "PASADO" ? "opacity-50 line-through" : "";
+
+    let semaforoClass = "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
+    let semaforoText  = "Crítico";
+    const pctNum = parseFloat(porcentaje);
+    if (pctNum >= 85.0) {
+      semaforoClass = "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300";
+      semaforoText  = "Regular";
+    } else if (pctNum >= 75.0) {
+      semaforoClass = "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300";
+      semaforoText  = "Riesgo";
     }
-    const apodoStr = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
-    const fila = document.createElement('tr');
-    fila.className = `border-b hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors ${index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white dark:bg-transparent'}`;
-    fila.innerHTML = `
-      <td class="px-4 py-2 text-center text-slate-400 font-mono">${index + 1}</td>
-      <td class="px-4 py-2">
-        <span class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}</span><span class="text-blue-600 text-xs font-semibold">${apodoStr}</span>
-        ${estadoActual && estadoActual.toLowerCase() !== 'activo' ? `<span class="ml-1.5 text-[9px] bg-red-100 text-red-600 px-1 rounded font-bold uppercase">${escaparHTML(estadoActual)}</span>` : ''}
+
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-100 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200";
+    tr.innerHTML = `
+      <td class="px-4 py-2.5 text-center font-mono">${index + 1}</td>
+      <td class="px-4 py-2.5 font-bold ${claseInactivo}">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}</td>
+      <td class="px-4 py-2.5 text-xs text-slate-500">${escaparHTML((est.materias || [est.curso]).join(' | '))}</td>
+      <td class="px-4 py-2.5 text-center font-semibold text-emerald-600">${p}</td>
+      <td class="px-4 py-2.5 text-center font-semibold text-red-500">${a}</td>
+      <td class="px-4 py-2.5 text-center text-slate-500">${acp}</td>
+      <td class="px-4 py-2.5 text-center text-slate-400">${guion}</td>
+      <td class="px-4 py-2.5 text-center font-bold">${porcentaje}%</td>
+      <td class="px-4 py-2.5">
+        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${semaforoClass}">
+          ${semaforoText}
+        </span>
       </td>
-      <td class="px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">${(est.materias || [est.curso]).map(escaparHTML).join(', ')}</td>
-      <td class="px-4 py-2 text-center font-bold text-emerald-600">${p}</td>
-      <td class="px-4 py-2 text-center font-bold text-red-600">${a}</td>
-      <td class="px-4 py-2 text-center font-bold text-amber-500">${acp}</td>
-      <td class="px-4 py-2 text-center text-slate-400 font-bold">${guion}</td>
-      <td class="px-4 py-2 text-center font-black ${colorPorcentaje}">${totalConRegistros > 0 ? porcentaje.toFixed(1)+'%' : '0.0%'}</td>
-      <td class="px-4 py-2 align-middle">
-        ${totalConRegistros > 0
-          ? `<div class="w-full bg-gray-200 rounded-full h-2.5"><div class="${colorBarra} h-2.5 rounded-full" style="width:${porcentaje}%"></div></div>`
-          : `<span class="text-xs text-slate-400 italic">No computable</span>`}
-      </td>`;
-    tabla.appendChild(fila);
+    `;
+    tabla.appendChild(tr);
+  });
+}
+
+function _renderizarTablaBICalificaciones(tabla, alumnos, notasMap) {
+  const header = tabla.closest('table').querySelector('thead');
+  if (header) {
+    header.innerHTML = `
+      <tr class="bg-slate-800 text-white text-xs uppercase font-semibold">
+        <th class="px-4 py-3 w-10 text-center">N°</th>
+        <th class="px-4 py-3">Alumno</th>
+        <th class="px-2 py-3 text-center">1er B</th>
+        <th class="px-2 py-3 text-center">2do B</th>
+        <th class="px-2 py-3 text-center">3er B</th>
+        <th class="px-2 py-3 text-center">4to B</th>
+        <th class="px-3 py-3 text-center bg-slate-700/50">Final</th>
+        <th class="px-2 py-3 text-center">PO Dic</th>
+        <th class="px-2 py-3 text-center">PO Feb</th>
+        <th class="px-3 py-3 text-center bg-slate-700/50">Definitiva</th>
+        <th class="px-4 py-3">Condición</th>
+      </tr>
+    `;
+  }
+
+  tabla.innerHTML = '';
+  if (alumnos.length === 0) {
+    tabla.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-amber-600">No se encontraron alumnos registrados para este curso.</td></tr>';
+    return;
+  }
+
+  alumnos.forEach((est, index) => {
+    const notaData = notasMap[est.id] || {};
+    const b1 = notaData.b1 || '';
+    const b2 = notaData.b2 || '';
+    const b3 = notaData.b3 || '';
+    const b4 = notaData.b4 || '';
+    const poDic = notaData.po_dic || '';
+    const poFeb = notaData.po_feb || '';
+
+    const res = calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb);
+
+    const formatQual = (val) => {
+      if (val === 'EN PROCESO') return '<span class="text-orange-500 font-bold text-[10px]">EP</span>';
+      if (val === 'SUFICIENTE') return '<span class="text-emerald-500 font-bold text-[10px]">S</span>';
+      if (val === 'AVANZADO') return '<span class="text-indigo-500 font-bold text-[10px]">A</span>';
+      return '—';
+    };
+
+    const formatNum = (val) => val !== '' ? `<span class="font-semibold">${val}</span>` : '—';
+
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-100 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 text-xs";
+    tr.innerHTML = `
+      <td class="px-4 py-2.5 text-center font-mono">${index + 1}</td>
+      <td class="px-4 py-2.5 font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}</td>
+      <td class="px-2 py-2.5 text-center">${formatQual(b1)}</td>
+      <td class="px-2 py-2.5 text-center">${formatNum(b2)}</td>
+      <td class="px-2 py-2.5 text-center">${formatQual(b3)}</td>
+      <td class="px-2 py-2.5 text-center">${formatNum(b4)}</td>
+      <td class="px-3 py-2.5 text-center font-bold bg-slate-50/50 dark:bg-slate-900/30">${res.final !== null ? res.final : '—'}</td>
+      <td class="px-2 py-2.5 text-center">${formatNum(poDic)}</td>
+      <td class="px-2 py-2.5 text-center">${formatNum(poFeb)}</td>
+      <td class="px-3 py-2.5 text-center font-black bg-slate-50/50 dark:bg-slate-900/30 text-indigo-600 dark:text-indigo-400">${res.definitiva !== null ? res.definitiva : '—'}</td>
+      <td class="px-4 py-2.5">
+        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${res.colorClass}">
+          ${res.condicion}
+        </span>
+      </td>
+    `;
+    tabla.appendChild(tr);
   });
 }
 
 function _actualizarKPIs(alumnos, asistenciasValidas) {
-  let totalPresentes = 0, totalAusencias = 0, sumaPorcentajes = 0, alumnosConHistorial = 0;
+  _restaurarEtiquetasKPIAsistencia();
+
+  if (alumnos.length === 0) {
+    document.getElementById('kpiTotal').innerText = "-";
+    document.getElementById('kpiPromedio').innerText = "-";
+    document.getElementById('kpiPresentes').innerText = "-";
+    document.getElementById('kpiAusencias').innerText = "-";
+    return;
+  }
+
+  let totalP = 0;
+  let totalA = 0;
+  let totalPct = 0;
+  let alumnosValidos = 0;
+
   alumnos.forEach(est => {
-    let p = 0, a = 0, acp = 0;
+    let p = 0;
+    let a = 0;
+    let acp = 0;
+    const inscrip = est.inscripciones?.[document.getElementById('biCurso').value] || [{ desde: '', hasta: '', estado: 'ACTIVO' }];
+
     asistenciasValidas.forEach(r => {
-      if (!["CLASE","CLASES REGULARES","Migrada",undefined].includes(r.tipoClase)) return;
-      const m = r.registros[est.id];
-      if (m==="P") p++; else if (m==="A") a++; else if (m==="ACP") acp++;
+      if (!['CLASE','CLASES REGULARES','Migrada',undefined].includes(r.tipoClase)) return;
+      let ok = false;
+      for (const ins of inscrip) {
+        const fd = normalizeDateToISO(ins.desde), fh = normalizeDateToISO(ins.hasta);
+        if ((!fd || r.fecha >= fd) && (!fh || r.fecha <= fh)) { ok = true; break; }
+      }
+      if (!ok) return;
+      const m = r.registros?.[est.id];
+      if (m==='P') p++; else if (m==='A') a++; else if (m==='ACP') acp++;
     });
-    totalPresentes += p; totalAusencias += a;
-    const total = p + a + acp;
-    if (total > 0) { sumaPorcentajes += (p / total) * 100; alumnosConHistorial++; }
+
+    totalP += p;
+    totalA += a;
+
+    const conReg = p + a + acp;
+    if (conReg > 0) {
+      totalPct += (p / conReg);
+      alumnosValidos++;
+    }
   });
-  document.getElementById('kpiTotal').innerText     = alumnos.filter(a => (a.estado || 'activo').toLowerCase() === 'activo').length;
-  document.getElementById('kpiPresentes').innerText = totalPresentes;
-  document.getElementById('kpiAusencias').innerText = totalAusencias;
-  document.getElementById('kpiPromedio').innerText  = (alumnosConHistorial > 0 ? (sumaPorcentajes / alumnosConHistorial).toFixed(1) : 0) + '%';
+
+  const promedioAsistencia = alumnosValidos > 0 ? ((totalPct / alumnosValidos) * 100).toFixed(1) + '%' : '0.0%';
+
+  document.getElementById('kpiTotal').innerText = alumnos.length;
+  document.getElementById('kpiPromedio').innerText = promedioAsistencia;
+  document.getElementById('kpiPresentes').innerText = totalP;
+  document.getElementById('kpiAusencias').innerText = totalA;
+}
+
+function _restaurarEtiquetasKPIAsistencia() {
+  const label1 = document.getElementById('kpiTotal').previousElementSibling;
+  const label2 = document.getElementById('kpiPromedio').previousElementSibling;
+  const label3 = document.getElementById('kpiPresentes').previousElementSibling;
+  const label4 = document.getElementById('kpiAusencias').previousElementSibling;
+
+  if (label1) label1.innerText = "ALUMNOS MATRICULADOS";
+  if (label2) label2.innerText = "PROMEDIO DE ASISTENCIA";
+  if (label3) label3.innerText = "TOTAL PRESENTES (P)";
+  if (label4) label4.innerText = "TOTAL AUSENTES (A)";
+}
+
+function _actualizarKPIsCalificaciones(alumnos, notasMap) {
+  const label1 = document.getElementById('kpiTotal').previousElementSibling;
+  const label2 = document.getElementById('kpiPromedio').previousElementSibling;
+  const label3 = document.getElementById('kpiPresentes').previousElementSibling;
+  const label4 = document.getElementById('kpiAusencias').previousElementSibling;
+
+  if (label1) label1.innerText = "PROMEDIO GENERAL";
+  if (label2) label2.innerText = "TASA DE APROBACIÓN";
+  if (label3) label3.innerText = "ALUMNOS EN PO";
+  if (label4) label4.innerText = "ALUMNOS EN RIESGO";
+
+  if (alumnos.length === 0) {
+    document.getElementById('kpiTotal').innerText = "-";
+    document.getElementById('kpiPromedio').innerText = "-";
+    document.getElementById('kpiPresentes').innerText = "-";
+    document.getElementById('kpiAusencias').innerText = "-";
+    return;
+  }
+
+  let totalDefinitivas = 0;
+  let cantDefinitivas = 0;
+  let aprobados = 0;
+  let enPO = 0;
+  let enRiesgo = 0;
+
+  alumnos.forEach(est => {
+    const notaData = notasMap[est.id] || {};
+    const b1 = notaData.b1 || '';
+    const b2 = notaData.b2 || '';
+    const b3 = notaData.b3 || '';
+    const b4 = notaData.b4 || '';
+    const poDic = notaData.po_dic || '';
+    const poFeb = notaData.po_feb || '';
+
+    const res = calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb);
+
+    const notaRef = res.definitiva !== null ? res.definitiva : res.final;
+    if (notaRef !== null) {
+      totalDefinitivas += notaRef;
+      cantDefinitivas++;
+    }
+
+    if (res.condicion === 'APROBADO' || res.condicion.includes('APROBADO')) {
+      aprobados++;
+    }
+
+    if (res.condicion === 'PO DIC' || res.condicion === 'PO FEB') {
+      enPO++;
+    }
+
+    const nota2 = parseFloat(b2);
+    const nota4 = parseFloat(b4);
+    const tieneEP = (b1 === 'EN PROCESO' || b3 === 'EN PROCESO');
+    const tieneBajos = ((!isNaN(nota2) && nota2 < 6) || (!isNaN(nota4) && nota4 < 6));
+    if (tieneEP || tieneBajos || res.condicion === 'PO DIC' || res.condicion === 'PO FEB') {
+      enRiesgo++;
+    }
+  });
+
+  const promedioGral = cantDefinitivas > 0 ? (totalDefinitivas / cantDefinitivas).toFixed(1) : '—';
+  const tasaAprobacion = `${((aprobados / alumnos.length) * 100).toFixed(0)}%`;
+
+  document.getElementById('kpiTotal').innerText = promedioGral;
+  document.getElementById('kpiPromedio').innerText = tasaAprobacion;
+  document.getElementById('kpiPresentes').innerText = enPO;
+  document.getElementById('kpiAusencias').innerText = enRiesgo;
 }
 
 // ==========================================
@@ -687,6 +957,44 @@ export function exportarBICSV() {
   const fHasta = document.getElementById('biFechaHasta').value;
 
   if (!curso) { showToast('⚠️ Seleccione un curso en el Panel BI.', 'error'); return; }
+
+  if (biActiveView === 'calificaciones') {
+    const entrada = _biCache[`${curso}|calificaciones`];
+    if (!entrada) { showToast('⚠️ Cargá el Panel BI primero.', 'info'); return; }
+
+    const { alumnos, notasMap } = entrada;
+    const cols = ['Estudiante', '1er Bim (Val)', '2do Bim (Num)', '3er Bim (Val)', '4to Bim (Num)', 'Calif. Final', 'PO Dic', 'PO Feb', 'Calif. Definitiva', 'Condición'];
+    const rows = [cols.map(escaparCSV).join(',')];
+
+    alumnos.forEach(al => {
+      const notaData = notasMap[al.id] || {};
+      const b1 = notaData.b1 || '';
+      const b2 = notaData.b2 || '';
+      const b3 = notaData.b3 || '';
+      const b4 = notaData.b4 || '';
+      const poDic = notaData.po_dic || '';
+      const poFeb = notaData.po_feb || '';
+
+      const res = calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb);
+
+      rows.push([
+        escaparCSV(`${al.apellido}, ${al.nombre}`),
+        escaparCSV(b1),
+        escaparCSV(b2),
+        escaparCSV(b3),
+        escaparCSV(b4),
+        escaparCSV(res.final !== null ? res.final : ''),
+        escaparCSV(poDic),
+        escaparCSV(poFeb),
+        escaparCSV(res.definitiva !== null ? res.definitiva : ''),
+        escaparCSV(res.condicion)
+      ].join(','));
+    });
+
+    descargarCSV(rows.join('\n'), `ReporteBI_Calificaciones_${curso.replace(/\s+/g,'_')}.csv`);
+    showToast(`✅ Reporte de calificaciones exportado: ${rows.length - 1} estudiantes.`);
+    return;
+  }
 
   const entrada = _biCache[`${curso}|${fDesde}|${fHasta}`];
   if (!entrada) { showToast('⚠️ Cargá el Panel BI primero.', 'info'); return; }

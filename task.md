@@ -45,3 +45,10 @@
 - `[x]` Diseñar y crear el favicon en formato SVG corporativo (`favicon.svg`).
 - `[x]` Renombrar la aplicación de "ASISTENCIA PRO" a "SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC" en toda la interfaz.
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.11`.
+
+## 9. Planilla por Periodo, Campos Dinámicos y Calificaciones en BI (v9.12) *[COMPLETADO]*
+- `[x]` Cambiar la grilla de calificaciones por un selector de período de evaluación (`evalPeriodo`).
+- `[x]` Diseñar un panel de administración para incorporar campos adicionales (labels y keys de base de datos) y reordenarlos/eliminarlos.
+- `[x]` Adaptar el guardado masivo en Firestore usando nombres de campos planos para prevenir colisiones (`adicionales_[periodo]_[key]`).
+- `[x]` Implementar pestaña "Calificaciones" en el Panel BI, mostrando promedios generales, tasas de aprobación, alumnos en PO, alumnos en riesgo académico, grilla completa anual y exportación a CSV.
+- `[x]` Cache busting general mediante incremento de versiones a `?v=9.12`.

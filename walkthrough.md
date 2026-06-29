@@ -217,4 +217,31 @@ El equipo (Arquitecto y Desarrollador Claude) ha finalizado y desplegado con éx
 ## 🧹 3. Cache Busting (v9.11.0)
 - Se actualizó el versionado a `?v=9.11` en todas las referencias de recursos y scripts para forzar la actualización inmediata de la identidad del sistema.
 
+---
+
+# 📊 Fase 16: Planilla por Períodos, Columnas Personalizables e Inteligencia en el Panel BI - SIDEAC (v9.12)
+
+## 📆 1. Planilla de Calificaciones por Período de Evaluación
+- Se reemplazó la planilla de grilla horizontal general por una vista enfocada en el **Período Seleccionado** mediante el menú `#evalPeriodo`. 
+- Esto mejora drásticamente el espacio en pantalla, eliminando el desborde horizontal en dispositivos móviles y de escritorio.
+- El sistema detecta dinámicamente si el período seleccionado requiere notas cualitativas (b1, b3) o cuantitativas (b2, b4, po_dic, po_feb) y adapta los desplegables en consonancia.
+- Se muestran en todo momento las columnas consolidadas calculadas reactivamente en tiempo real: **Calificación Final**, **Calificación Definitiva** y **Condición Final** del alumno.
+
+## ⚙️ 2. Estructura de Columnas Personalizables (Solo Admin)
+- Se implementó un panel interactivo `#panelAdminColumnasEval` que permite a los Administradores agregar campos adicionales personalizados (ej. observaciones, identificadores oficiales externos, etc.) para cada período.
+- Los administradores pueden reordenar las columnas mediante controles de flecha arriba/abajo o eliminar los campos adicionales, persistiendo la configuración en la base de datos en `/config/evaluaciones` de Firestore.
+- Para evitar colisiones en la base de datos y garantizar la escritura atómica, los datos de columnas adicionales se guardan de forma aplanada en la colección `/evaluaciones` con claves dinámicas prefijadas (`adicionales_[periodo]_[key]`).
+
+## 🧠 3. Inteligencia Académica en el Panel BI (Dashboard)
+- Se incorporó un switch de navegación dual en la pestaña de BI para alternar entre **Asistencia** y **Calificaciones**.
+- En la sección de **Calificaciones**, el panel calcula y visualiza KPIs agregados:
+  - **Promedio General**: Calificaciones numéricas del curso completo.
+  - **Tasa de Aprobación**: Porcentaje de estudiantes aprobados.
+  - **Alumnos en PO**: Cantidad de estudiantes actualmente en Períodos de Orientación de Diciembre o Febrero.
+  - **Alumnos en Riesgo**: Cantidad de alumnos que poseen notas valorativas de "EN PROCESO", promedios menores a 6 en bimestres numéricos o se encuentran en PO.
+- Se renderiza una grilla consolidada anual del rendimiento de todos los estudiantes y se permite la exportación a un reporte detallado en CSV.
+
+## 🧹 4. Cache Busting (v9.12.0)
+- Se actualizó el versionado a `?v=9.12` en todas las referencias de recursos y scripts en `index.html` para asegurar la aplicación inmediata.
+
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.11">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.12">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.11">
+  <link rel="stylesheet" href="css/styles.css?v=9.12">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -225,9 +225,18 @@
           </div>
 
           <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <select id="evalCurso" class="flex-1 min-w-[200px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+            <select id="evalCurso" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[180px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
               <option value="">Seleccione división...</option>
               <!-- Dinámico -->
+            </select>
+            <select id="evalPeriodo" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[180px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
+              <option value="">Seleccione periodo...</option>
+              <option value="b1">1er Bimestre (Valorativo)</option>
+              <option value="b2">2do Bimestre (Numérico)</option>
+              <option value="b3">3er Bimestre (Valorativo)</option>
+              <option value="b4">4to Bimestre (Numérico)</option>
+              <option value="po_dic">PO Diciembre (Numérico)</option>
+              <option value="po_feb">PO Febrero (Numérico)</option>
             </select>
             <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla contra cambios involuntarios">
               <i class="ph ph-lock-key"></i> <span class="hidden sm:inline">Bloquear Planilla</span>
@@ -275,11 +284,50 @@
           </div>
         </div>
 
+        <!-- PANEL DE CONFIGURACIÓN DE COLUMNAS (solo visible para Admin) -->
+        <div id="panelAdminColumnasEval" class="hidden bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl p-4 mb-4">
+          <p class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <i class="ph ph-layout"></i> Estructura de Columnas para <span id="lblPeriodoConfig" class="underline">el Periodo</span> (Solo Administradores)
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Formulario agregar -->
+            <div class="border dark:border-slate-800 p-3 rounded bg-white dark:bg-slate-800">
+              <p class="text-xs font-bold text-slate-500 mb-2">AGREGAR CAMPO ADICIONAL</p>
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-bold mb-0.5">ETIQUETA DE LA COLUMNA (Ej: ID Planilla)</label>
+                  <input type="text" id="addColLabel" class="w-full p-1.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-medium" placeholder="Ej: ID Estudiante Oficial">
+                </div>
+                <div>
+                  <label class="block text-[10px] text-slate-400 font-bold mb-0.5">CLAVE DE BASE DE DATOS (Solo letras y guión bajo)</label>
+                  <input type="text" id="addColKey" class="w-full p-1.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-mono" placeholder="Ej: id_estudiante_oficial">
+                </div>
+                <button onclick="app.agregarColumnaAdicional()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 rounded text-xs transition flex justify-center items-center gap-1">
+                  <i class="ph ph-plus-circle"></i> Agregar Columna
+                </button>
+              </div>
+            </div>
+            
+            <!-- Lista y orden -->
+            <div class="border dark:border-slate-800 p-3 rounded bg-white dark:bg-slate-800 flex flex-col justify-between">
+              <div>
+                <p class="text-xs font-bold text-slate-500 mb-2">ORDEN DE COLUMNAS</p>
+                <div id="lstColumnasConfig" class="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+                  <!-- Render dinámico de columnas -->
+                </div>
+              </div>
+              <button onclick="app.guardarEstructuraColumnas()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs transition flex justify-center items-center gap-1">
+                <i class="ph ph-floppy-disk"></i> Guardar Estructura de Columnas
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Tabla Planilla de Calificaciones -->
         <div class="overflow-x-auto w-full custom-scrollbar border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[60vh]">
           <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
-              <tr>
+              <tr id="evalHeaders">
                 <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
                 <th class="px-2 py-3 text-center min-w-[90px]">1er Bim (Val)</th>
                 <th class="px-2 py-3 text-center min-w-[80px]">2do Bim (Num)</th>
@@ -366,9 +414,15 @@
       <div class="max-w-6xl mx-auto space-y-6">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-          <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <i class="ph ph-chart-pie-slice text-emerald-500"></i> Dashboard de Asistencia (Panel BI)
-          </h2>
+          <div>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-chart-pie-slice text-emerald-500"></i> Dashboard de Gestión (Panel BI)
+            </h2>
+            <div class="flex bg-slate-200 dark:bg-slate-700 p-1 rounded-lg mt-2 inline-flex">
+              <button onclick="app.setBiView('asistencia')" id="btnBiViewAsist" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow transition-all">Asistencia</button>
+              <button onclick="app.setBiView('calificaciones')" id="btnBiViewEval" class="px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all">Calificaciones</button>
+            </div>
+          </div>
           
           <!-- Filtros BI -->
           <div class="flex flex-wrap gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border dark:border-slate-700 w-full md:w-auto">
@@ -846,6 +900,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.11"></script>
+  <script type="module" src="js/app.js?v=9.12"></script>
 </body>
 </html>
