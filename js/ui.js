@@ -17,26 +17,36 @@ export function switchTab(tabId) {
     showToast('⚠️ Tu cuenta está pendiente de autorización por un Administrador.', 'error');
     return;
   }
-  ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
-    document.getElementById(id)?.classList.add('hidden');
-  });
-  const targetSection = document.getElementById(tabId);
-  targetSection?.classList.remove('hidden');
-  targetSection?.scrollTo({ top: 0, behavior: 'instant' });
 
-  ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
-    document.getElementById(id)?.classList.remove('bg-white/10');
-  });
-  const btnMap = {
-    tomaDiaria:      'btnToma',
-    planillaGrilla:  'btnGrilla',
-    evaluaciones:    'btnEval',
-    panelBI:         'btnPanel',
-    gestionAlumnos:  'btnGestion',
-    gestionMaterias: 'btnMaterias',
-    gestionDocentes: 'btnDocentes'
+  const performSwitch = () => {
+    ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
+      document.getElementById(id)?.classList.add('hidden');
+    });
+    const targetSection = document.getElementById(tabId);
+    targetSection?.classList.remove('hidden');
+    targetSection?.scrollTo({ top: 0, behavior: 'instant' });
+
+    ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
+      document.getElementById(id)?.classList.remove('bg-white/10');
+    });
+    const btnMap = {
+      tomaDiaria:      'btnToma',
+      planillaGrilla:  'btnGrilla',
+      evaluaciones:    'btnEval',
+      panelBI:         'btnPanel',
+      gestionAlumnos:  'btnGestion',
+      gestionMaterias: 'btnMaterias',
+      gestionDocentes: 'btnDocentes'
+    };
+    if (btnMap[tabId]) document.getElementById(btnMap[tabId])?.classList.add('bg-white/10');
   };
-  if (btnMap[tabId]) document.getElementById(btnMap[tabId])?.classList.add('bg-white/10');
+
+  // View Transitions API para transiciones suaves entre pestañas (Chrome 111+)
+  if (document.startViewTransition) {
+    document.startViewTransition(() => performSwitch());
+  } else {
+    performSwitch();
+  }
 
   if (tabId === 'planillaGrilla')  window.app.cargarPlanillaGrilla();
   if (tabId === 'evaluaciones')    window.app.cargarPlanillaEvaluaciones();

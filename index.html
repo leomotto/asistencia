@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.20">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.21">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.20">
+  <link rel="stylesheet" href="css/styles.css?v=9.21">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -641,8 +641,8 @@
     </section>
 
     <!-- MODAL DE MATERIAS -->
-    <div id="modalMateria" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+    <div id="modalMateria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
         <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
           <h3 id="modalMateriaTitulo" class="text-xl font-bold text-slate-800 dark:text-slate-100">Nueva Materia</h3>
           <button onclick="app.cerrarModalMateria()" class="text-slate-400 hover:text-red-500 transition">
@@ -687,8 +687,8 @@
     </div>
 
     <!-- MODAL: PERFIL / DOSSIER DE ALUMNO -->
-    <div id="modalPerfilAlumno" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border dark:border-slate-700 max-w-md w-full p-6 fade-in">
+    <div id="modalPerfilAlumno" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border dark:border-slate-700 max-w-md w-full p-6">
 
         <!-- Header: Avatar + Nombre -->
         <div class="flex justify-between items-start mb-5">
@@ -744,8 +744,8 @@
     </div>
 
     <!-- MODAL DE FUSIÓN DE ESTUDIANTES -->
-    <div id="modalFusion" class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+    <div id="modalFusion" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
         <h3 class="text-xl font-bold text-orange-600 dark:text-orange-500 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
           <i class="ph ph-git-merge text-2xl"></i> Fusionar Estudiantes Duplicados
         </h3>
@@ -779,7 +779,7 @@
     </div>
 
     <div id="modalAlumno" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
-      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 fade-in">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
         <h3 id="modalTitle" class="text-xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4">Agregar Nuevo Estudiante</h3>
         <input type="hidden" id="formId">
         <div class="space-y-4">
@@ -859,6 +859,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.20"></script>
+  <script type="module" src="js/app.js?v=9.21"></script>
 </body>
 </html>
