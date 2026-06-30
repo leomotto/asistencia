@@ -1,8 +1,8 @@
 // js/usuarios.js — Panel de Gestión de Docentes (solo ADMIN)
 
 import { doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.19";
-import { showToast } from "./ui.js?v=9.19";
+import { db, getPath } from "./firebase-config.js?v=9.20";
+import { showToast } from "./ui.js?v=9.20";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {
@@ -32,13 +32,14 @@ export async function cargarListaUsuarios() {
     });
     materiasData.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    // Agrupar por materiaBase: { "Matemática": [{nombre:"1ro A - Matemática", div:"1ro A"}, ...] }
+    // Agrupar por División: { "1ro A": [{nombre:"1ro A - Matemática", base:"Matemática"}, ...] }
     const grupos = {};
     materiasData.forEach(m => {
-      if (!grupos[m.base]) grupos[m.base] = [];
-      grupos[m.base].push(m);
+      const divisionKey = m.div || '(Sin División)';
+      if (!grupos[divisionKey]) grupos[divisionKey] = [];
+      grupos[divisionKey].push(m);
     });
-    const basesOrdenadas = Object.keys(grupos).sort();
+    const divisionesOrdenadas = Object.keys(grupos).sort();
 
     // Leer usuarios
     const snapU = await getDocs(collection(db, getPath('usuarios')));
@@ -66,20 +67,20 @@ export async function cargarListaUsuarios() {
         PENDIENTE:'bg-yellow-100 text-yellow-800',
       }[rolActual] || 'bg-slate-100 text-slate-700';
 
-      // Feature 1: Renderizar materias agrupadas por materiaBase
-      const materiasHtml = basesOrdenadas.length === 0
+      // Renderizar materias agrupadas por División
+      const materiasHtml = divisionesOrdenadas.length === 0
         ? '<p class="text-xs text-slate-400 italic">No hay materias configuradas.</p>'
-        : basesOrdenadas.map(base => {
-            const items = grupos[base];
+        : divisionesOrdenadas.map(div => {
+            const items = grupos[div];
             const checkboxes = items.map(m => `
               <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer select-none">
                 <input type="checkbox" class="cb-materia-docente h-4 w-4 rounded text-indigo-600"
                   value="${m.nombre}" ${materiasU.includes(m.nombre) ? 'checked' : ''}>
-                <span>${m.div || m.nombre}</span>
+                <span>${m.base || m.nombre}</span>
               </label>`).join('');
             return `
               <div class="mb-3">
-                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">${base}</p>
+                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">${div}</p>
                 <div class="flex flex-wrap gap-x-4 gap-y-1.5">${checkboxes}</div>
               </div>`;
           }).join('');
