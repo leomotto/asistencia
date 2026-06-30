@@ -1,8 +1,8 @@
 // js/usuarios.js — Panel de Gestión de Docentes (solo ADMIN)
 
 import { doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.18";
-import { showToast } from "./ui.js?v=9.18";
+import { db, getPath } from "./firebase-config.js?v=9.19";
+import { showToast } from "./ui.js?v=9.19";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {

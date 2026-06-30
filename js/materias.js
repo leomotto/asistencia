@@ -1,8 +1,8 @@
 // js/materias.js — Gestión de materias/divisiones y horarios dinámicos
 
 import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.18";
-import { showToast } from "./ui.js?v=9.18";
+import { db, getPath } from "./firebase-config.js?v=9.19";
+import { showToast } from "./ui.js?v=9.19";
 
 export const HORARIOS_DINAMICOS = {};
 
@@ -105,10 +105,10 @@ export async function cargarListaMateriasAdmin() {
           <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">${nombreSeguro}</td>
           <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">${horarioStr}</td>
           <td class="px-4 py-3 text-center">
-            <button onclick="app.abrirModalMateria(${JSON.stringify(mat.id)})" class="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded" title="Editar">
+            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-1 bg-blue-50 rounded" title="Editar">
               <i class="ph ph-pencil-simple text-lg"></i>
             </button>
-            <button onclick="app.eliminarMateria(${JSON.stringify(mat.id)}, ${JSON.stringify(mat.nombre)})" class="text-red-600 hover:text-red-800 p-1 bg-red-50 rounded ml-2" title="Eliminar">
+            <button onclick="app.eliminarMateria('${mat.id}', '${nombreSeguro.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 p-1 bg-red-50 rounded ml-2" title="Eliminar">
               <i class="ph ph-trash text-lg"></i>
             </button>
           </td>
