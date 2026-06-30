@@ -101,32 +101,125 @@ export function popularCursos() {
   const esDocente          = window.app.currentUser?.rol === 'DOCENTE';
   const materiasPermitidas = window.app.currentUser?.materias || [];
 
-  document.querySelectorAll('.select-curso-global').forEach(select => {
-    select.innerHTML = `<option value="">Seleccione división...</option>`;
-    window.app.cursos.forEach(mat => {
-      // RBAC: docentes solo ven sus materias asignadas
-      if (esDocente && !materiasPermitidas.includes(mat)) return;
-      
-      // Filtrar Talleres en el módulo de evaluaciones
-      if (select.id === 'evalCurso' && mat.toLowerCase().includes('taller')) {
-        return;
-      }
-      
-      const opt = document.createElement('option');
-      opt.value = mat; opt.innerText = mat;
-      select.appendChild(opt);
-    });
+  // Lista base permitida
+  let permitidas = [];
+  window.app.cursos.forEach(mat => {
+    if (esDocente && !materiasPermitidas.includes(mat)) return;
+    permitidas.push(mat);
   });
 
-  // Opción "Todos" solo en el selector de Matrícula (siempre visible para ADMIN)
-  const mCursoSel = document.getElementById('mCurso');
-  if (mCursoSel && !esDocente) {
-    const optTodos = document.createElement('option');
-    optTodos.value = '__TODOS__';
-    optTodos.innerText = '📋 TODOS LOS ESTUDIANTES';
-    optTodos.style.fontWeight = 'bold';
-    mCursoSel.insertBefore(optTodos, mCursoSel.children[1]);
-  }
+  document.querySelectorAll('.select-curso-global').forEach(originalSelect => {
+    // Filtrar Talleres en el módulo de evaluaciones
+    let opcionesLocal = permitidas;
+    if (originalSelect.id === 'evalCurso') {
+      opcionesLocal = permitidas.filter(m => !m.toLowerCase().includes('taller'));
+    }
+
+    // 1. Ocultar el original y llenarlo (por si otro script lee sus options)
+    originalSelect.innerHTML = `<option value="">Seleccione...</option>`;
+    if (originalSelect.id === 'mCurso' && !esDocente) {
+      originalSelect.innerHTML += `<option value="__TODOS__">📋 TODOS LOS ESTUDIANTES</option>`;
+    }
+    opcionesLocal.forEach(mat => {
+      const opt = document.createElement('option');
+      opt.value = mat; opt.innerText = mat;
+      originalSelect.appendChild(opt);
+    });
+    originalSelect.style.display = 'none';
+
+    // 2. Crear los dos dropdowns si no existen
+    let dualContainer = originalSelect.nextElementSibling;
+    if (!dualContainer || !dualContainer.classList.contains('dual-select-container')) {
+      dualContainer = document.createElement('div');
+      dualContainer.className = 'dual-select-container flex flex-wrap sm:flex-nowrap gap-2 w-full';
+      
+      const selDiv = document.createElement('select');
+      selDiv.className = 'flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-div cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow';
+      
+      const selAsig = document.createElement('select');
+      selAsig.className = 'flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-asig cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50';
+      selAsig.disabled = true;
+
+      dualContainer.appendChild(selDiv);
+      dualContainer.appendChild(selAsig);
+      
+      originalSelect.parentNode.insertBefore(dualContainer, originalSelect.nextSibling);
+
+      // Lógica de dependencia
+      selDiv.addEventListener('change', () => {
+        const div = selDiv.value;
+        if (!div) {
+          selAsig.innerHTML = '<option value="">Asignatura...</option>';
+          selAsig.disabled = true;
+          originalSelect.value = '';
+          originalSelect.dispatchEvent(new Event('change'));
+          return;
+        }
+        if (div === '__TODOS__') {
+          selAsig.innerHTML = '<option value="">--</option>';
+          selAsig.disabled = true;
+          originalSelect.value = '__TODOS__';
+          originalSelect.dispatchEvent(new Event('change'));
+          return;
+        }
+
+        const asigs = opcionesLocal
+          .filter(m => {
+            const idx = m.indexOf(' - ');
+            const d = idx > -1 ? m.substring(0, idx) : 'General';
+            return d === div;
+          })
+          .map(m => {
+            const idx = m.indexOf(' - ');
+            return idx > -1 ? m.substring(idx + 3) : m;
+          });
+        
+        selAsig.innerHTML = '<option value="">Asignatura...</option>' + asigs.map(a => `<option value="${a}">${a}</option>`).join('');
+        selAsig.disabled = false;
+        
+        if (asigs.length === 1) {
+          selAsig.value = asigs[0];
+          originalSelect.value = div === 'General' ? asigs[0] : `${div} - ${asigs[0]}`;
+        } else {
+          originalSelect.value = '';
+        }
+        originalSelect.dispatchEvent(new Event('change'));
+      });
+
+      selAsig.addEventListener('change', () => {
+        const div = selDiv.value;
+        const asig = selAsig.value;
+        if (!asig) {
+          originalSelect.value = '';
+        } else {
+          originalSelect.value = div === 'General' ? asig : `${div} - ${asig}`;
+        }
+        originalSelect.dispatchEvent(new Event('change'));
+      });
+    }
+
+    // 3. Resetear y poblar el dropdown de División
+    const selectDiv = dualContainer.querySelector('.select-div');
+    const selectAsig = dualContainer.querySelector('.select-asig');
+    
+    const divisionesUnicas = [...new Set(opcionesLocal.map(m => {
+      const idx = m.indexOf(' - ');
+      return idx > -1 ? m.substring(0, idx) : 'General';
+    }))];
+    
+    selectDiv.innerHTML = '<option value="">División...</option>';
+    if (originalSelect.id === 'mCurso' && !esDocente) {
+      selectDiv.innerHTML += `<option value="__TODOS__" class="font-bold text-indigo-700">📋 TODOS LOS ESTUDIANTES</option>`;
+    }
+    divisionesUnicas.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d; opt.innerText = d;
+      selectDiv.appendChild(opt);
+    });
+
+    selectAsig.innerHTML = '<option value="">Asignatura...</option>';
+    selectAsig.disabled = true;
+  });
 }
 
 export function toggleSidebar() {

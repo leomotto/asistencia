@@ -541,11 +541,33 @@ export async function ejecutarFusion() {
   try {
     showToast('💾 Realizando backup de seguridad...', 'info');
     await exportarBackup();
-    showToast('🔄 Transfiriendo registros de asistencia...', 'info');
+    showToast('🔄 Transfiriendo registros (Asistencias y Evaluaciones)...', 'info');
+
+    let batches = [writeBatch(db)];
+    let currentBatch = 0;
+    let operationCount = 0;
+
+    const commitBatches = async () => {
+      for (const b of batches) await b.commit();
+      batches = [writeBatch(db)];
+      currentBatch = 0;
+      operationCount = 0;
+    };
+
+    const addOperation = (type, ref, data) => {
+      if (operationCount >= 450) {
+        currentBatch++;
+        batches[currentBatch] = writeBatch(db);
+        operationCount = 0;
+      }
+      if (type === 'update') batches[currentBatch].update(ref, data);
+      else if (type === 'set') batches[currentBatch].set(ref, data);
+      else if (type === 'delete') batches[currentBatch].delete(ref);
+      operationCount++;
+    };
 
     const snapAsistencias = await getDocs(collection(db, getPath('asistencias')));
-    const batch = writeBatch(db);
-    let reescrituras = 0;
+    let reescriturasAsistencias = 0;
 
     snapAsistencias.forEach(docSnap => {
       const data = docSnap.data();
@@ -553,20 +575,38 @@ export async function ejecutarFusion() {
         const nuevosRegistros = { ...data.registros };
         if (!nuevosRegistros[primario.id]) nuevosRegistros[primario.id] = nuevosRegistros[secundario.id];
         delete nuevosRegistros[secundario.id];
-        batch.update(docSnap.ref, { registros: nuevosRegistros });
-        reescrituras++;
+        addOperation('update', docSnap.ref, { registros: nuevosRegistros });
+        reescriturasAsistencias++;
       }
     });
 
+    let reescriturasEvaluaciones = 0;
+    const qEvals = query(collection(db, getPath('evaluaciones')), where('alumnoId', '==', secundario.id));
+    const snapEvals = await getDocs(qEvals);
+    
+    snapEvals.forEach(docSnap => {
+      const data = docSnap.data();
+      const materia = data.materia || '';
+      const newDocId = `${primario.id}_${materia.replace(/\s+/g, '')}`;
+      const newRef = doc(db, getPath('evaluaciones'), newDocId);
+      
+      const newData = { ...data, alumnoId: primario.id };
+      addOperation('set', newRef, newData);
+      addOperation('delete', docSnap.ref);
+      reescriturasEvaluaciones++;
+    });
+
     const materiasUnidas = [...new Set([...(primario.materias || [primario.curso]), ...(secundario.materias || [secundario.curso])])];
-    batch.update(doc(db, getPath('estudiantes'), primario.id), {
+    
+    addOperation('update', doc(db, getPath('estudiantes'), primario.id), {
       materias: materiasUnidas, curso: materiasUnidas[0], dni: primario.dni || secundario.dni || ''
     });
-    batch.delete(doc(db, getPath('estudiantes'), secundario.id));
-    await batch.commit();
+    addOperation('delete', doc(db, getPath('estudiantes'), secundario.id));
+    
+    await commitBatches();
 
     window.app.invalidarCacheBI?.();
-    showToast(`✅ Fusión completada. ${reescrituras} registros de asistencia transferidos.`);
+    showToast(`✅ Fusión completada. Asistencias: ${reescriturasAsistencias} | Evaluaciones: ${reescriturasEvaluaciones}`);
     cerrarModalFusion();
     await cargarAlumnosMatricula();
   } catch(e) {
@@ -579,6 +619,7 @@ export async function ejecutarFusion() {
 // ==========================================
 // PERFIL INTERACTIVO DE ALUMNO (Dossier)
 // ==========================================
+
 
 export async function abrirPerfilAlumno(uid, curso) {
   const modal = document.getElementById('modalPerfilAlumno');
