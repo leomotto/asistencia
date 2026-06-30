@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.16";
-import { showToast } from "./ui.js?v=9.16";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.16";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.16";
+import { db, getPath } from "./firebase-config.js?v=9.17";
+import { showToast } from "./ui.js?v=9.17";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.17";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.17";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -489,8 +489,8 @@ export function buscarParaFusion() {
           <span class="text-slate-400">${escaparHTML(a.dni || '')}</span>
           <span class="text-indigo-600 text-[10px]">${(a.materias || [a.curso]).map(escaparHTML).join(', ')}</span>
           <div class="flex gap-1 ml-auto">
-            <button onclick="app.seleccionarParaFusion('primario',${JSON.stringify(a.id)})" class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600">Primario</button>
-            <button onclick="app.seleccionarParaFusion('secundario',${JSON.stringify(a.id)})" class="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold hover:bg-red-600">Secundario</button>
+            <button onclick="app.seleccionarParaFusion('primario', '${a.id}')" class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600">Primario</button>
+            <button onclick="app.seleccionarParaFusion('secundario', '${a.id}')" class="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold hover:bg-red-600">Secundario</button>
           </div>
         </div>`).join('');
   resultadosDiv.classList.remove('hidden');
