@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.17";
-import { showToast } from "./ui.js?v=9.17";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.17";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.17";
+import { db, getPath } from "./firebase-config.js?v=9.18";
+import { showToast } from "./ui.js?v=9.18";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.18";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.18";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -367,52 +367,7 @@ export async function guardarAlumnoMatricula() {
   }
 }
 
-// ==========================================
-// HORARIOS (días de clase por división)
-// ==========================================
 
-export function cargarDiasDeClase() {
-  const curso = document.getElementById('cfgCurso').value;
-  if (!curso) { for (let d = 1; d <= 6; d++) document.getElementById(`chkDia${d}`).checked = false; return; }
-  const horario = HORARIOS_DINAMICOS[curso] || { dias: [] };
-  for (let d = 1; d <= 6; d++) {
-    document.getElementById(`chkDia${d}`).checked = horario.dias.some(dd => (typeof dd === 'number' ? dd : dd.dia) === d);
-  }
-}
-
-export async function guardarDiasDeClase() {
-  const curso = document.getElementById('cfgCurso').value;
-  if (!curso) { showToast('⚠️ Seleccione una división primero.', 'error'); return; }
-
-  const diasSeleccionados = [], nombresDias = [];
-  const diasLabel = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
-  for (let d = 1; d <= 6; d++) {
-    if (document.getElementById(`chkDia${d}`).checked) {
-      diasSeleccionados.push(d); nombresDias.push(diasLabel[d - 1]);
-    }
-  }
-  if (diasSeleccionados.length === 0) { showToast('⚠️ Seleccione al menos un día.', 'error'); return; }
-
-  let stringNombre = nombresDias.join(', ');
-  const ultComa = stringNombre.lastIndexOf(', ');
-  if (ultComa !== -1) stringNombre = stringNombre.substring(0, ultComa) + ' y ' + stringNombre.substring(ultComa + 2);
-
-  try {
-    const datos = { dias: diasSeleccionados, nombre: stringNombre };
-    await setDoc(doc(db, getPath("horarios"), curso), datos);
-    HORARIOS_DINAMICOS[curso] = datos;
-    showToast(`✅ Horario guardado para ${curso}: ${stringNombre}`);
-    window.app.actualizarHorariosYFechasRapidas();
-    window.app.verificarDiaSemana();
-  } catch (e) {
-    console.error(e);
-    showToast('❌ Error al guardar horarios en Firestore.', 'error');
-  }
-}
-
-// ==========================================
-// BACKUP
-// ==========================================
 
 export async function exportarBackup() {
   const btn  = document.getElementById('btnBackup');
@@ -484,13 +439,13 @@ export function buscarParaFusion() {
   resultadosDiv.innerHTML = encontrados.length === 0
     ? '<p class="text-xs text-slate-400 p-2 text-center">Sin resultados.</p>'
     : encontrados.map(a => `
-        <div class="p-2 border-b dark:border-slate-700 text-xs hover:bg-orange-50 flex justify-between items-center gap-2">
-          <span class="font-bold">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</span>
+        <div class="p-2 border-b dark:border-slate-700 text-xs hover:bg-orange-50 dark:hover:bg-slate-700 flex justify-between items-center gap-2">
+          <span class="font-bold text-slate-800 dark:text-slate-200">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</span>
           <span class="text-slate-400">${escaparHTML(a.dni || '')}</span>
-          <span class="text-indigo-600 text-[10px]">${(a.materias || [a.curso]).map(escaparHTML).join(', ')}</span>
+          <span class="text-indigo-600 dark:text-indigo-400 text-[10px]">${(a.materias || [a.curso]).map(escaparHTML).join(', ')}</span>
           <div class="flex gap-1 ml-auto">
-            <button onclick="app.seleccionarParaFusion('primario', '${a.id}')" class="px-2 py-0.5 bg-emerald-500 text-white rounded text-[10px] font-bold hover:bg-emerald-600">Primario</button>
-            <button onclick="app.seleccionarParaFusion('secundario', '${a.id}')" class="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold hover:bg-red-600">Secundario</button>
+            <button onclick="app.seleccionarParaFusion('primario', '${a.id}')" class="px-2 py-0.5 bg-emerald-500 dark:bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-600 dark:hover:bg-emerald-500">Primario</button>
+            <button onclick="app.seleccionarParaFusion('secundario', '${a.id}')" class="px-2 py-0.5 bg-red-500 dark:bg-red-600 text-white rounded text-[10px] font-bold hover:bg-red-600 dark:hover:bg-red-500">Secundario</button>
           </div>
         </div>`).join('');
   resultadosDiv.classList.remove('hidden');
