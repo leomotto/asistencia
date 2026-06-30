@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.15";
-import { showToast } from "./ui.js?v=9.15";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.15";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.15";
+import { db, getPath } from "./firebase-config.js?v=9.16";
+import { showToast } from "./ui.js?v=9.16";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.16";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.16";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -596,10 +596,26 @@ export async function ejecutarFusion() {
       reescriturasEvaluaciones++;
     });
 
-    const materiasUnidas = [...new Set([...(primario.materias || [primario.curso]), ...(secundario.materias || [secundario.curso])])];
+    const materiasArr = [...(primario.materias || []), ...(primario.curso ? [primario.curso] : []), ...(secundario.materias || []), ...(secundario.curso ? [secundario.curso] : [])];
+    const materiasUnidas = [...new Set(materiasArr)].filter(Boolean);
     
+    const gruposUnidos = { ...(primario.grupos || {}), ...(secundario.grupos || {}) };
+    const inscripcionesUnidas = { ...(primario.inscripciones || {}) };
+    
+    for (const mat of Object.keys(secundario.inscripciones || {})) {
+      if (!inscripcionesUnidas[mat]) {
+        inscripcionesUnidas[mat] = secundario.inscripciones[mat];
+      } else {
+        inscripcionesUnidas[mat] = [...inscripcionesUnidas[mat], ...secundario.inscripciones[mat]];
+      }
+    }
+
     addOperation('update', doc(db, getPath('estudiantes'), primario.id), {
-      materias: materiasUnidas, curso: materiasUnidas[0], dni: primario.dni || secundario.dni || ''
+      materias: materiasUnidas, 
+      curso: materiasUnidas[0] || '', 
+      dni: primario.dni || secundario.dni || '',
+      grupos: gruposUnidos,
+      inscripciones: inscripcionesUnidas
     });
     addOperation('delete', doc(db, getPath('estudiantes'), secundario.id));
     
