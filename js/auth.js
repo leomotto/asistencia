@@ -2,9 +2,9 @@
 
 import { doc, setDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.21";
-import { showToast } from "./ui.js?v=9.21";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.21";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.22";
+import { showToast } from "./ui.js?v=9.22";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.22";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 

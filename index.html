@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.21">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.22">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.21">
+  <link rel="stylesheet" href="css/styles.css?v=9.22">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -470,7 +470,7 @@
         <!-- Tabla de Datos -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
+            <table class="w-full text-sm text-left block md:table">
               <thead class="bg-slate-800 text-white text-xs uppercase font-semibold">
                 <tr>
                   <th class="px-4 py-3 w-10 text-center">N°</th>
@@ -530,15 +530,15 @@
           <!-- Tabla de Matrícula -->
           <div class="border dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
             <div class="overflow-x-auto">
-              <table class="w-full text-sm text-left">
-                <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700">
+              <table class="w-full text-sm text-left block md:table">
+                <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700 hidden md:table-header-group">
                   <tr>
                     <th class="px-4 py-3">Estudiante</th>
                     <th class="px-4 py-3">Historial por División</th>
                     <th class="px-4 py-3 text-right">Acción</th>
                   </tr>
                 </thead>
-                <tbody id="tablaMatricula" class="divide-y divide-gray-200">
+                <tbody id="tablaMatricula" class="divide-y divide-gray-200 block md:table-row-group">
                   <tr>
                     <td colspan="4" class="px-4 py-8 text-center text-slate-400 italic">Seleccione un curso para ver la matrícula actual de alumnos.</td>
                   </tr>
@@ -601,15 +601,15 @@
         </div>
 
         <div class="overflow-x-auto">
-          <table class="w-full text-sm border-collapse">
-            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider">
+          <table class="w-full text-sm border-collapse block md:table">
+            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider hidden md:table-header-group">
               <tr>
                 <th class="px-4 py-3 text-left w-1/3">Nombre del Curso</th>
                 <th class="px-4 py-3 text-left w-1/2">Días y Horarios</th>
                 <th class="px-4 py-3 text-center">Acciones</th>
               </tr>
             </thead>
-            <tbody id="listaMateriasAdmin" class="divide-y divide-gray-200">
+            <tbody id="listaMateriasAdmin" class="divide-y divide-gray-200 block md:table-row-group">
               <!-- Renderizado dinámico -->
               <tr><td colspan="3" class="px-4 py-8 text-center text-slate-400">Cargando materias...</td></tr>
             </tbody>
@@ -859,6 +859,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.21"></script>
+  <script type="module" src="js/app.js?v=9.22"></script>
 </body>
 </html>

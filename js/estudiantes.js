@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.21";
-import { showToast } from "./ui.js?v=9.21";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.21";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.21";
+import { db, getPath } from "./firebase-config.js?v=9.22";
+import { showToast } from "./ui.js?v=9.22";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.22";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.22";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -78,15 +78,15 @@ export async function cargarAlumnosMatricula() {
       }).join('');
 
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-100 dark:hover:bg-slate-700/50 border-b transition-colors text-slate-700 dark:text-slate-200";
+      tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 block md:table-row mb-2 md:mb-0 pb-3 md:pb-0";
       tr.innerHTML = `
-        <td class="px-4 py-3 align-top">
+        <td class="px-4 py-2 md:py-3 align-top block md:table-cell border-b md:border-none border-slate-100 dark:border-slate-800">
           <p class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
           ${notasStr}
         </td>
-        <td class="px-4 py-3"><div class="flex flex-wrap gap-2">${materiasHtml}</div></td>
-        <td class="px-4 py-3 text-right align-top">
-          <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="bg-slate-100 dark:bg-slate-900 border dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-1 px-3 rounded hover:bg-slate-800 hover:text-white transition text-xs mt-1">
+        <td class="px-4 py-2 md:py-3 block md:table-cell"><div class="flex flex-wrap gap-2">${materiasHtml}</div></td>
+        <td class="px-4 py-2 md:py-3 text-right align-top block md:table-cell">
+          <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="bg-slate-100 dark:bg-slate-900 border dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-1.5 px-3 rounded hover:bg-slate-800 hover:text-white transition text-xs mt-1 w-full md:w-auto">
             <i class="ph ph-note-pencil"></i> Editar
           </button>
         </td>
