@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.27";
-import { showToast } from "./ui.js?v=9.27";
-import { escaparHTML } from "./utils.js?v=9.27";
+import { db, getPath } from "./firebase-config.js?v=9.28";
+import { showToast } from "./ui.js?v=9.28";
+import { escaparHTML } from "./utils.js?v=9.28";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -644,14 +644,14 @@ export async function cargarPlanillaEvaluaciones() {
         : '';
 
       const tr = document.createElement('tr');
-      tr.className = `block md:table-row bg-white md:bg-transparent rounded-lg border md:border-0 dark:border-slate-700 shadow-sm md:shadow-none mb-4 md:mb-0 hover:bg-slate-50 dark:hover:bg-slate-700/30 md:border-b transition-colors text-slate-700 dark:text-slate-200 ${al.esHistorico ? 'opacity-70 italic' : ''}`;
+      tr.className = `block md:table-row bg-white dark:bg-slate-800 md:bg-transparent md:dark:bg-transparent rounded-lg border md:border-0 dark:border-slate-700 shadow-sm md:shadow-none mb-4 md:mb-0 hover:bg-slate-50 dark:hover:bg-slate-700/30 md:border-b transition-colors text-slate-700 dark:text-slate-200 ${al.esHistorico ? 'opacity-70 italic' : ''}`;
       tr.dataset.alumnoId = al.id;
 
       let colsHtml = `
-        <td class="block md:table-cell px-4 py-3 font-bold text-slate-800 dark:text-slate-100 md:sticky-student-col bg-slate-100 md:bg-white dark:bg-slate-750 md:dark:bg-slate-800 border-b md:border-b-0 md:border-r dark:border-slate-700 w-full md:w-64 truncate rounded-t-lg md:rounded-none">
+        <td class="block md:table-cell px-4 py-3 font-bold text-slate-800 dark:text-slate-100 md:sticky-student-col bg-slate-100 md:bg-white dark:bg-slate-800 md:dark:bg-slate-800 border-b md:border-b-0 md:border-r dark:border-slate-700 w-full md:w-64 rounded-t-lg md:rounded-none">
           <div class="flex flex-col md:block">
             <span class="md:hidden text-[10px] uppercase text-slate-500 font-bold mb-1">Estudiante</span>
-            <span>${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}</span>
+            <span class="truncate block md:inline">${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}</span>
           </div>
         </td>
       `;
