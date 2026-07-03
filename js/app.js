@@ -1,12 +1,12 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion } from "./ui.js?v=9.29";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.29";
-import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas } from "./materias.js?v=9.29";
-import { cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, ejecutarNormalizacionMasiva, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.29";
-import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.29";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.29";
-import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion } from "./evaluaciones.js?v=9.29";
+import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion } from "./ui.js?v=9.30";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.30";
+import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas } from "./materias.js?v=9.30";
+import { cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.30";
+import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.30";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.30";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion } from "./evaluaciones.js?v=9.30";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
@@ -72,7 +72,10 @@ window.app.cerrarModalFusion         = cerrarModalFusion;
 window.app.buscarParaFusion          = buscarParaFusion;
 window.app.seleccionarParaFusion     = seleccionarParaFusion;
 window.app.ejecutarFusion            = ejecutarFusion;
-window.app.ejecutarNormalizacionMasiva = ejecutarNormalizacionMasiva;
+window.app.abrirModalNormalizacion   = abrirModalNormalizacion;
+window.app.cerrarModalNormalizacion  = cerrarModalNormalizacion;
+window.app.toggleNormalizacionItem   = toggleNormalizacionItem;
+window.app.ejecutarNormalizacionSeleccionada = ejecutarNormalizacionSeleccionada;
 window.app.abrirPerfilAlumno         = abrirPerfilAlumno;
 window.app.cerrarPerfilAlumno        = cerrarPerfilAlumno;
 window.app._toggleDivisionMaestra    = toggleDivisionMaestra;

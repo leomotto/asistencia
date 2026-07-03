@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.29";
-import { showToast } from "./ui.js?v=9.29";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.29";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.29";
+import { db, getPath } from "./firebase-config.js?v=9.30";
+import { showToast } from "./ui.js?v=9.30";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.30";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.30";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -758,24 +758,30 @@ export function cerrarPerfilAlumno() {
   document.getElementById('modalPerfilAlumno')?.classList.add('hidden');
 }
 
-export async function ejecutarNormalizacionMasiva() {
-  if (!confirm("⚠️ ¿Estás seguro de que querés auto-normalizar todos los estudiantes duplicados?\nEsta operación fusionará estudiantes con el mismo nombre y apellido (priorizando Artes) y transferirá todas sus calificaciones y asistencias.\nPuede tardar unos minutos.")) return;
 
-  const btn = document.getElementById('btnAutoFusionar');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Procesando...'; }
+let normalizacionGrupos = [];
+let normalizacionSeleccionados = new Set();
+
+export async function abrirModalNormalizacion() {
+  cerrarModalFusion();
+  document.getElementById('modalNormalizacionMasiva').classList.remove('hidden');
+  const lista = document.getElementById('listaNormalizacion');
+  const btn = document.getElementById('btnConfirmarNormalizacion');
+  const contador = document.getElementById('normContador');
+  
+  lista.innerHTML = '<div class="text-center py-10 text-slate-500"><i class="ph ph-spinner animate-spin text-3xl mb-2 block"></i> Analizando base de datos...</div>';
+  btn.disabled = true;
+  contador.textContent = '0';
+  normalizacionGrupos = [];
+  normalizacionSeleccionados.clear();
 
   try {
-    showToast('💾 Realizando backup de seguridad...', 'info');
-    await exportarBackup();
-    showToast('🔄 Analizando duplicados...', 'info');
-
     const snap = await getDocs(collection(db, getPath('estudiantes')));
     const estudiantes = [];
     snap.forEach(d => estudiantes.push({ id: d.id, ...d.data() }));
 
     const grupos = {};
     estudiantes.forEach(est => {
-      // Usar nombre y apellido en minuscula para agrupar
       const key = `${(est.nombre || '').trim().toLowerCase()} ${(est.apellido || '').trim().toLowerCase()}`;
       if (!grupos[key]) grupos[key] = [];
       grupos[key].push(est);
@@ -784,12 +790,101 @@ export async function ejecutarNormalizacionMasiva() {
     const hasArtes = (s) => (s.materias||[]).some(m => m.toLowerCase().includes('arte')) || (s.curso||'').toLowerCase().includes('arte') || (s.inscripciones && Object.keys(s.inscripciones).some(m => m.toLowerCase().includes('arte')));
 
     const duplicados = Object.values(grupos).filter(g => g.length > 1);
-    
+
     if (duplicados.length === 0) {
-      showToast('No se encontraron estudiantes duplicados.', 'success');
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i> Auto-Normalizar Todos'; }
+      lista.innerHTML = '<div class="text-center py-10 text-emerald-600 dark:text-emerald-500 font-bold"><i class="ph ph-check-circle text-4xl mb-2 block"></i> No se encontraron estudiantes duplicados.</div>';
       return;
     }
+
+    let html = '';
+    
+    for (const [index, grupo] of duplicados.entries()) {
+      let primario = grupo[0];
+      let secundarios = [];
+      
+      for (const est of grupo) {
+        if (hasArtes(est) && !hasArtes(primario)) {
+          primario = est;
+        }
+      }
+      secundarios = grupo.filter(e => e.id !== primario.id);
+      
+      const groupId = `norm_grupo_${index}`;
+      normalizacionGrupos.push({ id: groupId, primario, secundarios });
+      normalizacionSeleccionados.add(groupId); // checked by default
+
+      html += `
+        <label class="flex items-start gap-3 p-3 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-750 transition shadow-sm">
+          <div class="pt-1">
+            <input type="checkbox" id="${groupId}" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600" checked onchange="app.toggleNormalizacionItem('${groupId}')">
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              ${primario.nombre} ${primario.apellido}
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">Grupo de ${grupo.length}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div class="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-2 rounded">
+                <div class="font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1 mb-1"><i class="ph ph-star-fill"></i> Primario (Se mantiene)</div>
+                <div class="text-slate-600 dark:text-slate-400 truncate">DNI: ${primario.dni || '-'}</div>
+                <div class="text-slate-600 dark:text-slate-400 truncate">Materias: ${(primario.materias||[]).join(', ') || '-'}</div>
+              </div>
+              <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-2 rounded">
+                <div class="font-bold text-rose-700 dark:text-rose-400 flex items-center gap-1 mb-1"><i class="ph ph-trash"></i> Secundario/s (Se elimina/n)</div>
+                ${secundarios.map(sec => `
+                  <div class="text-slate-600 dark:text-slate-400 truncate mb-1">DNI: ${sec.dni || '-'} | Materias: ${(sec.materias||[]).join(', ') || '-'}</div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </label>
+      `;
+    }
+
+    lista.innerHTML = html;
+    actualizarBotonNormalizacion();
+
+  } catch (error) {
+    console.error(error);
+    lista.innerHTML = `<div class="text-center py-10 text-rose-600 font-bold"><i class="ph ph-warning text-3xl mb-2 block"></i> Error al analizar: ${error.message}</div>`;
+  }
+}
+
+export function cerrarModalNormalizacion() {
+  document.getElementById('modalNormalizacionMasiva').classList.add('hidden');
+}
+
+export function toggleNormalizacionItem(id) {
+  const cb = document.getElementById(id);
+  if (cb.checked) {
+    normalizacionSeleccionados.add(id);
+  } else {
+    normalizacionSeleccionados.delete(id);
+  }
+  actualizarBotonNormalizacion();
+}
+
+function actualizarBotonNormalizacion() {
+  const contador = document.getElementById('normContador');
+  const btn = document.getElementById('btnConfirmarNormalizacion');
+  contador.textContent = normalizacionSeleccionados.size;
+  btn.disabled = normalizacionSeleccionados.size === 0;
+}
+
+export async function ejecutarNormalizacionSeleccionada() {
+  const gruposAEjecutar = normalizacionGrupos.filter(g => normalizacionSeleccionados.has(g.id));
+  if (gruposAEjecutar.length === 0) return;
+
+  if (!confirm(`⚠️ ¿Estás seguro de fusionar los ${gruposAEjecutar.length} grupos seleccionados?\nEsta operación no se puede deshacer.`)) return;
+
+  const btn = document.getElementById('btnConfirmarNormalizacion');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Procesando...';
+
+  try {
+    showToast('💾 Realizando backup de seguridad...', 'info');
+    await exportarBackup();
+    showToast('🔄 Ejecutando fusiones...', 'info');
 
     let batches = [writeBatch(db)];
     let currentBatch = 0;
@@ -807,7 +902,6 @@ export async function ejecutarNormalizacionMasiva() {
       operationCount++;
     };
 
-    // Pre-fetch collections needed
     const snapAsistencias = await getDocs(collection(db, getPath('asistencias')));
     const snapEvals = await getDocs(collection(db, getPath('evaluaciones')));
     const todasAsistencias = [];
@@ -819,32 +913,21 @@ export async function ejecutarNormalizacionMasiva() {
     let resEvals = 0;
     let resFusionados = 0;
 
-    for (const grupo of duplicados) {
-      let primario = grupo[0];
-      let secundarios = [];
-      
-      // Encontrar el primario (prioridad Artes)
-      for (const est of grupo) {
-        if (hasArtes(est) && !hasArtes(primario)) {
-          primario = est;
-        }
-      }
-      secundarios = grupo.filter(e => e.id !== primario.id);
+    for (const grupo of gruposAEjecutar) {
+      let { primario, secundarios } = grupo;
 
       for (const secundario of secundarios) {
-        // Transfer asistencias
         for (const asis of todasAsistencias) {
           if (asis.registros && asis.registros[secundario.id] !== undefined) {
             const nuevosRegistros = { ...asis.registros };
             if (!nuevosRegistros[primario.id]) nuevosRegistros[primario.id] = nuevosRegistros[secundario.id];
             delete nuevosRegistros[secundario.id];
             addOperation('update', asis.ref, { registros: nuevosRegistros });
-            asis.registros = nuevosRegistros; // update memory state
+            asis.registros = nuevosRegistros;
             resAsist++;
           }
         }
 
-        // Transfer evaluaciones
         const evalsSecundario = todasEvals.filter(e => e.alumnoId === secundario.id);
         for (const docSnap of evalsSecundario) {
           const materia = docSnap.materia || '';
@@ -859,7 +942,6 @@ export async function ejecutarNormalizacionMasiva() {
           resEvals++;
         }
 
-        // Merge materias y grupos
         const materiasArr = [...(primario.materias || []), ...(primario.curso ? [primario.curso] : []), ...(secundario.materias || []), ...(secundario.curso ? [secundario.curso] : [])];
         const materiasUnidas = [...new Set(materiasArr)].filter(Boolean);
         
@@ -880,7 +962,6 @@ export async function ejecutarNormalizacionMasiva() {
         resFusionados++;
       }
       
-      // Update primary at the end of the group
       addOperation('update', doc(db, getPath('estudiantes'), primario.id), {
         materias: primario.materias,
         curso: primario.curso,
@@ -894,13 +975,14 @@ export async function ejecutarNormalizacionMasiva() {
 
     window.app.invalidarCacheBI?.();
     showToast(`✅ Normalización completa: se unificaron ${resFusionados} estudiantes. (Asist: ${resAsist}, Evals: ${resEvals})`, 'success', 8000);
-    cerrarModalFusion();
+    cerrarModalNormalizacion();
     await cargarAlumnosMatricula();
 
   } catch (error) {
     console.error(error);
     showToast('❌ Error en auto-normalización: ' + error.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i> Auto-Normalizar Todos'; }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ph ph-git-merge"></i> Ejecutar Selección';
   }
 }
