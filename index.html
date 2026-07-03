@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.22">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.23">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.22">
+  <link rel="stylesheet" href="css/styles.css?v=9.23">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -821,6 +821,7 @@
           </div>
         </div>
         <div class="flex gap-2 mt-6 border-t dark:border-slate-700 pt-4 justify-end">
+          <button id="btnEliminarAlumno" class="hidden px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 font-bold rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm mr-auto"><i class="ph ph-trash"></i> Eliminar</button>
           <button onclick="app.cerrarModalAlumno()" class="px-4 py-2 bg-gray-200 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-gray-300 transition text-sm">Cancelar</button>
           <button onclick="app.guardarAlumnoMatricula()" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition text-sm">Guardar Ficha</button>
         </div>
@@ -859,6 +860,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.22"></script>
+  <script type="module" src="js/app.js?v=9.23"></script>
 </body>
 </html>

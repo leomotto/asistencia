@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
-import { doc, setDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.22";
-import { showToast } from "./ui.js?v=9.22";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.22";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.22";
+import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=9.23";
+import { showToast } from "./ui.js?v=9.23";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.23";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.23";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -302,8 +302,35 @@ export function abrirModalAlumno(alumno = null) {
     // Sincronizar estado visual de todos los checkbox maestros
     document.querySelectorAll('.division-block').forEach(_sincronizarMaestra);
   } else {
-    title.innerText = `Agregar Alumno a ${curso}`;
+    // Es un ALTA NUEVA
+    // Para mejorar la visual del alta, marcamos automáticamente la división en la que estamos parados
+    title.innerText = `Agregar Alumno a la División`;
+    
+    if (curso && curso !== '__TODOS__') {
+      const cbs = document.querySelectorAll('.cb-materia');
+      cbs.forEach(cb => {
+        if (cb.value === curso || cb.value.startsWith(curso.split(' - ')[0])) {
+          cb.checked = true;
+          toggleInscripcionDetails(cb);
+        }
+      });
+      // Sincronizar estado visual
+      document.querySelectorAll('.division-block').forEach(_sincronizarMaestra);
+    }
   }
+  
+  // Mostrar/Ocultar botón eliminar
+  const btnEliminar = document.getElementById('btnEliminarAlumno');
+  if (btnEliminar) {
+    if (alumno) {
+      btnEliminar.classList.remove('hidden');
+      btnEliminar.onclick = () => app.eliminarAlumno(alumno.id, `${alumno.apellido}, ${alumno.nombre}`);
+    } else {
+      btnEliminar.classList.add('hidden');
+      btnEliminar.onclick = null;
+    }
+  }
+
   modal.classList.remove('hidden');
 }
 
@@ -354,7 +381,7 @@ export async function guardarAlumnoMatricula() {
       materias: materiasSeleccionadas,
       grupos:   gruposMap,
       curso:    materiasSeleccionadas.length > 0 ? materiasSeleccionadas[0] : (curso || "")
-    });
+    }, { merge: true });
 
     window.app.invalidarCacheBI?.();
     showToast('✅ Ficha de matrícula actualizada correctamente.');
@@ -364,6 +391,21 @@ export async function guardarAlumnoMatricula() {
   } catch (error) {
     console.error(error);
     showToast('❌ Error de red al guardar en base de datos.', 'error');
+  }
+}
+
+export async function eliminarAlumno(id, nombreFmt) {
+  if (!confirm(`¿Estás seguro de que deseas ELIMINAR por completo a ${nombreFmt}? Esta acción es irreversible.`)) return;
+
+  try {
+    await deleteDoc(doc(db, getPath("estudiantes"), id));
+    showToast(`✅ Estudiante ${nombreFmt} eliminado correctamente.`);
+    cerrarModalAlumno();
+    await cargarAlumnosMatricula();
+    window.app.cargarAlumnos();
+  } catch (error) {
+    console.error(error);
+    showToast('❌ Error al eliminar estudiante.', 'error');
   }
 }
 
