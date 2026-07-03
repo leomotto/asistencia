@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.30";
-import { showToast } from "./ui.js?v=9.30";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.30";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.30";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.30";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.30";
+import { db, getPath } from "./firebase-config.js?v=9.31";
+import { showToast } from "./ui.js?v=9.31";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.31";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.31";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.31";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.31";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -107,11 +107,11 @@ export async function cargarAlumnos() {
       let insc = (a.inscripciones && a.inscripciones[curso] && a.inscripciones[curso].length > 0)
         ? a.inscripciones[curso][a.inscripciones[curso].length - 1]
         : { estado: a.estado || 'ACTIVO', desde: a.fechaIngreso || '', hasta: a.fechaBaja || '' };
-      if (insc.estado.toLowerCase() !== 'activo') return false;
-      const fIngreso = normalizeDateToISO(insc.desde);
-      const fBaja    = normalizeDateToISO(insc.hasta);
-      if (fIngreso && fechaSeleccionada < fIngreso) return false;
-      if (fBaja    && fechaSeleccionada > fBaja)    return false;
+      
+      const fIngreso = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
+      const fBaja    = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+      if (fechaSeleccionada < fIngreso) return false;
+      if (fechaSeleccionada > fBaja)    return false;
       return true;
     }).sort((a, b) => a.apellido.localeCompare(b.apellido));
 
@@ -308,7 +308,21 @@ export async function cargarPlanillaGrilla() {
     let alumnos = [];
     snapAlumnos.forEach(d => {
       const data = { id: d.id, ...d.data() };
-      if (data.curso === curso || (data.materias && data.materias.includes(curso))) alumnos.push(data);
+      if (data.curso === curso || (data.materias && data.materias.includes(curso))) {
+        let insc = (data.inscripciones && data.inscripciones[curso] && data.inscripciones[curso].length > 0)
+          ? data.inscripciones[curso][data.inscripciones[curso].length - 1]
+          : { estado: data.estado || 'ACTIVO', desde: data.fechaIngreso || '', hasta: data.fechaBaja || '' };
+        
+        const activeFrom = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
+        const activeTo   = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+        
+        if (activeFrom <= fHasta && activeTo >= fDesde) {
+          data._activeFrom = activeFrom;
+          data._activeTo = activeTo;
+          data._estadoActual = insc.estado || 'ACTIVO';
+          alumnos.push(data);
+        }
+      }
     });
     alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
 
@@ -356,12 +370,7 @@ export async function cargarPlanillaGrilla() {
       const tr = document.createElement('tr');
       tr.className = `hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors ${index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800/50' : 'bg-white dark:bg-transparent'}`;
       const stickyBg = index % 2 !== 0 ? 'bg-slate-50 dark:bg-slate-800' : 'bg-white dark:bg-slate-800';
-      let estadoActual = "ACTIVO";
-      if (al.inscripciones && al.inscripciones[curso] && al.inscripciones[curso].length > 0) {
-        estadoActual = al.inscripciones[curso][al.inscripciones[curso].length - 1].estado || "ACTIVO";
-      } else if (al.estado) {
-        estadoActual = al.estado;
-      }
+      let estadoActual = al._estadoActual || "ACTIVO";
       const apodoStr = al.apodo ? ` (${escaparHTML(al.apodo)})` : "";
       let htmlFila = `
         <td class="px-4 py-3 sticky-student-col ${stickyBg} text-xs border-r dark:border-slate-700 shadow">
@@ -370,19 +379,29 @@ export async function cargarPlanillaGrilla() {
         </td>`;
       asistencias.forEach(asist => {
         const valor = (asist.registros && asist.registros[al.id]) ? asist.registros[al.id] : "-";
-        let color = "text-slate-400";
-        if (valor==="P") color="text-emerald-600 font-bold";
-        if (valor==="A") color="text-red-600 font-bold";
-        if (valor==="ACP") color="text-amber-500 font-bold";
-        htmlFila += `
-          <td class="px-1 py-1.5 border-l border-slate-200 dark:border-slate-700 text-center">
-            <select onchange="app.registrarCambioGrilla('${asist.fecha}','${al.id}',this)" class="bg-transparent font-black text-center text-xs w-14 outline-none cursor-pointer focus:ring-0 focus:border-indigo-500 ${color}">
-              <option value="-" ${valor==="-"?"selected":""}>-</option>
-              <option value="P" ${valor==="P"?"selected":""}>P</option>
-              <option value="A" ${valor==="A"?"selected":""}>A</option>
-              <option value="ACP" ${valor==="ACP"?"selected":""}>ACP</option>
-            </select>
-          </td>`;
+        
+        const isActivo = asist.fecha >= al._activeFrom && asist.fecha <= al._activeTo;
+        
+        if (!isActivo) {
+          htmlFila += `
+            <td class="px-1 py-1.5 border-l border-slate-200 dark:border-slate-700 text-center bg-slate-200/50 dark:bg-slate-800/80">
+              <div class="text-[10px] text-slate-400 dark:text-slate-500 font-bold" title="No activo en esta fecha">N/A</div>
+            </td>`;
+        } else {
+          let color = "text-slate-400";
+          if (valor==="P") color="text-emerald-600 font-bold";
+          if (valor==="A") color="text-red-600 font-bold";
+          if (valor==="ACP") color="text-amber-500 font-bold";
+          htmlFila += `
+            <td class="px-1 py-1.5 border-l border-slate-200 dark:border-slate-700 text-center">
+              <select onchange="app.registrarCambioGrilla('${asist.fecha}','${al.id}',this)" class="bg-transparent font-black text-center text-xs w-14 outline-none cursor-pointer focus:ring-0 focus:border-indigo-500 ${color}">
+                <option value="-" ${valor==="-"?"selected":""}>-</option>
+                <option value="P" ${valor==="P"?"selected":""}>P</option>
+                <option value="A" ${valor==="A"?"selected":""}>A</option>
+                <option value="ACP" ${valor==="ACP"?"selected":""}>ACP</option>
+              </select>
+            </td>`;
+        }
       });
       tr.innerHTML = htmlFila;
       const perfilLink = tr.querySelector('.perfil-link');
