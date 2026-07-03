@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.26">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.27">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.26">
+  <link rel="stylesheet" href="css/styles.css?v=9.27">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -324,10 +324,10 @@
         </div>
 
         <!-- Tabla Planilla de Calificaciones -->
-        <div class="overflow-x-auto w-full custom-scrollbar border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 max-h-[60vh]">
-          <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
-            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
-              <tr id="evalHeaders">
+        <div class="md:overflow-x-auto w-full md:custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 md:max-h-[60vh]">
+          <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800 block md:table">
+            <thead class="hidden md:table-header-group bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
+              <tr id="evalHeaders" class="md:table-row">
                 <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
                 <th class="px-2 py-3 text-center min-w-[90px]">1er Bim (Val)</th>
                 <th class="px-2 py-3 text-center min-w-[80px]">2do Bim (Num)</th>
@@ -340,9 +340,9 @@
                 <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
               </tr>
             </thead>
-            <tbody id="evalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
-              <tr>
-                <td colspan="10" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td>
+            <tbody id="evalBody" class="block md:table-row-group divide-y divide-slate-200 dark:divide-slate-700">
+              <tr class="block md:table-row">
+                <td colspan="10" class="px-4 py-8 text-center text-slate-400 block md:table-cell">Seleccione un curso del menú superior.</td>
               </tr>
             </tbody>
           </table>
@@ -904,6 +904,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.26"></script>
+  <script type="module" src="js/app.js?v=9.27"></script>
 </body>
 </html>
