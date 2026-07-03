@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.23";
-import { showToast } from "./ui.js?v=9.23";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.23";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.23";
+import { db, getPath } from "./firebase-config.js?v=9.24";
+import { showToast } from "./ui.js?v=9.24";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.24";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.24";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -33,13 +33,23 @@ export async function cargarAlumnosMatricula() {
       : todos.filter(a => a.curso === curso || (a.materias && a.materias.includes(curso)))
              .sort((a, b) => a.apellido.localeCompare(b.apellido));
 
-    if (window.app.alumnosMatriculaCache.length === 0) {
-      tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-amber-600">No hay ningún alumno matriculado en este espacio.</td></tr>';
+    const terminoBusqueda = (document.getElementById('mBuscadorAlumno')?.value || '').toLowerCase().trim();
+    let alumnosFiltrados = window.app.alumnosMatriculaCache;
+
+    if (terminoBusqueda) {
+      alumnosFiltrados = alumnosFiltrados.filter(est => 
+        (est.apellido && est.apellido.toLowerCase().includes(terminoBusqueda)) || 
+        (est.nombre && est.nombre.toLowerCase().includes(terminoBusqueda))
+      );
+    }
+
+    if (alumnosFiltrados.length === 0) {
+      tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-amber-600">No hay ningún alumno matriculado en este espacio que coincida con la búsqueda.</td></tr>';
       return;
     }
 
     tabla.innerHTML = '';
-    window.app.alumnosMatriculaCache.forEach(est => {
+    alumnosFiltrados.forEach(est => {
       const apodoStr = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
       const notasStr = est.notas ? `<p class="text-xs text-amber-600 italic">📌 ${escaparHTML(est.notas)}</p>` : "";
       const materiasAMostrar = esTodos
