@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.28";
-import { showToast } from "./ui.js?v=9.28";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.28";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.28";
+import { db, getPath } from "./firebase-config.js?v=9.29";
+import { showToast } from "./ui.js?v=9.29";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.29";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.29";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -756,4 +756,151 @@ export async function abrirPerfilAlumno(uid, curso) {
 
 export function cerrarPerfilAlumno() {
   document.getElementById('modalPerfilAlumno')?.classList.add('hidden');
+}
+
+export async function ejecutarNormalizacionMasiva() {
+  if (!confirm("⚠️ ¿Estás seguro de que querés auto-normalizar todos los estudiantes duplicados?\nEsta operación fusionará estudiantes con el mismo nombre y apellido (priorizando Artes) y transferirá todas sus calificaciones y asistencias.\nPuede tardar unos minutos.")) return;
+
+  const btn = document.getElementById('btnAutoFusionar');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Procesando...'; }
+
+  try {
+    showToast('💾 Realizando backup de seguridad...', 'info');
+    await exportarBackup();
+    showToast('🔄 Analizando duplicados...', 'info');
+
+    const snap = await getDocs(collection(db, getPath('estudiantes')));
+    const estudiantes = [];
+    snap.forEach(d => estudiantes.push({ id: d.id, ...d.data() }));
+
+    const grupos = {};
+    estudiantes.forEach(est => {
+      // Usar nombre y apellido en minuscula para agrupar
+      const key = `${(est.nombre || '').trim().toLowerCase()} ${(est.apellido || '').trim().toLowerCase()}`;
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(est);
+    });
+
+    const hasArtes = (s) => (s.materias||[]).some(m => m.toLowerCase().includes('arte')) || (s.curso||'').toLowerCase().includes('arte') || (s.inscripciones && Object.keys(s.inscripciones).some(m => m.toLowerCase().includes('arte')));
+
+    const duplicados = Object.values(grupos).filter(g => g.length > 1);
+    
+    if (duplicados.length === 0) {
+      showToast('No se encontraron estudiantes duplicados.', 'success');
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i> Auto-Normalizar Todos'; }
+      return;
+    }
+
+    let batches = [writeBatch(db)];
+    let currentBatch = 0;
+    let operationCount = 0;
+
+    const addOperation = (type, ref, data) => {
+      if (operationCount >= 450) {
+        currentBatch++;
+        batches[currentBatch] = writeBatch(db);
+        operationCount = 0;
+      }
+      if (type === 'update') batches[currentBatch].update(ref, data);
+      else if (type === 'set') batches[currentBatch].set(ref, data);
+      else if (type === 'delete') batches[currentBatch].delete(ref);
+      operationCount++;
+    };
+
+    // Pre-fetch collections needed
+    const snapAsistencias = await getDocs(collection(db, getPath('asistencias')));
+    const snapEvals = await getDocs(collection(db, getPath('evaluaciones')));
+    const todasAsistencias = [];
+    snapAsistencias.forEach(d => todasAsistencias.push({ id: d.id, ref: d.ref, ...d.data() }));
+    const todasEvals = [];
+    snapEvals.forEach(d => todasEvals.push({ id: d.id, ref: d.ref, ...d.data() }));
+
+    let resAsist = 0;
+    let resEvals = 0;
+    let resFusionados = 0;
+
+    for (const grupo of duplicados) {
+      let primario = grupo[0];
+      let secundarios = [];
+      
+      // Encontrar el primario (prioridad Artes)
+      for (const est of grupo) {
+        if (hasArtes(est) && !hasArtes(primario)) {
+          primario = est;
+        }
+      }
+      secundarios = grupo.filter(e => e.id !== primario.id);
+
+      for (const secundario of secundarios) {
+        // Transfer asistencias
+        for (const asis of todasAsistencias) {
+          if (asis.registros && asis.registros[secundario.id] !== undefined) {
+            const nuevosRegistros = { ...asis.registros };
+            if (!nuevosRegistros[primario.id]) nuevosRegistros[primario.id] = nuevosRegistros[secundario.id];
+            delete nuevosRegistros[secundario.id];
+            addOperation('update', asis.ref, { registros: nuevosRegistros });
+            asis.registros = nuevosRegistros; // update memory state
+            resAsist++;
+          }
+        }
+
+        // Transfer evaluaciones
+        const evalsSecundario = todasEvals.filter(e => e.alumnoId === secundario.id);
+        for (const docSnap of evalsSecundario) {
+          const materia = docSnap.materia || '';
+          const newDocId = `${primario.id}_${materia.replace(/\s+/g, '')}`;
+          const newRef = doc(db, getPath('evaluaciones'), newDocId);
+          
+          const newData = { ...docSnap, alumnoId: primario.id };
+          delete newData.id;
+          delete newData.ref;
+          addOperation('set', newRef, newData);
+          addOperation('delete', docSnap.ref);
+          resEvals++;
+        }
+
+        // Merge materias y grupos
+        const materiasArr = [...(primario.materias || []), ...(primario.curso ? [primario.curso] : []), ...(secundario.materias || []), ...(secundario.curso ? [secundario.curso] : [])];
+        const materiasUnidas = [...new Set(materiasArr)].filter(Boolean);
+        
+        const gruposUnidos = { ...(primario.grupos || {}), ...(secundario.grupos || {}) };
+        const inscripcionesUnidas = { ...(primario.inscripciones || {}) };
+        for (const mat of Object.keys(secundario.inscripciones || {})) {
+          if (!inscripcionesUnidas[mat]) inscripcionesUnidas[mat] = secundario.inscripciones[mat];
+          else inscripcionesUnidas[mat] = [...inscripcionesUnidas[mat], ...secundario.inscripciones[mat]];
+        }
+
+        primario.materias = materiasUnidas;
+        primario.curso = materiasUnidas[0] || '';
+        primario.grupos = gruposUnidos;
+        primario.inscripciones = inscripcionesUnidas;
+        if (!primario.dni && secundario.dni) primario.dni = secundario.dni;
+
+        addOperation('delete', doc(db, getPath('estudiantes'), secundario.id));
+        resFusionados++;
+      }
+      
+      // Update primary at the end of the group
+      addOperation('update', doc(db, getPath('estudiantes'), primario.id), {
+        materias: primario.materias,
+        curso: primario.curso,
+        dni: primario.dni || '',
+        grupos: primario.grupos || {},
+        inscripciones: primario.inscripciones || {}
+      });
+    }
+
+    for (const b of batches) await b.commit();
+
+    window.app.invalidarCacheBI?.();
+    showToast(`✅ Normalización completa: se unificaron ${resFusionados} estudiantes. (Asist: ${resAsist}, Evals: ${resEvals})`, 'success', 8000);
+    cerrarModalFusion();
+    await cargarAlumnosMatricula();
+
+  } catch (error) {
+    console.error(error);
+    showToast('❌ Error en auto-normalización: ' + error.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i> Auto-Normalizar Todos'; }
+  }
 }
