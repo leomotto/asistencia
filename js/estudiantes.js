@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.24";
-import { showToast } from "./ui.js?v=9.24";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.24";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.24";
+import { db, getPath } from "./firebase-config.js?v=9.25";
+import { showToast } from "./ui.js?v=9.25";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.25";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.25";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -191,85 +191,117 @@ function _htmlDetallesInscripcion(mat) {
     </div>`;
 }
 
-// Sincroniza el checkbox maestro de una división según el estado de sus hijos
-function _sincronizarMaestra(divisionBlock) {
-  if (!divisionBlock) return;
-  const maestra   = divisionBlock.querySelector('.cb-division-maestro');
-  if (!maestra) return;
-  const hijos     = [...divisionBlock.querySelectorAll('.cb-materia')];
-  const checkedN  = hijos.filter(cb => cb.checked).length;
-  maestra.checked       = checkedN === hijos.length && hijos.length > 0;
-  maestra.indeterminate = checkedN > 0 && checkedN < hijos.length;
+// Helpers for the new Spec-driven UI
+export function _cambiarDivisionPrimaria() {
+  const div = document.getElementById('formDivisionPrimaria').value;
+  const container = document.getElementById('formMateriasContainer');
+  const tarjeta = document.getElementById('tarjetaInscripcionDivision');
+  const txtResumen = document.getElementById('txtResumenDivision');
+  
+  if (!div) {
+    tarjeta.classList.add('hidden');
+    container.classList.add('hidden');
+    container.classList.remove('flex');
+    return;
+  }
+  
+  tarjeta.classList.remove('hidden');
+  
+  let countMats = 0;
+  document.querySelectorAll('.division-block').forEach(block => {
+    if (block.dataset.division === div) {
+      block.classList.remove('hidden');
+      const checkboxes = block.querySelectorAll('.cb-materia');
+      countMats = checkboxes.length;
+      checkboxes.forEach(cb => {
+        if (!cb.checked) {
+          cb.checked = true;
+          window.app._toggleInscripcionDetails(cb);
+        }
+      });
+    } else {
+      block.classList.add('hidden');
+    }
+  });
+  
+  txtResumen.innerText = `Inscrito en ${div} (${countMats} asignaturas)`;
+  _sincronizarGlobales();
+}
+
+export function _sincronizarGlobales() {
+  const globalGrupo = document.getElementById('formGrupoGlobal').value;
+  const globalEstado = document.getElementById('formEstadoGlobal').value;
+  
+  document.querySelectorAll('.division-block:not(.hidden) .group-materia-row').forEach(row => {
+    if (row.querySelector('.cb-materia').checked) {
+      row.querySelector('.sel-grupo-materia').value = globalGrupo;
+      row.querySelector('.sel-estado-materia').value = globalEstado;
+    }
+  });
+}
+
+export function _toggleMateriasIndividuales() {
+  const container = document.getElementById('formMateriasContainer');
+  if (container.classList.contains('hidden')) {
+    container.classList.remove('hidden');
+    container.classList.add('flex');
+  } else {
+    container.classList.add('hidden');
+    container.classList.remove('flex');
+  }
 }
 
 export function abrirModalAlumno(alumno = null) {
-  const curso = document.getElementById('mCurso').value;
-  if (!curso && !alumno) { showToast('⚠️ Seleccione la división primero.', 'error'); return; }
-
   const modal = document.getElementById('modalAlumno');
   const title = document.getElementById('modalTitle');
+  
   ['formId','formApellido','formNombre','formApodo','formDni','formNotas'].forEach(id => {
     document.getElementById(id).value = "";
   });
-
-  // Feature 3: Agrupar materias por División con Checkbox Maestro
-  const materiasContainer = document.getElementById('formMateriasContainer');
-  materiasContainer.innerHTML = '';
-
-  const grupos = {}; // { "1ro A": ["1ro A - Matemática", ...], "": ["ARTES"] }
+  
+  const container = document.getElementById('formMateriasContainer');
+  container.innerHTML = '';
+  
+  const grupos = {}; 
   window.app.cursos.forEach(mat => {
     const { div } = _descomponerMat(mat);
     if (!grupos[div]) grupos[div] = [];
     grupos[div].push(mat);
   });
 
-  // Ordenar: divisiones con nombre primero, luego las sin división
-  const divsSorted = Object.keys(grupos).sort((a, b) => {
-    if (a === '' && b !== '') return 1;
-    if (a !== '' && b === '') return -1;
-    return a.localeCompare(b);
-  });
-
-  divsSorted.forEach(div => {
-    const mats = grupos[div];
-
-    // Bloque contenedor por división
+  const divisiones = Object.keys(grupos).sort((a,b) => a.localeCompare(b));
+  
+  divisiones.forEach(div => {
     const block = document.createElement('div');
-    block.className = 'division-block mb-2 border dark:border-slate-700 rounded-lg overflow-hidden';
-
-    if (div) {
-      // Checkbox maestro para la división
-      block.innerHTML = `
-        <label class="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-700/50 cursor-pointer select-none hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-          <input type="checkbox" class="cb-division-maestro h-4 w-4 rounded accent-indigo-600"
-                 data-division="${div}" onchange="app._toggleDivisionMaestra(this)">
-          <span class="text-xs font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">${div}</span>
-          <span class="ml-auto text-[9px] text-slate-400 italic">marcar todo</span>
-        </label>
-        <div class="px-3 py-2 space-y-1.5"></div>`;
-    } else {
-      block.innerHTML = `<div class="px-0 py-0 space-y-1.5"></div>`;
-    }
-
-    const itemsContainer = block.querySelector('div:last-child');
-
-    mats.forEach(mat => {
+    block.className = 'division-block hidden mb-2 rounded-lg overflow-hidden';
+    block.dataset.division = div;
+    
+    grupos[div].forEach(mat => {
       const { base } = _descomponerMat(mat);
       const row = document.createElement('div');
       row.className = 'flex flex-col gap-1 p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 group-materia-row transition';
       row.innerHTML = `
         <div class="flex items-center gap-2">
-          <input type="checkbox" value="${mat}" class="form-checkbox h-4 w-4 text-indigo-600 rounded cb-materia flex-shrink-0"
-                 onchange="app._toggleInscripcionDetails(this)">
+          <input type="checkbox" value="${mat}" class="form-checkbox h-4 w-4 text-indigo-600 rounded cb-materia flex-shrink-0" onchange="app._toggleInscripcionDetails(this)">
           <span class="text-slate-700 dark:text-slate-200 text-sm font-semibold flex-1">${base || mat}</span>
         </div>
         ${_htmlDetallesInscripcion(mat)}
       `;
-      itemsContainer.appendChild(row);
+      block.appendChild(row);
     });
-
-    materiasContainer.appendChild(block);
+    container.appendChild(block);
   });
+
+  const selectDiv = document.getElementById('formDivisionPrimaria');
+  selectDiv.innerHTML = '<option value="">-- Seleccione una División --</option>' + 
+    divisiones.filter(d => d !== '').map(d => `<option value="${d}">${d}</option>`).join('');
+
+  document.getElementById('tarjetaInscripcionDivision').classList.add('hidden');
+  container.classList.add('hidden');
+  container.classList.remove('flex');
+
+  document.getElementById('formGrupoGlobal').value = 'GENERAL';
+  document.getElementById('formEstadoGlobal').value = 'ACTIVO';
 
   if (alumno) {
     title.innerText = "Editar Ficha de Estudiante";
@@ -278,63 +310,79 @@ export function abrirModalAlumno(alumno = null) {
     document.getElementById('formNombre').value   = alumno.nombre || "";
     document.getElementById('formApodo').value    = alumno.apodo || "";
     document.getElementById('formDni').value      = alumno.dni || "";
+    document.getElementById('formNotas').value    = alumno.notas || "";
 
     const inscripciones = alumno.inscripciones || {};
     document.querySelectorAll('.cb-materia').forEach(cb => {
       const mat = cb.value;
-      let estaAsignado = false, insc = null;
-      if (inscripciones[mat] && inscripciones[mat].length > 0) {
-        estaAsignado = true;
-        insc = inscripciones[mat][inscripciones[mat].length - 1];
-      } else if ((alumno.materias && alumno.materias.includes(mat)) || (!alumno.materias && alumno.curso === mat)) {
-        estaAsignado = true;
-        insc = {
-          grupo:  (alumno.grupos && alumno.grupos[mat]) ? alumno.grupos[mat] : (alumno.grupo || "GENERAL"),
-          estado: alumno.estado || "ACTIVO",
-          desde:  alumno.fechaIngreso || "",
-          hasta:  alumno.fechaBaja || ""
-        };
-      }
+      const estaAsignado = (alumno.materias && alumno.materias.includes(mat)) || (alumno.curso === mat);
+      cb.checked = !!estaAsignado;
+      
+      let insc = null;
       if (estaAsignado) {
-        cb.checked = true;
-        toggleInscripcionDetails(cb);
-        const row = cb.closest('.group-materia-row');
-        if (row && insc) {
-          row.querySelector('.sel-grupo-materia').value  = insc.grupo  || "GENERAL";
-          row.querySelector('.sel-estado-materia').value = insc.estado || "ACTIVO";
-          row.querySelector('.sel-desde-materia').value  = normalizeDateToISO(insc.desde) || "";
-          row.querySelector('.sel-hasta-materia').value  = normalizeDateToISO(insc.hasta) || "";
+        if (inscripciones[mat] && inscripciones[mat].length > 0) {
+          insc = inscripciones[mat][inscripciones[mat].length - 1];
+        } else {
+          insc = {
+            grupo:  (alumno.grupos && alumno.grupos[mat]) ? alumno.grupos[mat] : (alumno.grupo || "GENERAL"),
+            estado: alumno.estado || "ACTIVO",
+            desde:  alumno.fechaIngreso || "",
+            hasta:  alumno.fechaBaja || ""
+          };
         }
+      }
+      
+      window.app._toggleInscripcionDetails(cb);
+      
+      const row = cb.closest('.group-materia-row');
+      if (row && insc && estaAsignado) {
+        row.querySelector('.sel-grupo-materia').value  = insc.grupo  || "GENERAL";
+        row.querySelector('.sel-estado-materia').value = insc.estado || "ACTIVO";
+        row.querySelector('.sel-desde-materia').value  = normalizeDateToISO(insc.desde) || "";
+        row.querySelector('.sel-hasta-materia').value  = normalizeDateToISO(insc.hasta) || "";
       }
     });
-    document.getElementById('formNotas').value = alumno.notas || "";
 
-    // Sincronizar estado visual de todos los checkbox maestros
-    document.querySelectorAll('.division-block').forEach(_sincronizarMaestra);
-  } else {
-    // Es un ALTA NUEVA
-    // Para mejorar la visual del alta, marcamos automáticamente la división en la que estamos parados
-    title.innerText = `Agregar Alumno a la División`;
+    let divPrincipal = '';
+    if (alumno.curso && alumno.curso !== '__TODOS__') {
+       divPrincipal = alumno.curso.indexOf(' - ') > -1 ? alumno.curso.split(' - ')[0] : alumno.curso;
+    } else if (alumno.materias && alumno.materias.length > 0) {
+       divPrincipal = alumno.materias[0].indexOf(' - ') > -1 ? alumno.materias[0].split(' - ')[0] : alumno.materias[0];
+    }
     
-    if (curso && curso !== '__TODOS__') {
-      const cbs = document.querySelectorAll('.cb-materia');
-      cbs.forEach(cb => {
-        if (cb.value === curso || cb.value.startsWith(curso.split(' - ')[0])) {
-          cb.checked = true;
-          toggleInscripcionDetails(cb);
+    if (divPrincipal && divisiones.includes(divPrincipal)) {
+      selectDiv.value = divPrincipal;
+      document.getElementById('tarjetaInscripcionDivision').classList.remove('hidden');
+      
+      let countMats = 0;
+      document.querySelectorAll('.division-block').forEach(block => {
+        if (block.dataset.division === divPrincipal) {
+          block.classList.remove('hidden');
+          countMats = block.querySelectorAll('.cb-materia').length;
+        } else {
+          block.classList.add('hidden');
         }
       });
-      // Sincronizar estado visual
-      document.querySelectorAll('.division-block').forEach(_sincronizarMaestra);
+      document.getElementById('txtResumenDivision').innerText = `Inscrito en ${divPrincipal} (${countMats} asignaturas)`;
+    }
+
+  } else {
+    title.innerText = `Agregar Nuevo Estudiante`;
+    const filtroActual = document.getElementById('mCurso')?.value;
+    if (filtroActual && filtroActual !== '__TODOS__') {
+      const divFiltro = filtroActual.indexOf(' - ') > -1 ? filtroActual.split(' - ')[0] : filtroActual;
+      if (divisiones.includes(divFiltro)) {
+        selectDiv.value = divFiltro;
+        _cambiarDivisionPrimaria();
+      }
     }
   }
   
-  // Mostrar/Ocultar botón eliminar
   const btnEliminar = document.getElementById('btnEliminarAlumno');
   if (btnEliminar) {
     if (alumno) {
       btnEliminar.classList.remove('hidden');
-      btnEliminar.onclick = () => app.eliminarAlumno(alumno.id, `${alumno.apellido}, ${alumno.nombre}`);
+      btnEliminar.onclick = () => window.app.eliminarAlumno(alumno.id, `${alumno.apellido}, ${alumno.nombre}`);
     } else {
       btnEliminar.classList.add('hidden');
       btnEliminar.onclick = null;
