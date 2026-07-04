@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.31";
-import { showToast } from "./ui.js?v=9.31";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.31";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.31";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.31";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.31";
+import { db, getPath } from "./firebase-config.js?v=9.35";
+import { showToast } from "./ui.js?v=9.35";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.35";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.35";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.35";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.35";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -104,15 +104,19 @@ export async function cargarAlumnos() {
     window.app.alumnosActivos = todos.filter(a => {
       const pertenece = a.curso === curso || (a.materias && a.materias.includes(curso));
       if (!pertenece) return false;
-      let insc = (a.inscripciones && a.inscripciones[curso] && a.inscripciones[curso].length > 0)
-        ? a.inscripciones[curso][a.inscripciones[curso].length - 1]
-        : { estado: a.estado || 'ACTIVO', desde: a.fechaIngreso || '', hasta: a.fechaBaja || '' };
       
-      const fIngreso = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
-      const fBaja    = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
-      if (fechaSeleccionada < fIngreso) return false;
-      if (fechaSeleccionada > fBaja)    return false;
-      return true;
+      let inscripciones = (a.inscripciones && a.inscripciones[curso] && a.inscripciones[curso].length > 0)
+        ? a.inscripciones[curso]
+        : [{ estado: a.estado || 'ACTIVO', desde: a.fechaIngreso || '', hasta: a.fechaBaja || '' }];
+      
+      // Check if fechaSeleccionada falls within ANY of the enrollment intervals
+      const isActiveOnDate = inscripciones.some(insc => {
+        const fIngreso = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
+        const fBaja    = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+        return fechaSeleccionada >= fIngreso && fechaSeleccionada <= fBaja;
+      });
+      
+      return isActiveOnDate;
     }).sort((a, b) => a.apellido.localeCompare(b.apellido));
 
     if (window.app.alumnosActivos.length === 0) {
@@ -309,17 +313,29 @@ export async function cargarPlanillaGrilla() {
     snapAlumnos.forEach(d => {
       const data = { id: d.id, ...d.data() };
       if (data.curso === curso || (data.materias && data.materias.includes(curso))) {
-        let insc = (data.inscripciones && data.inscripciones[curso] && data.inscripciones[curso].length > 0)
-          ? data.inscripciones[curso][data.inscripciones[curso].length - 1]
-          : { estado: data.estado || 'ACTIVO', desde: data.fechaIngreso || '', hasta: data.fechaBaja || '' };
+        let inscripciones = (data.inscripciones && data.inscripciones[curso] && data.inscripciones[curso].length > 0)
+          ? data.inscripciones[curso]
+          : [{ estado: data.estado || 'ACTIVO', desde: data.fechaIngreso || '', hasta: data.fechaBaja || '' }];
         
-        const activeFrom = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
-        const activeTo   = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+        // Find if ANY enrollment overlaps with [fDesde, fHasta]
+        let isOverlapping = false;
+        let lastEstado = 'ACTIVO';
         
-        if (activeFrom <= fHasta && activeTo >= fDesde) {
-          data._activeFrom = activeFrom;
-          data._activeTo = activeTo;
-          data._estadoActual = insc.estado || 'ACTIVO';
+        for (const insc of inscripciones) {
+          const activeFrom = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
+          const activeTo   = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+          
+          if (activeFrom <= fHasta && activeTo >= fDesde) {
+            isOverlapping = true;
+            lastEstado = insc.estado || 'ACTIVO';
+            // Store the earliest from and latest to that overlap for potential use later
+            if (!data._activeFrom || activeFrom < data._activeFrom) data._activeFrom = activeFrom;
+            if (!data._activeTo || activeTo > data._activeTo) data._activeTo = activeTo;
+          }
+        }
+
+        if (isOverlapping) {
+          data._estadoActual = lastEstado;
           alumnos.push(data);
         }
       }

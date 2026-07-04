@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Auditoría de Base de Datos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8 font-sans">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow-lg border border-slate-200">
+    <h1 class="text-2xl font-bold text-slate-800 mb-2">Auditoría de Cursos "Sueltos"</h1>
+    <p class="mb-6 text-sm text-gray-600">Busca materias generadas accidentalmente sin prefijo (ej. "A - Matemática") y revisa si tienen registros de asistencia o evaluaciones.</p>
+    
+    <button id="btnEscanear" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition">INICIAR ESCANEO DE AUDITORÍA</button>
+    <button id="btnLimpiar" class="hidden bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition ml-2">BORRAR CURSOS SUELTOS (SEGURO)</button>
+    
+    <div id="log" class="mt-6 bg-slate-900 text-emerald-400 font-mono p-4 rounded-lg h-96 overflow-y-auto text-xs whitespace-pre-wrap">
+      Esperando para iniciar escaneo...
+    </div>
+  </div>
+  <script type="module" src="js/auditoria.js"></script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 
 import { doc, setDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.31";
-import { showToast } from "./ui.js?v=9.31";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.31";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.35";
+import { showToast } from "./ui.js?v=9.35";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.35";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 
@@ -177,7 +177,7 @@ export function initAuth() {
 
   // Seguridad: si Firebase Auth no responde en 10 segundos (dominio no autorizado, red caída, etc.)
   // forzamos la transición a la pantalla de login para evitar el loader eterno.
-  const TIMEOUT_MS = 10_000;
+  const TIMEOUT_MS = 10000;
   const safetyTimer = setTimeout(() => {
     const loadingScreen = document.getElementById('loadingScreen');
     const loginScreen   = document.getElementById('loginScreen');

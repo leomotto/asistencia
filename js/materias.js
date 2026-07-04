@@ -1,8 +1,8 @@
 // js/materias.js — Gestión de materias/divisiones y horarios dinámicos
 
 import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.31";
-import { showToast } from "./ui.js?v=9.31";
+import { db, getPath } from "./firebase-config.js?v=9.35";
+import { showToast } from "./ui.js?v=9.35";
 
 export const HORARIOS_DINAMICOS = {};
 
@@ -312,5 +312,93 @@ export async function migrarMateriasHistoricas() {
     showToast('❌ Error durante la migración.', 'error');
   } finally {
     reset();
+  }
+}
+
+// ==========================================
+// GENERADOR DE CURSOS AUTOMÁTICO
+// ==========================================
+
+export function abrirModalGenerador() {
+  document.getElementById('genAño').value = '';
+  document.getElementById('genPrefijoDivision').value = '';
+  document.getElementById('genLetrasDivision').value = '';
+  document.getElementById('genMaterias').value = '';
+  document.getElementById('modalGeneradorCursos').classList.remove('hidden');
+}
+
+export function cerrarModalGenerador() {
+  document.getElementById('modalGeneradorCursos').classList.add('hidden');
+}
+
+export async function ejecutarGenerador() {
+  const anioRaw = document.getElementById('genAño').value.trim();
+  const prefijoRaw = document.getElementById('genPrefijoDivision').value.trim();
+  const letrasRaw = document.getElementById('genLetrasDivision').value.trim();
+  const materiasRaw = document.getElementById('genMaterias').value.trim();
+
+  if (!anioRaw || !prefijoRaw || !letrasRaw || !materiasRaw) {
+    showToast('⚠️ Completa el Año, Prefijo, Letras y Materias', 'error');
+    return;
+  }
+
+  const materiasNombres = materiasRaw.split(',').map(m => m.trim()).filter(Boolean);
+  const letrasNombres = letrasRaw.split(',').map(d => d.trim()).filter(Boolean);
+
+  if (materiasNombres.length === 0 || letrasNombres.length === 0) {
+    showToast('⚠️ Revisa el formato de los datos separados por coma.', 'error');
+    return;
+  }
+
+  // Generar divisiones
+  const divisionesNombres = letrasNombres.map(letra => `${prefijoRaw} ${letra}`);
+
+  const btn = document.getElementById('btnEjecutarGenerador');
+  const icon = document.getElementById('iconEjecutarGenerador');
+  const text = document.getElementById('textEjecutarGenerador');
+  
+  btn.disabled = true;
+  icon.className = "ph ph-spinner animate-spin text-lg";
+  text.innerText = "Generando...";
+
+  let generadas = 0;
+
+  try {
+    const snap = await getDocs(collection(db, getPath("materias")));
+    const materiasExistentes = snap.docs.map(d => d.data().nombre.toLowerCase());
+
+    for (const division of divisionesNombres) {
+      for (const materiaBase of materiasNombres) {
+        const nombreCombinado = `${division} - ${materiaBase}`;
+        
+        // Evitar duplicados exactos
+        if (!materiasExistentes.includes(nombreCombinado.toLowerCase())) {
+          const payload = {
+            nombre: nombreCombinado,
+            materiaBase: materiaBase,
+            division: division,
+            dias: [],
+            nombreDias: "",
+            planEstudio: anioRaw
+          };
+          await addDoc(collection(db, getPath("materias")), payload);
+          generadas++;
+        }
+      }
+    }
+
+    showToast(`✅ Generación completa: Se crearon ${generadas} materias.`, 'success');
+    window.app.invalidarCacheBI?.();
+    cerrarModalGenerador();
+    await cargarMateriasDinamicas();
+    window.app.popularCursos();
+    await cargarListaMateriasAdmin();
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Error durante la generación', 'error');
+  } finally {
+    btn.disabled = false;
+    icon.className = "ph ph-magic-wand text-lg";
+    text.innerText = "Generar Materias";
   }
 }

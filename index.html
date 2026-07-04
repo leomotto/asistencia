@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.31">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.35">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +13,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.31">
+  <link rel="stylesheet" href="css/styles.css?v=9.35">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -600,6 +600,9 @@
               title="Escanea las asistencias históricas y crea en Firestore las materias que faltan">
               <i class="ph ph-clock-clockwise text-lg"></i> Migrar Materias Históricas
             </button>
+            <button onclick="app.abrirModalGenerador()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm">
+              <i class="ph ph-magic-wand text-lg"></i> Generador de Cursos
+            </button>
             <button onclick="app.abrirModalMateria()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
               <i class="ph ph-plus-circle text-lg"></i> Crear Materia
             </button>
@@ -645,6 +648,47 @@
         </div>
       </div>
     </section>
+
+    <!-- MODAL GENERADOR DE CURSOS -->
+    <div id="modalGeneradorCursos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
+          <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-magic-wand text-emerald-600"></i> Generador de Cursos
+          </h3>
+          <button onclick="app.cerrarModalGenerador()" class="text-slate-400 hover:text-red-500 transition">
+            <i class="ph ph-x text-2xl"></i>
+          </button>
+        </div>
+        <div class="space-y-4 mb-6">
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded text-sm text-blue-700 dark:text-blue-300">
+            Genera automáticamente todas las materias para múltiples divisiones de un mismo año escolar.
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">AÑO / NIVEL *</label>
+            <input type="text" id="genAño" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1er Año">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">PREFIJO DE DIVISIÓN *</label>
+            <input type="text" id="genPrefijoDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1ro, 2do, 3ro">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">LETRAS DE LAS DIVISIONES (separadas por coma) *</label>
+            <input type="text" id="genLetrasDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: A, B, C, D, E, F">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MATERIAS (separadas por coma) *</label>
+            <textarea id="genMaterias" rows="3" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Matemática, Prácticas del Lenguaje, Historia, Geografía"></textarea>
+          </div>
+        </div>
+        <div class="flex gap-2 justify-end pt-4 border-t dark:border-slate-700">
+          <button onclick="app.cerrarModalGenerador()" class="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-gray-300 transition text-sm">Cancelar</button>
+          <button onclick="app.ejecutarGenerador()" id="btnEjecutarGenerador" class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm text-sm">
+            <i id="iconEjecutarGenerador" class="ph ph-magic-wand text-lg"></i> <span id="textEjecutarGenerador">Generar Materias</span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- MODAL DE MATERIAS -->
     <div id="modalMateria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
@@ -936,6 +980,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.31"></script>
+  <script type="module" src="js/app.js?v=9.35"></script>
 </body>
 </html>
