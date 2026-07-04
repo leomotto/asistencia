@@ -612,13 +612,13 @@ export async function cargarPlanillaEvaluaciones() {
         <th class="px-4 py-3 text-left w-48 sm:w-64 max-w-[250px] sticky left-0 z-20 bg-slate-900 border-r border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Estudiante</th>
 `;
       cols.forEach(col => {
-        headersHtml += `<th class="px-2 py-3 text-center min-w-[120px]">${escaparHTML(col.label)}</th>`;
+        headersHtml += `<th class="px-2 py-3 text-center min-w-[70px]">${escaparHTML(col.label)}</th>`;
       });
       if (mostrarResumen) {
         headersHtml += `
           <th class="px-3 py-3 text-center min-w-[90px] bg-slate-700/80">Calif. Final</th>
           <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
-          <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
+          <th class="px-3 py-3 text-center min-w-[70px]">Condición</th>
         `;
       }
       headerRow.innerHTML = headersHtml;
@@ -700,7 +700,7 @@ export async function cargarPlanillaEvaluaciones() {
         } else {
           const val = notaData[`adicionales_${periodo}_${col.key}`] ?? '';
           colsHtml += `
-            <td class="px-2 py-2 text-center border-b dark:border-slate-700/50 min-w-[120px]">
+            <td class="px-2 py-2 text-center border-b dark:border-slate-700/50 min-w-[70px]">
               <input type="text" ${disabledAttr} class="w-full p-1.5 border dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-900 text-xs text-center font-medium focus:ring-2 focus:ring-indigo-500" 
                 value="${escaparHTML(val)}" 
                 onchange="app.registrarCambioAdicionalEvaluacion('${al.id}', '${periodo}', '${col.key}', this.value)" placeholder="Opcional">
@@ -727,7 +727,7 @@ export async function cargarPlanillaEvaluaciones() {
             <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/80 min-w-[70px]">
               <span class="font-black text-indigo-600 dark:text-indigo-400">${res.definitiva !== null ? res.definitiva : '—'}</span>
             </td>
-            <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[120px]">
+            <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[70px]">
               <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">
                 ${res.condicion}
               </span>
@@ -735,7 +735,7 @@ export async function cargarPlanillaEvaluaciones() {
           `;
         } else {
           // Alumno ya aprobado en periodo regular (b4 >=6) → no necesita PO
-          colsHtml += `<td colspan="3" class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[120px]">
+          colsHtml += `<td colspan="3" class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[70px]">
             <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">${res.condicion}</span>
           </td>`;
         }

@@ -79,9 +79,9 @@ export async function cargarListaUsuarios() {
                 <span>${m.base || m.nombre}</span>
               </label>`).join('');
             return `
-              <div class="mb-3">
-                <p class="text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5">${div}</p>
-                <div class="flex flex-wrap gap-x-4 gap-y-1.5">${checkboxes}</div>
+              <div class="mb-0">
+                <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">${div}</p>
+                <div class="flex flex-col gap-y-1.5">${checkboxes}</div>
               </div>`;
           }).join('');
 
@@ -106,8 +106,8 @@ export async function cargarListaUsuarios() {
           </div>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Materias asignadas</p>
-          <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-3 border dark:border-slate-700">
+          <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Materias asignadas (Por División)</p>
+          <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 border dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar">
             ${materiasHtml}
           </div>
         </div>
