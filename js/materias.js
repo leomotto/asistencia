@@ -101,15 +101,15 @@ export async function cargarListaMateriasAdmin() {
         : 'Sin días configurados';
       const nombreSeguro = mat.nombre.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `
-        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors block md:table-row mb-3 md:mb-0 pb-3 md:pb-0 border-b dark:border-slate-700">
-          <td class="px-4 py-2 md:py-3 font-bold text-slate-800 dark:text-slate-100 block md:table-cell border-b md:border-none border-slate-100 dark:border-slate-800">${nombreSeguro}</td>
-          <td class="px-4 py-2 md:py-3 text-xs text-slate-600 dark:text-slate-300 block md:table-cell border-b md:border-none border-slate-100 dark:border-slate-800">${horarioStr}</td>
-          <td class="px-4 py-2 md:py-3 text-center md:text-right block md:table-cell">
-            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-2 md:p-1 bg-blue-50 md:bg-transparent rounded md:rounded-none w-full md:w-auto mb-1 md:mb-0" title="Editar">
-              <i class="ph ph-pencil-simple text-lg"></i> <span class="md:hidden font-semibold">Editar</span>
+        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors border-b dark:border-slate-700">
+          <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">${nombreSeguro}</td>
+          <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">${horarioStr}</td>
+          <td class="px-4 py-3 text-right">
+            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="Editar">
+              <i class="ph ph-pencil-simple text-lg"></i>
             </button>
-            <button onclick="app.eliminarMateria('${mat.id}', '${nombreSeguro.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 p-2 md:p-1 bg-red-50 md:bg-transparent rounded md:rounded-none ml-0 md:ml-2 w-full md:w-auto" title="Eliminar">
-              <i class="ph ph-trash text-lg"></i> <span class="md:hidden font-semibold">Eliminar</span>
+            <button onclick="app.eliminarMateria('${mat.id}', '${nombreSeguro.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 p-1 ml-2" title="Eliminar">
+              <i class="ph ph-trash text-lg"></i>
             </button>
           </td>
         </tr>`;
