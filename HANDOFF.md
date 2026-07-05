@@ -13,6 +13,7 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
 2. **Refactorización UI/UX (Mobile-First y Viewport):** 
    - Las tablas de gestión de asistencia y matrículas fueron transformadas para verse como "tarjetas" apiladas en pantallas de celular (usando clases `block md:table-row`), eliminando el scroll horizontal incómodo.
    - **Fix de "Flex Blowout":** Se corrigió el contenedor principal (`#appContainer`) forzándole límites estrictos (`min-w-0 flex-1 overflow-hidden`). Esto previno que la tabla de la grilla de asistencia creciera infinitamente empujando los filtros fuera de la pantalla (overflow en toda la ventana).
+   - **Uso de Viewport Completo:** Se eliminó la restricción `max-w-6xl` en todos los contenedores principales (reemplazado por `max-w-full`) para que secciones como Gestión de Materias y Toma Diaria aprovechen el 100% de los monitores ultrawide/1080p, evitando que la interfaz luzca amontonada contra un borde.
 3. **Limpieza de "Dead Code" (Ponytail Audit):** 
    - Se removió por completo la dependencia inútil `acorn` en `package.json` y la carpeta `node_modules` (el proyecto funciona puramente por CDN).
    - Se borraron tests en Python/JS zombis, scripts utilitarios no referenciados y el archivo huérfano `auditoria.js` y `auditoria.html`.
