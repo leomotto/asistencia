@@ -1,8 +1,8 @@
 // js/usuarios.js — Panel de Gestión de Docentes (solo ADMIN)
 
 import { doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.36";
-import { showToast } from "./ui.js?v=9.36";
+import { db, getPath } from "./firebase-config.js?v=9.41";
+import { showToast } from "./ui.js?v=9.41";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {
@@ -79,9 +79,9 @@ export async function cargarListaUsuarios() {
                 <span>${m.base || m.nombre}</span>
               </label>`).join('');
             return `
-              <div class="mb-0">
-                <p class="text-[10px] font-black text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">${div}</p>
-                <div class="flex flex-col gap-y-1.5">${checkboxes}</div>
+              <div class="break-inside-avoid mb-4">
+                <p class="text-xs font-black text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wider border-b dark:border-slate-700 pb-1">${div}</p>
+                <div class="flex flex-col gap-y-2">${checkboxes}</div>
               </div>`;
           }).join('');
 
@@ -89,16 +89,16 @@ export async function cargarListaUsuarios() {
       card.className = "bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-5 shadow-sm";
       card.dataset.uid = u.uid;
       card.innerHTML = `
-        <div class="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5 pb-4 border-b dark:border-slate-700">
           <div>
-            <p class="font-bold text-slate-800 dark:text-slate-100 text-base">${u.nombre || '(sin nombre)'}</p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${u.email}</p>
+            <p class="font-bold text-slate-800 dark:text-slate-100 text-lg">${u.nombre || '(sin nombre)'}</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">${u.email}</p>
           </div>
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="text-[10px] font-bold px-2 py-1 rounded uppercase ${rolBadgeClass}">${rolActual}</span>
+          <div class="flex flex-wrap items-center gap-3 flex-shrink-0">
+            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase shadow-sm ${rolBadgeClass}">${rolActual}</span>
             ${esYoMismo
-              ? '<span class="text-[10px] text-slate-400 italic">(sos vos)</span>'
-              : `<select class="sel-rol-docente text-xs border dark:border-slate-700 rounded px-2 py-1 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-700 dark:text-slate-200">
+              ? '<span class="text-[11px] text-slate-400 italic">(sos vos)</span>'
+              : `<select class="sel-rol-docente text-sm border dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-700 dark:text-slate-200 transition-shadow">
                   <option value="ADMIN"    ${rolActual==='ADMIN'    ? 'selected':''}>ADMIN</option>
                   <option value="DOCENTE"  ${rolActual==='DOCENTE'  ? 'selected':''}>DOCENTE</option>
                   <option value="PENDIENTE"${rolActual==='PENDIENTE'? 'selected':''}>PENDIENTE</option>
@@ -106,8 +106,8 @@ export async function cargarListaUsuarios() {
           </div>
         </div>
         <div>
-          <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Materias asignadas (Por División)</p>
-          <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 border dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"><i class="ph ph-books mr-1"></i> Materias asignadas (Por División)</p>
+          <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border dark:border-slate-700 columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 max-h-[500px] overflow-y-auto custom-scrollbar">
             ${materiasHtml}
           </div>
         </div>

@@ -3,8 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Capturador de errores global para debugging -->
+  <script>
+    window._appStartErrors = [];
+    window.addEventListener('error', function(e) { 
+      var msg = e.message || '';
+      var file = e.filename ? e.filename.split('/').pop() : 'unknown';
+      var line = e.lineno || '?';
+      window._appStartErrors.push(msg + ' (' + file + ':' + line + ')'); 
+    });
+    window.addEventListener('unhandledrejection', function(e) { 
+      window._appStartErrors.push((e.reason && e.reason.message) || e.reason || 'Unhandled Promise'); 
+    });
+    setTimeout(function() {
+      var ls = document.getElementById('loadingScreen');
+      if (ls && !ls.classList.contains('hidden')) {
+        var errs = window._appStartErrors.join('<br>');
+        ls.innerHTML = '<div style="background:#fee2e2; color:#991b1b; padding:2rem; border-radius:1rem; max-width:600px; text-align:center; font-family:sans-serif; margin:auto;"><h2 style="font-weight:bold; font-size:1.5rem; margin-bottom:1rem;">Error de carga / Loading Error</h2><p style="margin-bottom:1rem;">La aplicación no pudo inicializarse. Esto ocurre si tu navegador bloquea un script, el caché está corrupto, o hay un error de red.</p><div style="background:white; padding:1rem; border-radius:0.5rem; text-align:left; font-family:monospace; font-size:0.875rem; margin-bottom:1rem; overflow-x:auto;">' + (errs ? 'Logs: ' + errs : 'No hay errores JS capturados. Un módulo (Firebase o App) no pudo descargar o ejecutarse.') + '</div><button onclick="localStorage.clear(); sessionStorage.clear(); window.location.reload(true);" style="background:#dc2626; color:white; border:none; padding:0.5rem 1rem; border-radius:0.25rem; cursor:pointer; font-weight:bold;">Forzar Recarga y Limpiar Caché</button></div>';
+        ls.style.display = 'flex'; ls.style.opacity = '1'; ls.style.zIndex = '999999'; ls.style.backgroundColor = 'rgba(0,0,0,0.8)';
+      }
+    }, 6000);
+  </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.36">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.41">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -13,7 +34,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.36">
+  <link rel="stylesheet" href="css/styles.css?v=9.41">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -136,10 +157,10 @@
     </nav>
 
   <!-- Contenedor Principal -->
-  <main class="flex-1 overflow-hidden relative">
+  <main class="flex-1 overflow-hidden relative flex flex-col w-full h-full bg-slate-100 dark:bg-slate-900">
     
     <!-- PANTALLA: TOMA DIARIA -->
-    <section id="tomaDiaria" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in block">
+    <section id="tomaDiaria" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8">
       <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
         <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
           <i class="ph ph-calendar-check text-emerald-500"></i> Registro de Asistencia
@@ -211,8 +232,8 @@
     </section>
 
     <!-- PANTALLA: CALIFICACIONES (BIMESTRES Y PO) -->
-    <section id="evaluaciones" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
-      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col">
+    <section id="evaluaciones" class="flex-1 w-full h-full overflow-hidden p-4 md:p-8 hidden flex flex-col">
+      <div class="max-w-6xl w-full mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col flex-1 min-h-0">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
           <div class="min-w-0 flex items-center gap-2 flex-wrap">
@@ -324,7 +345,7 @@
         </div>
 
         <!-- Tabla Planilla de Calificaciones -->
-        <div class="md:overflow-x-auto w-full md:custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 ">
+        <div class="flex-1 min-h-0 md:overflow-auto w-full md:custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 ">
           <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800 block md:table">
             <thead class="hidden md:table-header-group bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="evalHeaders" class="md:table-row">
@@ -339,6 +360,7 @@
                 <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
                 <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
               </tr>
+            </thead>
             <tbody id="evalBody" class="block md:table-row-group md:divide-y divide-slate-200 dark:divide-slate-700">
               <tr class="block md:table-row">
                 <td colspan="10" class="px-4 py-8 text-center text-slate-400 block md:table-cell">Seleccione un curso del menú superior.</td>
@@ -351,8 +373,8 @@
     </section>
 
     <!-- PANTALLA: PLANILLA EN GRILLA (REGISTRO MASIVO) -->
-    <section id="planillaGrilla" class="absolute inset-0 h-full overflow-y-auto p-2 md:p-8 fade-in hidden">
-      <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-3 md:p-6 flex flex-col">
+    <section id="planillaGrilla" class="flex-1 w-full h-full overflow-hidden p-2 md:p-8 hidden flex flex-col">
+      <div class="max-w-6xl w-full mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-3 md:p-6 flex flex-col flex-1 min-h-0">
 
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
           <div class="min-w-0">
@@ -380,7 +402,7 @@
         </div>
 
         <!-- Contenedor de la Grilla Tipo Planilla (Sticky headers y sticky first column) -->
-        <div class="overflow-x-auto overflow-y-auto w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900  md:">
+        <div class="flex-1 min-h-0 overflow-auto custom-scrollbar w-full border dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900">
           <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="grillaHeader">
@@ -409,7 +431,7 @@
     </section>
 
     <!-- PANTALLA: PANEL BI -->
-    <section id="panelBI" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+    <section id="panelBI" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-6xl mx-auto space-y-6">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -496,7 +518,7 @@
     </section>
 
     <!-- PANTALLA: GESTIÓN DE MATRÍCULA Y CONFIGURACIÓN -->
-    <section id="gestionAlumnos" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+    <section id="gestionAlumnos" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-6xl mx-auto space-y-6">
         
         <!-- Tarjeta Alumnos -->
@@ -585,7 +607,7 @@
     </section>
 
     <!-- PANTALLA: GESTIÓN DE MATERIAS -->
-    <section id="gestionMaterias" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+    <section id="gestionMaterias" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-6xl mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-700 pb-4 mb-4 gap-4">
           <div>
@@ -629,7 +651,7 @@
 
 
     <!-- PANTALLA: GESTIÓN DE DOCENTES -->
-    <section id="gestionDocentes" class="absolute inset-0 h-full overflow-y-auto p-4 md:p-8 fade-in hidden">
+    <section id="gestionDocentes" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-6xl mx-auto space-y-6">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -980,6 +1002,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.36"></script>
+  <script type="module" src="js/app.js?v=9.41"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+.hidden { display: none !important; }
 
 /* Columna sticky de nombre en la grilla — bg heredado del tr vía JS */
 .sticky-student-col {
@@ -85,28 +86,3 @@
   background: rgba(156, 163, 175, 0.6);
 }
 
-/* ================================================
-   ANIMACIONES MODERNAS DE ENTRADA Y SALIDA
-   Usa @starting-style y transition-behavior (Chrome 117+, Firefox 129+)
-   ================================================ */
-.fade-in {
-  /* En lugar de una keyframe, usamos una transición discreta moderna */
-  transition: display 0.3s allow-discrete, opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-
-/* Estado inicial (cuando recién se añade al DOM o quita display:none) */
-@starting-style {
-  .fade-in {
-    opacity: 0;
-    transform: scale(0.95) translateY(-10px);
-  }
-}
-
-/* Estado final de salida (cuando se oculta) */
-.fade-in.hidden {
-  display: none;
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}

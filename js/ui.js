@@ -270,7 +270,7 @@ export async function cargarVersion() {
     if (!r.ok) { el.textContent = 'dev'; return; }
     const { hash, date } = await r.json();
     el.textContent = `${hash} · ${date}`;
-  } catch {
+  } catch (e) {
     el.textContent = 'dev';
   }
 }
