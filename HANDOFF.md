@@ -10,13 +10,15 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
 
 ## 🚨 Últimos Cambios Importantes (Julio 2026)
 1. **Resolución de Crash Crítico (SyntaxError):** Se corrigió un error que dejaba la pantalla de carga bloqueada debido a incompatibilidades de navegador (uso de Optional Chaining `?.` y Nullish Coalescing `??` sin soporte en navegadores viejos) que, sumado a una llave `}` huérfana en `js/evaluaciones.js`, rompían la inicialización del AST en el navegador.
-2. **Refactorización UI/UX (Mobile-First):** 
+2. **Refactorización UI/UX (Mobile-First y Viewport):** 
    - Las tablas de gestión de asistencia y matrículas fueron transformadas para verse como "tarjetas" apiladas en pantallas de celular (usando clases `block md:table-row`), eliminando el scroll horizontal incómodo.
-   - La barra de navegación superior (Sticky Header) tiene correcciones de ancla (`scroll-padding-top`) para evitar tapar el contenido al navegar.
-3. **Gestión de Matrícula Optimizada:** 
+   - **Fix de "Flex Blowout":** Se corrigió el contenedor principal (`#appContainer`) forzándole límites estrictos (`min-w-0 flex-1 overflow-hidden`). Esto previno que la tabla de la grilla de asistencia creciera infinitamente empujando los filtros fuera de la pantalla (overflow en toda la ventana).
+3. **Limpieza de "Dead Code" (Ponytail Audit):** 
+   - Se removió por completo la dependencia inútil `acorn` en `package.json` y la carpeta `node_modules` (el proyecto funciona puramente por CDN).
+   - Se borraron tests en Python/JS zombis, scripts utilitarios no referenciados y el archivo huérfano `auditoria.js` y `auditoria.html`.
+4. **Gestión de Matrícula Optimizada:** 
    - Se eliminaron las masivas listas de checkboxes por división.
    - Se implementó selección de "División Principal" (ej. "1ro A") que auto-inscribe en todas sus materias al vuelo.
-   - Configuración global para asignar Grupo y Estado masivamente.
    - Buscador rápido por nombre/apellido incorporado.
 
 ## ⚠️ Advertencias para Futuros Agentes
