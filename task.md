@@ -52,3 +52,8 @@
 - `[x]` Adaptar el guardado masivo en Firestore usando nombres de campos planos para prevenir colisiones (`adicionales_[periodo]_[key]`).
 - `[x]` Implementar pestaña "Calificaciones" en el Panel BI, mostrando promedios generales, tasas de aprobación, alumnos en PO, alumnos en riesgo académico, grilla completa anual y exportación a CSV.
 - `[x]` Cache busting general mediante incremento de versiones a `?v=9.12`.
+
+## 10. Refactorización UI de "Gestión de Materias" (v9.41) *[COMPLETADO]*
+- `[x]` Revertir clases de tailwind "Mobile-First" (`block md:table`) en la tabla de Gestión de Materias para evitar fallos de renderizado que apilaban columnas.
+- `[x]` Asegurar un 100% de ocupación horizontal con `max-w-full` en contenedores principales de pantallas para resoluciones ultra-wide.
+
