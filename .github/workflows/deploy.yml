@@ -23,12 +23,13 @@ jobs:
           echo "📌 Versión generada: ${GIT_HASH} (${GIT_DATE})"
 
       - name: Set up SSH Key
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ALWAYSDATA_SSH_KEY }}
+
+      - name: Add known hosts
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ssh-muchacholoco.alwaysdata.net >> ~/.ssh/known_hosts
 
       - name: Deploy files via rsync
