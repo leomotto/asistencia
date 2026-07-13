@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.49";
+import { db, getPath } from "./firebase-config.js?v=9.50";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.49";
+import { showToast } from "./ui.js?v=9.50";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -96,7 +96,13 @@ export async function iniciarAuditoriaDatos() {
     Object.keys(huerfanos).sort().forEach(matVieja => {
       html += `
         <tr class="bg-white dark:bg-slate-900">
-          <td class="p-3 font-bold text-rose-600 dark:text-rose-400">"${matVieja}"</td>
+          <td class="p-3 font-bold text-rose-600 dark:text-rose-400">
+            "${matVieja}"
+            <div class="mt-2 text-xs font-normal text-slate-500 dark:text-slate-400">
+              <b>Alumnos (${huerfanos[matVieja].length}):</b> 
+              ${huerfanos[matVieja].map(e => `${e.apellido}, ${e.nombre}`).join(' &bull; ')}
+            </div>
+          </td>
           <td class="p-3 text-center font-mono bg-slate-50 dark:bg-slate-800/50">${huerfanos[matVieja].length}</td>
           <td class="p-3">
             <select data-vieja="${matVieja}" class="sel-mapeo-materia w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 dark:text-slate-200">
