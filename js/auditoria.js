@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.52";
+import { db, getPath } from "./firebase-config.js?v=9.53";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.52";
+import { showToast } from "./ui.js?v=9.53";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -225,9 +225,10 @@ export async function ejecutarMigracionAuditoria() {
     // 1. Estudiantes
     snapEst.forEach(d => {
       const data = d.data();
+      let modificado = false;
+      const updates = {};
+      
       if (data.materias && Array.isArray(data.materias)) {
-        let modificado = false;
-        // Evitar duplicados si por error tenia el viejo y el nuevo al mismo tiempo
         const nuevasMateriasSet = new Set();
         data.materias.forEach(m => {
           if (mapa[m]) {
@@ -237,14 +238,50 @@ export async function ejecutarMigracionAuditoria() {
             nuevasMateriasSet.add(m);
           }
         });
-        
-        if (modificado) {
-          const nuevoCursoPrin = mapa[data.curso] ? mapa[data.curso] : data.curso;
-          batch.update(d.ref, { 
-            materias: Array.from(nuevasMateriasSet),
-            curso: nuevoCursoPrin
-          });
+        if (modificado) updates.materias = Array.from(nuevasMateriasSet);
+      }
+      
+      if (data.curso && mapa[data.curso]) {
+        modificado = true;
+        updates.curso = mapa[data.curso];
+      }
+      
+      if (data.inscripciones) {
+        let inscripModificadas = false;
+        const nuevasInscripciones = {};
+        for (const [key, val] of Object.entries(data.inscripciones)) {
+          if (mapa[key]) {
+            inscripModificadas = true;
+            nuevasInscripciones[mapa[key]] = val;
+          } else {
+            nuevasInscripciones[key] = val;
+          }
         }
+        if (inscripModificadas) {
+          modificado = true;
+          updates.inscripciones = nuevasInscripciones;
+        }
+      }
+      
+      if (data.grupos) {
+        let gruposModificados = false;
+        const nuevosGrupos = {};
+        for (const [key, val] of Object.entries(data.grupos)) {
+          if (mapa[key]) {
+            gruposModificados = true;
+            nuevosGrupos[mapa[key]] = val;
+          } else {
+            nuevosGrupos[key] = val;
+          }
+        }
+        if (gruposModificados) {
+          modificado = true;
+          updates.grupos = nuevosGrupos;
+        }
+      }
+      
+      if (modificado) {
+        batch.update(d.ref, updates);
       }
     });
     
