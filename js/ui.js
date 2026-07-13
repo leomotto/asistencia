@@ -19,14 +19,14 @@ export function switchTab(tabId) {
   }
 
   const performSwitch = () => {
-    ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes'].forEach(id => {
+    ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes', 'auditoriaTab'].forEach(id => {
       document.getElementById(id)?.classList.add('hidden');
     });
     const targetSection = document.getElementById(tabId);
     targetSection?.classList.remove('hidden');
     targetSection?.scrollTo({ top: 0, behavior: 'instant' });
 
-    ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes'].forEach(id => {
+    ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes', 'btnAuditoria'].forEach(id => {
       document.getElementById(id)?.classList.remove('bg-white/10');
     });
     const btnMap = {
@@ -36,7 +36,8 @@ export function switchTab(tabId) {
       panelBI:         'btnPanel',
       gestionAlumnos:  'btnGestion',
       gestionMaterias: 'btnMaterias',
-      gestionDocentes: 'btnDocentes'
+      gestionDocentes: 'btnDocentes',
+      auditoriaTab:    'btnAuditoria'
     };
     if (btnMap[tabId]) document.getElementById(btnMap[tabId])?.classList.add('bg-white/10');
   };

@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.44">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.45">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -34,7 +34,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.44">
+  <link rel="stylesheet" href="css/styles.css?v=9.45">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -137,6 +137,10 @@
         <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Docentes">
           <i class="ph ph-users text-xl flex-shrink-0"></i>
           <span class="nav-label">Docentes</span>
+        </button>
+        <button onclick="switchTab('auditoriaTab')" id="btnAuditoria" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden text-amber-300" title="Auditoría DB">
+          <i class="ph ph-database text-xl flex-shrink-0"></i>
+          <span class="nav-label">Auditoría DB</span>
         </button>
 
         <!-- Separador + modo oscuro al fondo del grupo de nav -->
@@ -676,6 +680,36 @@
       </div>
     </section>
 
+    <!-- PANTALLA: AUDITORÍA DE DATOS -->
+    <section id="auditoriaTab" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
+      <div class="max-w-5xl mx-auto space-y-4">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-amber-700/50 p-4 md:p-6">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-700 pb-4 mb-4 gap-4">
+            <div>
+              <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i class="ph ph-database text-amber-500"></i> Auditoría y Normalización de DB
+              </h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Identifica discrepancias en nombres de materias entre colecciones para normalizarlos.</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="app.iniciarAuditoriaDatos()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
+                <i class="ph ph-magnifying-glass text-lg"></i> Auditar Base de Datos
+              </button>
+            </div>
+          </div>
+          
+          <div id="auditoriaProgreso" class="hidden text-center py-8">
+             <i class="ph ph-spinner animate-spin text-4xl text-indigo-500 mb-2 block mx-auto"></i>
+             <p class="text-sm text-slate-500 font-bold" id="auditoriaProgresoMsg">Leyendo colecciones...</p>
+          </div>
+
+          <div id="auditoriaResultados" class="space-y-6 hidden">
+             <!-- Dinamico -->
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- MODAL GENERADOR DE CURSOS -->
     <div id="modalGeneradorCursos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
@@ -1007,6 +1041,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.44"></script>
+  <script type="module" src="js/app.js?v=9.45"></script>
 </body>
 </html>
