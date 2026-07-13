@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.48";
+import { db, getPath } from "./firebase-config.js?v=9.49";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.48";
+import { showToast } from "./ui.js?v=9.49";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -76,7 +76,22 @@ export async function iniciarAuditoriaDatos() {
           <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
     `;
     
-    const opcionesOficiales = datosAuditoria.materiasOficiales.map(m => `<option value="${m.nombreCompleto}">${m.nombreCompleto}</option>`).join('');
+    const grupos = {};
+    datosAuditoria.materiasOficiales.forEach(m => {
+      const c = m.curso || 'Sin Curso';
+      if (!grupos[c]) grupos[c] = [];
+      grupos[c].push(m);
+    });
+
+    let opcionesOficiales = '';
+    Object.keys(grupos).sort().forEach(curso => {
+      opcionesOficiales += `<optgroup label="Curso: ${curso}">`;
+      grupos[curso].forEach(m => {
+        const divStr = m.division ? ` (Div: ${m.division})` : '';
+        opcionesOficiales += `<option value="${m.nombreCompleto}">${m.nombre}${divStr}</option>`;
+      });
+      opcionesOficiales += `</optgroup>`;
+    });
     
     Object.keys(huerfanos).sort().forEach(matVieja => {
       html += `

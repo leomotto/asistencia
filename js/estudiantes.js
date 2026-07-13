@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.48";
-import { showToast } from "./ui.js?v=9.48";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.48";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.48";
+import { db, getPath } from "./firebase-config.js?v=9.49";
+import { showToast } from "./ui.js?v=9.49";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.49";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.49";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
