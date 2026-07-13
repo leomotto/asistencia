@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.51";
-import { showToast } from "./ui.js?v=9.51";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.51";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.51";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.51";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.51";
+import { db, getPath } from "./firebase-config.js?v=9.52";
+import { showToast } from "./ui.js?v=9.52";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.52";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.52";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.52";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.52";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -102,17 +102,28 @@ export async function cargarAlumnos() {
     snap.forEach(d => todos.push({ id: d.id, ...d.data() }));
 
     window.app.alumnosActivos = todos.filter(a => {
-      const pertenece = a.curso === curso || (a.materias && a.materias.includes(curso));
-      if (!pertenece) return false;
-      
+      const isInMaterias = a.curso === curso || (a.materias && a.materias.includes(curso));
       let inscripciones = (a.inscripciones && a.inscripciones[curso] && a.inscripciones[curso].length > 0)
         ? a.inscripciones[curso]
-        : [{ estado: a.estado || 'ACTIVO', desde: a.fechaIngreso || '', hasta: a.fechaBaja || '' }];
+        : [];
+        
+      if (inscripciones.length === 0) {
+        if (isInMaterias) {
+          inscripciones = [{ estado: a.estado || 'ACTIVO', desde: a.fechaIngreso || '', hasta: a.fechaBaja || '' }];
+        } else {
+          return false;
+        }
+      }
       
-      // Check if fechaSeleccionada falls within ANY of the enrollment intervals
       const isActiveOnDate = inscripciones.some(insc => {
         const fIngreso = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
         const fBaja    = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
+        
+        // Si el admin simplemente "desmarcó" la materia sin poner fecha de baja ni cambiar estado, asumimos que fue un error corregido y no debe aparecer.
+        if (!isInMaterias && !insc.hasta && insc.estado === 'ACTIVO') {
+          return false;
+        }
+        
         return fechaSeleccionada >= fIngreso && fechaSeleccionada <= fBaja;
       });
       
@@ -312,12 +323,16 @@ export async function cargarPlanillaGrilla() {
     let alumnos = [];
     snapAlumnos.forEach(d => {
       const data = { id: d.id, ...d.data() };
-      if (data.curso === curso || (data.materias && data.materias.includes(curso))) {
-        let inscripciones = (data.inscripciones && data.inscripciones[curso] && data.inscripciones[curso].length > 0)
-          ? data.inscripciones[curso]
-          : [{ estado: data.estado || 'ACTIVO', desde: data.fechaIngreso || '', hasta: data.fechaBaja || '' }];
-        
-        // Find if ANY enrollment overlaps with [fDesde, fHasta]
+      const isInMaterias = data.curso === curso || (data.materias && data.materias.includes(curso));
+      let inscripciones = (data.inscripciones && data.inscripciones[curso] && data.inscripciones[curso].length > 0)
+        ? data.inscripciones[curso]
+        : [];
+
+      if (inscripciones.length === 0 && isInMaterias) {
+        inscripciones = [{ estado: data.estado || 'ACTIVO', desde: data.fechaIngreso || '', hasta: data.fechaBaja || '' }];
+      }
+
+      if (inscripciones.length > 0) {
         let isOverlapping = false;
         let lastEstado = 'ACTIVO';
         
@@ -325,10 +340,13 @@ export async function cargarPlanillaGrilla() {
           const activeFrom = insc.desde ? normalizeDateToISO(insc.desde) : "2000-01-01";
           const activeTo   = insc.hasta ? normalizeDateToISO(insc.hasta) : "2100-01-01";
           
+          if (!isInMaterias && !insc.hasta && insc.estado === 'ACTIVO') {
+            continue; // Fue desmarcada por error
+          }
+          
           if (activeFrom <= fHasta && activeTo >= fDesde) {
             isOverlapping = true;
             lastEstado = insc.estado || 'ACTIVO';
-            // Store the earliest from and latest to that overlap for potential use later
             if (!data._activeFrom || activeFrom < data._activeFrom) data._activeFrom = activeFrom;
             if (!data._activeTo || activeTo > data._activeTo) data._activeTo = activeTo;
           }
@@ -589,22 +607,27 @@ export async function cargarPanelBI() {
 
     tabla.innerHTML = '<tr><td colspan="11" class="px-4 py-8 text-center text-indigo-500 animate-pulse">Analizando rendimiento académico...</td></tr>';
     try {
-      const snapAlumnos = await getDocs(collection(db, getPath("estudiantes")));
-      let alumnos = [];
-      snapAlumnos.forEach(d => {
-        const data = { id: d.id, ...d.data() };
-        if (data.curso === curso || (data.materias && data.materias.includes(curso))) alumnos.push(data);
-      });
-      alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
-
       const snapEval = await getDocs(collection(db, getPath("evaluaciones")));
       const notasMap = {};
+      const alumnosConNota = new Set();
       snapEval.forEach(d => {
         const data = d.data();
         if (data.materia === curso) {
           notasMap[data.alumnoId] = data;
+          alumnosConNota.add(data.alumnoId);
         }
       });
+
+      const snapAlumnos = await getDocs(collection(db, getPath("estudiantes")));
+      let alumnos = [];
+      snapAlumnos.forEach(d => {
+        const data = { id: d.id, ...d.data() };
+        const isInMaterias = data.curso === curso || (data.materias && data.materias.includes(curso));
+        if (isInMaterias || alumnosConNota.has(data.id) || (data.inscripciones && data.inscripciones[curso])) {
+          alumnos.push(data);
+        }
+      });
+      alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
 
       _biCache[cacheKey] = { ts: Date.now(), alumnos, notasMap };
 
@@ -631,14 +654,6 @@ export async function cargarPanelBI() {
   tabla.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-blue-500 animate-pulse">Analizando base de datos...</td></tr>';
 
   try {
-    const snapAlumnos = await getDocs(collection(db, getPath("estudiantes")));
-    let alumnos = [];
-    snapAlumnos.forEach(d => {
-      const data = { id: d.id, ...d.data() };
-      if (data.curso === curso || (data.materias && data.materias.includes(curso))) alumnos.push(data);
-    });
-    alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
-
     const snapAsistencias = await getDocs(query(
       collection(db, getPath("asistencias")),
       where("curso", "==", curso),
@@ -646,8 +661,30 @@ export async function cargarPanelBI() {
       where("fecha", "<=", fHasta),
       orderBy("fecha", "asc")
     ));
+    
     let asistenciasValidas = [];
-    snapAsistencias.forEach(d => asistenciasValidas.push(d.data()));
+    const alumnosConAsistencia = new Set();
+    snapAsistencias.forEach(d => {
+      const data = d.data();
+      asistenciasValidas.push(data);
+      if (data.registros) {
+        Object.keys(data.registros).forEach(id => alumnosConAsistencia.add(id));
+      }
+    });
+
+    const snapAlumnos = await getDocs(collection(db, getPath("estudiantes")));
+    let alumnos = [];
+    snapAlumnos.forEach(d => {
+      const data = { id: d.id, ...d.data() };
+      const isInMaterias = data.curso === curso || (data.materias && data.materias.includes(curso));
+      // Incluir si está actualmente anotado, si tiene asistencias históricas o si tiene inscripción
+      if (isInMaterias || alumnosConAsistencia.has(data.id) || (data.inscripciones && data.inscripciones[curso])) {
+        alumnos.push(data);
+      }
+    });
+    alumnos = alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
+
+
     if (fDesde) asistenciasValidas = asistenciasValidas.filter(a => a.fecha >= fDesde);
     if (fHasta) asistenciasValidas = asistenciasValidas.filter(a => a.fecha <= fHasta);
 
