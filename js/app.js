@@ -1,13 +1,13 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion } from "./ui.js?v=9.50";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.50";
-import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=9.50";
-import { cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.50";
-import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.50";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.50";
-import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion } from "./evaluaciones.js?v=9.50";
-import { iniciarAuditoriaDatos, simularMigracionAuditoria } from "./auditoria.js?v=9.50";
+import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion } from "./ui.js?v=9.51";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.51";
+import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=9.51";
+import { cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.51";
+import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.51";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.51";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion } from "./evaluaciones.js?v=9.51";
+import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria } from "./auditoria.js?v=9.51";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
@@ -119,6 +119,7 @@ window.app.guardarEstructuraColumnas       = guardarEstructuraColumnas;
 window.app.registrarCambioAdicionalEvaluacion = registrarCambioAdicionalEvaluacion;
 window.app.iniciarAuditoriaDatos           = iniciarAuditoriaDatos;
 window.app.simularMigracionAuditoria       = simularMigracionAuditoria;
+window.app.ejecutarMigracionAuditoria      = ejecutarMigracionAuditoria;
 
 // ==========================================
 // ESCUCHAS DOM

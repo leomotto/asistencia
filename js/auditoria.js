@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.50";
+import { db, getPath } from "./firebase-config.js?v=9.51";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.50";
+import { showToast } from "./ui.js?v=9.51";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -122,11 +122,16 @@ export async function iniciarAuditoriaDatos() {
       <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
         <div>
           <h4 class="font-bold text-indigo-800 dark:text-indigo-400">Paso 2: Migrar Base de Datos</h4>
-          <p class="text-xs text-indigo-600 dark:text-indigo-500 mt-1">Selecciona el destino para las materias huérfanas arriba y simula el impacto antes de aplicar.</p>
+          <p class="text-xs text-indigo-600 dark:text-indigo-500 mt-1">Se generará un archivo de backup automáticamente antes de aplicar los cambios en la nube.</p>
         </div>
-        <button onclick="app.simularMigracionAuditoria()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-2 whitespace-nowrap shadow-sm">
-          <i class="ph ph-magic-wand"></i> Simular Migración
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="app.simularMigracionAuditoria()" class="bg-white text-indigo-600 border border-indigo-200 px-4 py-2.5 rounded-lg font-bold hover:bg-indigo-50 transition flex items-center gap-2 whitespace-nowrap shadow-sm">
+            <i class="ph ph-magic-wand"></i> Test (Log)
+          </button>
+          <button onclick="app.ejecutarMigracionAuditoria()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-indigo-700 transition flex items-center gap-2 whitespace-nowrap shadow-sm">
+            <i class="ph ph-database"></i> Ejecutar Migración
+          </button>
+        </div>
       </div>
     `;
     
@@ -159,4 +164,136 @@ export function simularMigracionAuditoria() {
   
   alert(`SIMULACIÓN:\n\nSe han definido ${cambios} reglas de reemplazo.\n\nFase 2 Completada. \n\n(La ejecución real de Base de Datos se implementará en el siguiente paso del Roadmap, luego de que valides que estas son las inconsistencias reales a arreglar).`);
   console.log("Mapa de migración generado:", mapa);
+}
+
+export async function ejecutarMigracionAuditoria() {
+  const selects = document.querySelectorAll('.sel-mapeo-materia');
+  const mapa = {};
+  let cambios = 0;
+  
+  selects.forEach(sel => {
+    if (sel.value) {
+      mapa[sel.dataset.vieja] = sel.value;
+      cambios++;
+    }
+  });
+  
+  if (cambios === 0) {
+    showToast('No seleccionaste ningún reemplazo.', 'error');
+    return;
+  }
+  
+  const confirmar = confirm(`Vas a migrar ${cambios} strings huérfanos.\n\nFase 3: Se descargará un Backup en formato JSON automáticamente.\nFase 4: Se actualizarán los estudiantes, asistencias y evaluaciones afectados.\n\n¿Deseas continuar?`);
+  if (!confirmar) return;
+  
+  const progresoMsg = document.getElementById('auditoriaProgresoMsg');
+  const progreso = document.getElementById('auditoriaProgreso');
+  const resultados = document.getElementById('auditoriaResultados');
+  
+  progreso.classList.remove('hidden');
+  resultados.classList.add('hidden');
+  
+  try {
+    // FASE 3: BACKUP
+    progresoMsg.textContent = "⏳ Fase 3: Generando Backup de las colecciones...";
+    const [snapEst, snapAsist, snapEval] = await Promise.all([
+      getDocs(collection(db, getPath('estudiantes'))),
+      getDocs(collection(db, getPath('asistencias'))),
+      getDocs(collection(db, getPath('evaluaciones')))
+    ]);
+    
+    const backup = { 
+      fecha: new Date().toISOString(), 
+      mapaAplicado: mapa,
+      estudiantes: {}, asistencias: {}, evaluaciones: {} 
+    };
+    snapEst.forEach(d => backup.estudiantes[d.id] = d.data());
+    snapAsist.forEach(d => backup.asistencias[d.id] = d.data());
+    snapEval.forEach(d => backup.evaluaciones[d.id] = d.data());
+    
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup_asistencia_${Date.now()}.json`;
+    a.click();
+    
+    // FASE 4: MIGRACION ATOMICA
+    progresoMsg.textContent = "🚀 Fase 4: Ejecutando WriteBatch atómico...";
+    const batch = writeBatch(db);
+    
+    // 1. Estudiantes
+    snapEst.forEach(d => {
+      const data = d.data();
+      if (data.materias && Array.isArray(data.materias)) {
+        let modificado = false;
+        // Evitar duplicados si por error tenia el viejo y el nuevo al mismo tiempo
+        const nuevasMateriasSet = new Set();
+        data.materias.forEach(m => {
+          if (mapa[m]) {
+            modificado = true;
+            nuevasMateriasSet.add(mapa[m]);
+          } else {
+            nuevasMateriasSet.add(m);
+          }
+        });
+        
+        if (modificado) {
+          const nuevoCursoPrin = mapa[data.curso] ? mapa[data.curso] : data.curso;
+          batch.update(d.ref, { 
+            materias: Array.from(nuevasMateriasSet),
+            curso: nuevoCursoPrin
+          });
+        }
+      }
+    });
+    
+    // 2. Asistencias
+    snapAsist.forEach(d => {
+      const data = d.data();
+      if (mapa[data.curso]) {
+        const matNueva = mapa[data.curso];
+        const nuevoDocId = `${matNueva.replace(/\s+/g, '')}_${data.fecha}`;
+        const nuevaRef = doc(db, getPath('asistencias'), nuevoDocId);
+        
+        // merge: true por si ya habia un documento ese mismo dia para la materia oficial
+        batch.set(nuevaRef, {
+          ...data,
+          curso: matNueva
+        }, { merge: true });
+        
+        // Borramos el documento viejo con el string huérfano
+        batch.delete(d.ref);
+      }
+    });
+    
+    // 3. Evaluaciones
+    snapEval.forEach(d => {
+      const data = d.data();
+      if (mapa[data.curso]) {
+        const matNueva = mapa[data.curso];
+        const nuevoDocId = `${data.alumnoId}_${matNueva.replace(/\s+/g, '')}`;
+        const nuevaRef = doc(db, getPath('evaluaciones'), nuevoDocId);
+        
+        batch.set(nuevaRef, {
+          ...data,
+          curso: matNueva
+        }, { merge: true });
+        
+        batch.delete(d.ref);
+      }
+    });
+    
+    await batch.commit();
+    showToast('🎉 ¡Migración completada con éxito!', 'success');
+    
+    // Refrescar para ver resultados vacíos
+    iniciarAuditoriaDatos();
+    
+  } catch(e) {
+    console.error(e);
+    showToast('Error en la migración: ' + e.message, 'error');
+    resultados.classList.remove('hidden');
+    progreso.classList.add('hidden');
+  }
 }
