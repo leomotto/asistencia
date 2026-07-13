@@ -269,8 +269,12 @@ export async function cargarVersion() {
   try {
     const r = await fetch('version.json?t=' + Date.now());
     if (!r.ok) { el.textContent = 'dev'; return; }
-    const { hash, date } = await r.json();
-    el.textContent = `${hash} · ${date}`;
+    const { hash, date, version } = await r.json();
+    if (version) {
+      el.textContent = `${version} · ${hash} · ${date}`;
+    } else {
+      el.textContent = `${hash} · ${date}`;
+    }
   } catch (e) {
     el.textContent = 'dev';
   }
