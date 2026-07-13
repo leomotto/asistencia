@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.53">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.54">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -34,7 +34,7 @@
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.53">
+  <link rel="stylesheet" href="css/styles.css?v=9.54">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
 
@@ -706,6 +706,32 @@
           <div id="auditoriaResultados" class="space-y-6 hidden">
              <!-- Dinamico -->
           </div>
+          
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+          
+          <div class="mb-4">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-users-three text-indigo-500"></i> Integridad de Estudiantes
+            </h3>
+            <p class="text-sm text-slate-500 mt-1">
+              Analiza los perfiles de los estudiantes para detectar divisiones múltiples activas, materias faltantes según su división oficial, o historiales de cambios de división mal cerrados.
+            </p>
+          </div>
+          
+          <div class="flex gap-2 mb-4">
+            <button onclick="app.analizarIntegridadEstudiantes()" id="btnAnalizarIntegridad" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+              <i class="ph ph-magnifying-glass text-lg"></i> Analizar Estudiantes
+            </button>
+          </div>
+          
+          <div id="integridadProgreso" class="hidden text-center py-8">
+             <i class="ph ph-spinner animate-spin text-4xl text-indigo-500 mb-2 block mx-auto"></i>
+             <p class="text-sm text-slate-500 font-bold" id="integridadProgresoMsg">Analizando estructura y legajos...</p>
+          </div>
+
+          <div id="integridadResultados" class="space-y-6 hidden">
+             <!-- Dinamico -->
+          </div>
         </div>
       </div>
     </section>
@@ -1041,6 +1067,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.53"></script>
+  <script type="module" src="js/app.js?v=9.54"></script>
 </body>
 </html>

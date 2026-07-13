@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.53";
+import { db, getPath } from "./firebase-config.js?v=9.54";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.53";
+import { showToast } from "./ui.js?v=9.54";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -332,5 +332,233 @@ export async function ejecutarMigracionAuditoria() {
     showToast('Error en la migración: ' + e.message, 'error');
     resultados.classList.remove('hidden');
     progreso.classList.add('hidden');
+  }
+}
+
+// ==========================================
+// INTEGRIDAD DE ESTUDIANTES
+// ==========================================
+
+let _planIntegridad = null;
+
+export async function analizarIntegridadEstudiantes() {
+  const progreso = document.getElementById('integridadProgreso');
+  const resultados = document.getElementById('integridadResultados');
+  const msg = document.getElementById('integridadProgresoMsg');
+  const btn = document.getElementById('btnAnalizarIntegridad');
+
+  if (progreso) progreso.classList.remove('hidden');
+  if (resultados) resultados.classList.add('hidden');
+  if (btn) btn.disabled = true;
+
+  try {
+    msg.textContent = 'Obteniendo materias oficiales...';
+    const snapMat = await getDocs(collection(db, getPath('materias')));
+    const materiasOficiales = {};
+    const divisionesEstructura = {};
+
+    snapMat.forEach(d => {
+      const mat = d.data();
+      materiasOficiales[mat.nombre] = mat;
+      if (mat.division) {
+        if (!divisionesEstructura[mat.division]) divisionesEstructura[mat.division] = [];
+        divisionesEstructura[mat.division].push(mat.nombre);
+      }
+    });
+
+    msg.textContent = 'Analizando legajos de estudiantes...';
+    const snapEst = await getDocs(collection(db, getPath('estudiantes')));
+    
+    const anomalias = [];
+    const planMigracion = {};
+
+    const hoyFmt = new Date().toISOString().split('T')[0];
+
+    snapEst.forEach(d => {
+      const data = d.data();
+      const id = d.id;
+      let tieneAnomalias = false;
+      const reporte = [];
+      const estudianteUpdates = {
+        materias: [...(data.materias || [])],
+        inscripciones: JSON.parse(JSON.stringify(data.inscripciones || {}))
+      };
+
+      const cursoPrimario = data.curso;
+      if (!cursoPrimario || !divisionesEstructura[cursoPrimario]) {
+        if (data.estado === 'ACTIVO') {
+          tieneAnomalias = true;
+          reporte.push(`El curso primario '${cursoPrimario}' no existe en la estructura de la escuela.`);
+        }
+      } else {
+        // Regla: Si está activo, debe tener TODAS las materias del curso primario en su array de materias, 
+        // y con estado ACTIVO en inscripciones.
+        const materiasEsperadas = divisionesEstructura[cursoPrimario];
+        if (data.estado === 'ACTIVO') {
+          materiasEsperadas.forEach(matEsperada => {
+            if (!estudianteUpdates.materias.includes(matEsperada)) {
+              estudianteUpdates.materias.push(matEsperada);
+              tieneAnomalias = true;
+              reporte.push(`Falta agregar la materia '${matEsperada}' correspondiente a su división '${cursoPrimario}'.`);
+            }
+            
+            const inscrip = estudianteUpdates.inscripciones[matEsperada] || [];
+            const isActivo = inscrip.length > 0 && inscrip[inscrip.length - 1].estado === 'ACTIVO';
+            if (!isActivo) {
+              estudianteUpdates.inscripciones[matEsperada] = inscrip;
+              estudianteUpdates.inscripciones[matEsperada].push({
+                estado: 'ACTIVO',
+                desde: data.fechaIngreso || hoyFmt,
+                hasta: ''
+              });
+              tieneAnomalias = true;
+              reporte.push(`Se debe activar la inscripción en '${matEsperada}'.`);
+            }
+          });
+        }
+      }
+
+      // Regla: Materias que NO pertenecen al curso primario (divisiones viejas),
+      // deben estar dadas de baja.
+      if (data.estado === 'ACTIVO' && cursoPrimario) {
+        const materiasEsperadas = divisionesEstructura[cursoPrimario] || [];
+        // Chequeamos el array actual
+        const materiasParaRemover = [];
+        estudianteUpdates.materias.forEach(matMapeada => {
+          if (!materiasEsperadas.includes(matMapeada)) {
+            materiasParaRemover.push(matMapeada);
+            tieneAnomalias = true;
+            reporte.push(`La materia '${matMapeada}' no pertenece a '${cursoPrimario}' y será removida de sus activas.`);
+            
+            // Cerrar historial
+            if (estudianteUpdates.inscripciones[matMapeada]) {
+              const hist = estudianteUpdates.inscripciones[matMapeada];
+              if (hist.length > 0 && hist[hist.length-1].estado === 'ACTIVO') {
+                hist[hist.length-1].estado = 'CAMBIO DE DIVISIÓN';
+                if (!hist[hist.length-1].hasta) hist[hist.length-1].hasta = hoyFmt;
+                reporte.push(`Se cerró el historial de '${matMapeada}' con motivo CAMBIO DE DIVISIÓN.`);
+              }
+            }
+          }
+        });
+        
+        // Removemos las no correspondientes
+        estudianteUpdates.materias = estudianteUpdates.materias.filter(m => !materiasParaRemover.includes(m));
+      }
+
+      if (tieneAnomalias) {
+        anomalias.push({
+          id,
+          nombre: `${data.apellido}, ${data.nombre}`,
+          cursoPrimario,
+          reporte,
+          updates: estudianteUpdates,
+          ref: d.ref
+        });
+        planMigracion[id] = { ref: d.ref, updates: estudianteUpdates };
+      }
+    });
+
+    _planIntegridad = planMigracion;
+    _renderizarResultadosIntegridad(anomalias);
+
+  } catch(e) {
+    console.error(e);
+    resultados.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Error: ${e.message}</div>`;
+    resultados.classList.remove('hidden');
+  } finally {
+    if (progreso) progreso.classList.add('hidden');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function _renderizarResultadosIntegridad(anomalias) {
+  const container = document.getElementById('integridadResultados');
+  container.classList.remove('hidden');
+
+  if (anomalias.length === 0) {
+    container.innerHTML = `<div class="p-6 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+      <i class="ph ph-check-circle text-4xl text-emerald-500 mb-2"></i>
+      <h3 class="text-lg font-bold text-emerald-800">¡Todo está perfecto!</h3>
+      <p class="text-emerald-600">No se encontraron inconsistencias de integridad (divisiones mezcladas o inscripciones abiertas incorrectamente).</p>
+    </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+      <h4 class="font-bold text-amber-800 flex items-center gap-2"><i class="ph ph-warning-circle text-lg"></i> Se encontraron ${anomalias.length} estudiantes con inconsistencias</h4>
+      <p class="text-sm text-amber-700 mt-1">El sistema ha calculado los ajustes necesarios para normalizarlos sin perder el historial.</p>
+    </div>
+    
+    <div class="overflow-x-auto border dark:border-slate-700 rounded-lg">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs">
+            <th class="p-3 border-b dark:border-slate-700">ESTUDIANTE</th>
+            <th class="p-3 border-b dark:border-slate-700">DIVISIÓN OFICIAL</th>
+            <th class="p-3 border-b dark:border-slate-700">ACCIONES PROPUESTAS</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm">
+  `;
+
+  anomalias.forEach(a => {
+    html += `
+      <tr class="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+        <td class="p-3 font-bold text-slate-800 dark:text-slate-100">${a.nombre}</td>
+        <td class="p-3 text-indigo-600 font-semibold">${a.cursoPrimario || 'SIN ASIGNAR'}</td>
+        <td class="p-3">
+          <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 space-y-1">
+            ${a.reporte.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+        </td>
+      </tr>
+    `;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="flex justify-end mt-4">
+      <button onclick="app.ejecutarMigracionIntegridad()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition flex items-center gap-2">
+        <i class="ph ph-magic-wand text-xl"></i> Normalizar Todos Ahora
+      </button>
+    </div>
+  `;
+  container.innerHTML = html;
+}
+
+export async function ejecutarMigracionIntegridad() {
+  if (!_planIntegridad || Object.keys(_planIntegridad).length === 0) return;
+
+  const count = Object.keys(_planIntegridad).length;
+  if (!confirm(`ATENCIÓN: Se actualizarán los legajos de ${count} estudiantes. Se registrará todo en la base de datos de forma atómica para no perder historiales.\n\n¿Estás seguro de continuar?`)) return;
+
+  const container = document.getElementById('integridadResultados');
+  container.innerHTML = `<div class="text-center py-8">
+    <i class="ph ph-spinner animate-spin text-4xl text-indigo-500 mb-2 block mx-auto"></i>
+    <p class="text-sm text-slate-500 font-bold">Aplicando WriteBatch atómico...</p>
+  </div>`;
+
+  try {
+    const batch = writeBatch(db);
+    
+    for (const [id, payload] of Object.entries(_planIntegridad)) {
+      batch.update(payload.ref, payload.updates);
+    }
+    
+    await batch.commit();
+    showToast(`✅ ${count} estudiantes normalizados exitosamente.`, 'success');
+    _planIntegridad = null;
+    
+    // Refrescar
+    await analizarIntegridadEstudiantes();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error aplicando la migración: ' + e.message, 'error');
+    container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Error: ${e.message}</div>`;
   }
 }
