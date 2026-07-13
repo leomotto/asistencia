@@ -6,7 +6,7 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
 * **Aplicación:** PWA de gestión de asistencia escolar.
 * **Stack:** JavaScript Vanilla (ES Modules), HTML5, CSS (Tailwind CSS referenciado/estilado custom), Firebase (Firestore + Auth).
 * **Despliegue:** `ssh-muchacholoco.alwaysdata.net` mediante el script local `./deploy.sh`.
-* **Última Versión Estable:** `v9.41`
+* **Última Versión Estable:** `v9.44`
 
 ## 🚨 Últimos Cambios Importantes (Julio 2026)
 1. **Resolución de Crash Crítico (SyntaxError):** Se corrigió un error que dejaba la pantalla de carga bloqueada debido a incompatibilidades de navegador (uso de Optional Chaining `?.` y Nullish Coalescing `??` sin soporte en navegadores viejos) que, sumado a una llave `}` huérfana en `js/evaluaciones.js`, rompían la inicialización del AST en el navegador.
@@ -14,10 +14,14 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
    - Las tablas de gestión de asistencia y matrículas fueron transformadas para verse como "tarjetas" apiladas en pantallas de celular (usando clases `block md:table-row`), eliminando el scroll horizontal incómodo.
    - **Fix de "Flex Blowout":** Se corrigió el contenedor principal (`#appContainer`) forzándole límites estrictos (`min-w-0 flex-1 overflow-hidden`). Esto previno que la tabla de la grilla de asistencia creciera infinitamente empujando los filtros fuera de la pantalla.
    - **Uso de Viewport Completo y Bug de Tablas:** Se eliminó la restricción `max-w-6xl` en todos los contenedores principales (reemplazado por `max-w-full`) para aprovechar el 100% en pantallas grandes. Además, se eliminó un hack "Mobile-First" defectuoso en la tabla de Gestión de Materias (`block md:table`) que forzaba el apilamiento vertical de las celdas en algunos navegadores de escritorio, resolviendo el bug visual donde todo se amontonaba contra un borde.
-3. **Limpieza de "Dead Code" (Ponytail Audit):** 
+3. **Consistencia Visual y Mejoras en Evaluaciones (v9.43 - v9.44):**
+   - Se unificaron los contenedores y estilos de encabezados en `gestionDocentes` y `gestionMaterias` para estandarizar la presentación de las vistas de administración.
+   - En la vista de Calificaciones (`evaluaciones`), los paneles de administración (habilitación de periodos y columnas adicionales) ahora inician colapsados por defecto para ahorrar espacio.
+   - Se compactaron los selectores de notas en la tabla de evaluaciones para mejorar la densidad visual de la planilla.
+4. **Limpieza de "Dead Code" (Ponytail Audit):** 
    - Se removió por completo la dependencia inútil `acorn` en `package.json` y la carpeta `node_modules` (el proyecto funciona puramente por CDN).
    - Se borraron tests en Python/JS zombis, scripts utilitarios no referenciados y el archivo huérfano `auditoria.js` y `auditoria.html`.
-4. **Gestión de Matrícula Optimizada:** 
+5. **Gestión de Matrícula Optimizada:** 
    - Se eliminaron las masivas listas de checkboxes por división.
    - Se implementó selección de "División Principal" (ej. "1ro A") que auto-inscribe en todas sus materias al vuelo.
    - Buscador rápido por nombre/apellido incorporado.

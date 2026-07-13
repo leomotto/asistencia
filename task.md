@@ -57,3 +57,10 @@
 - `[x]` Revertir clases de tailwind "Mobile-First" (`block md:table`) en la tabla de Gestión de Materias para evitar fallos de renderizado que apilaban columnas.
 - `[x]` Asegurar un 100% de ocupación horizontal con `max-w-full` en contenedores principales de pantallas para resoluciones ultra-wide.
 
+
+## 11. Refinamiento Visual y Optimizaciones (v9.44) *[COMPLETADO]*
+- `[x]` Paneles de administración en evaluaciones colapsables por defecto para ahorrar espacio.
+- `[x]` Selectores de calificaciones compactados para mejorar densidad visual.
+- `[x]` Consistencia de headings y cards (gestionDocentes vs gestionMaterias).
+- `[x]` Corrección de cierres de div huérfanos en gestionAlumnos.
+
