@@ -43,9 +43,9 @@ function opcionesMinutos() {
 // Genera dos selects H:M con el valor pre-seleccionado a partir de "08:30"
 function selectHM(claseH, claseM, hora = '') {
   const [h = '', m = ''] = hora ? hora.split(':') : [];
-  const selH = `<select class="${claseH} p-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
+  const selH = `<select class="${claseH} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
     <option value="">HH</option>${opcionesHoras().replace(`value="${h}"`, `value="${h}" selected`)}</select>`;
-  const selM = `<select class="${claseM} p-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
+  const selM = `<select class="${claseM} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
     <option value="">MM</option>${opcionesMinutos().replace(`value="${m}"`, `value="${m}" selected`)}</select>`;
   return `${selH}<span class="font-bold">:</span>${selM}`;
 }
@@ -180,7 +180,7 @@ export function agregarDiaMateria(diaObj = null) {
     else if (typeof diaObj === 'object') { diaNum = diaObj.dia; horaInicio = diaObj.horaInicio || ''; horaFin = diaObj.horaFin || ''; }
   }
 
-  let diaSelectHtml = `<select class="dia-materia-select p-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs font-medium outline-none min-w-[100px]">`;
+  let diaSelectHtml = `<select class="dia-materia-select py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs font-medium outline-none min-w-[100px]">`;
   DIAS_NOMBRES.forEach((n, idx) => {
     if (idx > 0 && idx < 6) diaSelectHtml += `<option value="${idx}"${diaNum == idx ? ' selected' : ''}>${n}</option>`;
   });

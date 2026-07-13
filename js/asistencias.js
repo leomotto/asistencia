@@ -410,7 +410,7 @@ export async function cargarPlanillaGrilla() {
           if (valor==="ACP") color="text-amber-500 font-bold";
           htmlFila += `
             <td class="px-1 py-1.5 border-l border-slate-200 dark:border-slate-700 text-center">
-              <select onchange="app.registrarCambioGrilla('${asist.fecha}','${al.id}',this)" class="bg-transparent font-black text-center text-xs w-14 outline-none cursor-pointer focus:ring-0 focus:border-indigo-500 ${color}">
+              <select onchange="app.registrarCambioGrilla('${asist.fecha}','${al.id}',this)" class="bg-transparent font-black text-center text-xs w-14 py-2 md:py-0 outline-none cursor-pointer focus:ring-0 focus:border-indigo-500 ${color}">
                 <option value="-" ${valor==="-"?"selected":""}>-</option>
                 <option value="P" ${valor==="P"?"selected":""}>P</option>
                 <option value="A" ${valor==="A"?"selected":""}>A</option>

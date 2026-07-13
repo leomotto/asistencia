@@ -672,7 +672,7 @@ export async function cargarPlanillaEvaluaciones() {
 
             colsHtml += `
               <td class="px-1 py-1.5 text-center border-b dark:border-slate-700/50 min-w-[80px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[74px] mx-auto p-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[74px] mx-auto py-2 md:py-0.5 px-1 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-100 text-\\w+-800 border-\\w+-300 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v==='EN PROCESO') this.classList.add('bg-orange-100','text-orange-800','border-orange-300'); else if(v==='SUFICIENTE') this.classList.add('bg-emerald-100','text-emerald-800','border-emerald-300'); else if(v==='AVANZADO') this.classList.add('bg-indigo-100','text-indigo-800','border-indigo-300'); else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   <option value="" ${val === '' ? 'selected' : ''}>-</option>
                   <option value="EN PROCESO" ${val === 'EN PROCESO' ? 'selected' : ''}>EP</option>
@@ -690,7 +690,7 @@ export async function cargarPlanillaEvaluaciones() {
                                 
             colsHtml += `
               <td class="px-1 py-1.5 text-center border-b dark:border-slate-700/50 min-w-[60px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[54px] mx-auto p-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[54px] mx-auto py-2 md:py-0.5 px-1 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-50 text-\\w+-700 border-\\w+-200 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v!==''){ const n = parseFloat(v); if(n<7) this.classList.add('bg-red-50','text-red-700','border-red-200'); else this.classList.add('bg-blue-50','text-blue-700','border-blue-200'); } else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   ${_getOptionsNumericas(val)}
                 </select>
