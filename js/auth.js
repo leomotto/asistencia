@@ -2,9 +2,9 @@
 
 import { doc, setDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.46";
-import { showToast } from "./ui.js?v=9.46";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.46";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.47";
+import { showToast } from "./ui.js?v=9.47";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.47";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 
@@ -96,6 +96,7 @@ export function setupAuthListener() {
       // Tabs exclusivos de Admin
       document.getElementById('btnMaterias')?.classList.toggle('hidden', !esAdmin);
       document.getElementById('btnDocentes')?.classList.toggle('hidden', !esAdmin);
+      document.getElementById('btnAuditoria')?.classList.toggle('hidden', !esAdmin);
 
       // Tab Matrícula: Admin lo ve siempre; Docente no tiene acceso a inscripciones
       document.getElementById('btnGestion')?.classList.toggle('hidden', rol === 'DOCENTE');
