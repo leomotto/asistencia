@@ -1,6 +1,6 @@
-import { db } from "./firebase-config.js";
+import { db, getPath } from "./firebase-config.js?v=9.45";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { getPath, showToast } from "./ui.js?v=9.45";
+import { showToast } from "./ui.js?v=9.45";
 
 let datosAuditoria = {
   materiasOficiales: [],
