@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { getAuth, signInAnonymously } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyAx8JRsalcFz1jLtwYAmZPBa953OhRaLdY",
@@ -12,16 +13,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 async function test() {
   try {
-    const qSnapshot = await getDocs(collection(db, "artifacts/mi-app-asistencia/public/data/escuelas"));
-    console.log("Escuelas encontradas:", qSnapshot.size);
+    await signInAnonymously(auth);
+    const qSnapshot = await getDocs(collection(db, "escuelas"));
+    console.log("Escuelas root encontradas:", qSnapshot.size);
     qSnapshot.forEach(doc => {
       console.log(doc.id, doc.data());
     });
+    process.exit(0);
   } catch (e) {
     console.error("Error:", e);
+    process.exit(1);
   }
 }
 test();

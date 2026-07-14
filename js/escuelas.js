@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=9.99";
+import { db, getPath } from "./firebase-config.js?v=10.00";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // ==========================================
@@ -70,7 +70,11 @@ export async function cargarListaEscuelas() {
     container.innerHTML = html;
   } catch (error) {
     console.error("Error al cargar escuelas:", error);
-    container.innerHTML = `<p class="text-center text-red-500 py-8">Error al cargar las escuelas. Ver consola.</p>`;
+    container.innerHTML = `<div class="bg-red-50 p-4 rounded-xl border border-red-200">
+      <p class="text-center text-red-600 font-bold py-2"><i class="ph ph-warning-circle text-xl"></i> Error al cargar las escuelas.</p>
+      <p class="text-sm text-red-500 text-center font-mono break-all">${error.message || error}</p>
+      <p class="text-xs text-red-400 text-center mt-2">Path intentado: ${getPath("escuelas")}</p>
+    </div>`;
   }
 }
 
