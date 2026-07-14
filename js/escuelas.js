@@ -1,5 +1,5 @@
-import { db, getPath } from "./firebase-config.js?v=10.00";
-import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=10.01";
+import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
 // GESTION DE ESCUELAS (CRUD SUPERADMIN)
