@@ -71,7 +71,7 @@ service cloud.firestore {
         (request.auth.uid == userId && request.auth.token.email == 'leomotto@gmail.com') ||
         (
           request.auth.uid == userId &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre', 'escuelas'])
         )
       );
       allow delete: if isAdmin(null);

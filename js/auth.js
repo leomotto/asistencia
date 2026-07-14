@@ -256,20 +256,7 @@ export function setupAuthListener() {
 
       // #3 Badge de usuarios PENDIENTE para admin
       if (esAdmin) {
-        try {
-          const pendSnap = await getDocs(query(collection(db, getPath('usuarios')), where('rol', '==', 'PENDIENTE')));
-          if (pendSnap.size > 0) {
-            const btnDoc = document.getElementById('btnDocentes');
-            if (btnDoc) {
-              btnDoc.querySelector('#pendientesBadge')?.remove();
-              const badge = document.createElement('span');
-              badge.id = 'pendientesBadge';
-              badge.className = 'ml-auto flex-shrink-0 inline-flex items-center justify-center min-w-[1rem] h-4 px-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full';
-              badge.textContent = pendSnap.size;
-              btnDoc.appendChild(badge);
-            }
-          }
-        } catch(e) { console.warn('No se pudo verificar usuarios pendientes:', e); }
+        await actualizarBadgePendientes();
       }
 
     } else {

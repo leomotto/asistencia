@@ -281,6 +281,7 @@ export async function switchContext(newTenant) {
     if (window.app.cargarMateriasDinamicas) {
       await window.app.cargarMateriasDinamicas();
       window.app.popularCursos?.();
+      window.app.actualizarBadgePendientes?.();
     }
     
     // Encontrar el tab activo buscando el que tenga bg-white/10
