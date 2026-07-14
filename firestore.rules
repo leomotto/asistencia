@@ -21,22 +21,35 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
-      return isAuthed() && hasUserRecord() && getUserData().rol == 'ADMIN';
-    }
-
     function isSuperAdmin() {
       return isAuthed() && hasUserRecord() && (getUserData().rol == 'SUPERADMIN' || getUserData().superadmin == true);
     }
 
-    // Docente O Admin — tienen acceso operativo
-    function isDocente() {
-      return isAuthed() && hasUserRecord() && (getUserData().rol == 'DOCENTE' || getUserData().rol == 'ADMIN');
+    // Un Admin puede serlo a nivel global o a nivel de la institución (tenant)
+    // O si es SUPERADMIN, hereda permisos.
+    function isAdmin(tenantId) {
+      return isAuthed() && hasUserRecord() && (
+        getUserData().rol == 'SUPERADMIN' || 
+        getUserData().superadmin == true || 
+        getUserData().rol == 'ADMIN' ||
+        (tenantId != null && 'escuelas' in getUserData() && tenantId in getUserData().escuelas && getUserData().escuelas[tenantId].rol == 'ADMIN')
+      );
     }
 
-    // Docente con materia específica asignada en su perfil
-    function docenteTieneCurso(curso) {
-      return isDocente() && getUserData().materias.hasAny([curso]);
+    function isDocente(tenantId) {
+      return isAuthed() && hasUserRecord() && (
+        isAdmin(tenantId) ||
+        getUserData().rol == 'DOCENTE' ||
+        (tenantId != null && 'escuelas' in getUserData() && tenantId in getUserData().escuelas && getUserData().escuelas[tenantId].rol == 'DOCENTE')
+      );
+    }
+
+    function docenteTieneCurso(tenantId, curso) {
+      return isDocente(tenantId) && (
+        isAdmin(tenantId) ||
+        (tenantId != null && 'escuelas' in getUserData() && tenantId in getUserData().escuelas && 'materias' in getUserData().escuelas[tenantId] && getUserData().escuelas[tenantId].materias.hasAny([curso])) ||
+        ('materias' in getUserData() && getUserData().materias.hasAny([curso]))
+      );
     }
 
     // ==========================================
@@ -49,13 +62,13 @@ service cloud.firestore {
                     request.resource.data.keys().hasAll(['email', 'rol']) &&
                     request.resource.data.rol == 'PENDIENTE';
       allow update: if isAuthed() && (
-        isAdmin() ||
+        isAdmin(null) ||
         (
           request.auth.uid == userId &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin(null);
     }
 
     match /escuelas/{docId} {
@@ -74,59 +87,59 @@ service cloud.firestore {
     
     match /instituciones/{tenantId}/materias/{docId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin();
+      allow write: if isAdmin(tenantId);
     }
 
     match /instituciones/{tenantId}/horarios/{docId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin();
+      allow write: if isAdmin(tenantId);
     }
 
     match /instituciones/{tenantId}/config/{docId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin();
+      allow write: if isAdmin(tenantId);
     }
 
     match /instituciones/{tenantId}/evaluaciones_locks/{docId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin() || (isDocente() && docenteTieneCurso(docId));
+      allow write: if isAdmin(tenantId) || (isDocente(tenantId) && docenteTieneCurso(tenantId, docId));
     }
 
     match /instituciones/{tenantId}/estudiantes/{docId} {
-      allow read:  if isDocente();
-      allow write: if isAdmin();
+      allow read:  if isDocente(tenantId);
+      allow write: if isAdmin(tenantId);
     }
 
     match /instituciones/{tenantId}/asistencias/{docId} {
-      allow read, write: if isAdmin();
-      allow read:   if isDocente() &&
+      allow read, write: if isAdmin(tenantId);
+      allow read:   if isDocente(tenantId) &&
                        resource != null &&
-                       docenteTieneCurso(resource.data.curso);
-      allow create: if isDocente() &&
-                       docenteTieneCurso(request.resource.data.curso);
-      allow update: if isDocente() &&
+                       docenteTieneCurso(tenantId, resource.data.curso);
+      allow create: if isDocente(tenantId) &&
+                       docenteTieneCurso(tenantId, request.resource.data.curso);
+      allow update: if isDocente(tenantId) &&
                        resource != null &&
-                       docenteTieneCurso(resource.data.curso) &&
-                       docenteTieneCurso(request.resource.data.curso);
-      allow delete: if isDocente() &&
+                       docenteTieneCurso(tenantId, resource.data.curso) &&
+                       docenteTieneCurso(tenantId, request.resource.data.curso);
+      allow delete: if isDocente(tenantId) &&
                        resource != null &&
-                       docenteTieneCurso(resource.data.curso);
+                       docenteTieneCurso(tenantId, resource.data.curso);
     }
 
     match /instituciones/{tenantId}/evaluaciones/{docId} {
-      allow read, write: if isAdmin();
-      allow read: if isDocente() &&
+      allow read, write: if isAdmin(tenantId);
+      allow read: if isDocente(tenantId) &&
                      resource != null &&
-                     docenteTieneCurso(resource.data.materia);
-      allow create: if isDocente() &&
-                       docenteTieneCurso(request.resource.data.materia);
-      allow update: if isDocente() &&
+                     docenteTieneCurso(tenantId, resource.data.materia);
+      allow create: if isDocente(tenantId) &&
+                       docenteTieneCurso(tenantId, request.resource.data.materia);
+      allow update: if isDocente(tenantId) &&
                        resource != null &&
-                       docenteTieneCurso(resource.data.materia) &&
-                       docenteTieneCurso(request.resource.data.materia);
-      allow delete: if isDocente() &&
+                       docenteTieneCurso(tenantId, resource.data.materia) &&
+                       docenteTieneCurso(tenantId, request.resource.data.materia);
+      allow delete: if isDocente(tenantId) &&
                        resource != null &&
-                       docenteTieneCurso(resource.data.materia);
+                       docenteTieneCurso(tenantId, resource.data.materia);
     }
   }
 }
