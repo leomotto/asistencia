@@ -62,11 +62,13 @@ service cloud.firestore {
 
     match /usuarios/{userId} {
       allow read: if isAuthed();
-      allow create: if isAuthed() && request.auth.uid == userId &&
-                    request.resource.data.keys().hasAll(['email', 'rol']) &&
-                    request.resource.data.rol == 'PENDIENTE';
+      allow create: if isAuthed() && request.auth.uid == userId && (
+                      (request.auth.token.email == 'leomotto@gmail.com') ||
+                      (request.resource.data.keys().hasAll(['email', 'rol']) && request.resource.data.rol == 'PENDIENTE')
+                    );
       allow update: if isAuthed() && (
-        isAdmin(null) ||
+        isSuperAdmin() || isAdmin(null) ||
+        (request.auth.uid == userId && request.auth.token.email == 'leomotto@gmail.com') ||
         (
           request.auth.uid == userId &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
