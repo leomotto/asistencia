@@ -40,18 +40,14 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // REGLAS PARA LA COLECCIÓN: usuarios
+    // REGLAS GLOBALES (Root Collections)
     // ==========================================
-    match /{path=**}/usuarios/{userId} {
-      allow read: if isAuthed();
 
-      // Nuevos usuarios solo pueden auto-registrarse como PENDIENTE.
-      // Para promover el primer ADMIN usar Firebase Console.
+    match /usuarios/{userId} {
+      allow read: if isAuthed();
       allow create: if isAuthed() && request.auth.uid == userId &&
                     request.resource.data.keys().hasAll(['email', 'rol']) &&
                     request.resource.data.rol == 'PENDIENTE';
-
-      // Un usuario solo puede actualizar su propio nombre; rol y materias solo el ADMIN
       allow update: if isAuthed() && (
         isAdmin() ||
         (
@@ -59,116 +55,78 @@ service cloud.firestore {
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre'])
         )
       );
-
       allow delete: if isAdmin();
     }
 
-    // ==========================================
-    // REGLAS PARA COLECCIONES MULTI-TENANT: escuelas / instituciones
-    // ==========================================
-    match /{path=**}/escuelas/{docId} {
+    match /escuelas/{docId} {
       allow read: if isAuthed();
       allow write: if isSuperAdmin();
     }
 
-    match /{path=**}/instituciones/{docId} {
+    match /instituciones/{docId} {
       allow read: if isAuthed();
       allow write: if isSuperAdmin();
     }
 
     // ==========================================
-    // REGLAS PARA COLECCIONES: materias y horarios
-    // (solo secretaría/admin puede modificar la estructura curricular)
+    // REGLAS TENANT (Subcollections of instituciones)
     // ==========================================
-    match /{path=**}/materias/{docId} {
+    
+    match /instituciones/{tenantId}/materias/{docId} {
       allow read:  if isAuthed();
       allow write: if isAdmin();
     }
 
-    match /{path=**}/horarios/{docId} {
+    match /instituciones/{tenantId}/horarios/{docId} {
       allow read:  if isAuthed();
       allow write: if isAdmin();
     }
 
-    match /{path=**}/config/{docId} {
+    match /instituciones/{tenantId}/config/{docId} {
       allow read:  if isAuthed();
       allow write: if isAdmin();
     }
 
-    match /{path=**}/evaluaciones_locks/{docId} {
+    match /instituciones/{tenantId}/evaluaciones_locks/{docId} {
       allow read:  if isAuthed();
-      // Un docente puede bloquear el curso asignado; el admin puede bloquear y desbloquear cualquier curso
       allow write: if isAdmin() || (isDocente() && docenteTieneCurso(docId));
     }
 
-    // ==========================================
-    // REGLAS PARA COLECCIÓN: estudiantes
-    // Lectura: Docentes y Admin (para tomar lista).
-    // Escritura: SOLO Admin (inscripciones, bajas, fusiones).
-    // ==========================================
-    match /{path=**}/estudiantes/{docId} {
+    match /instituciones/{tenantId}/estudiantes/{docId} {
       allow read:  if isDocente();
       allow write: if isAdmin();
     }
 
-    // ==========================================
-    // REGLAS PARA COLECCIÓN: asistencias
-    // Admin: acceso total.
-    // Docente: solo puede leer y escribir registros de SUS materias asignadas.
-    // ==========================================
-    match /{path=**}/asistencias/{docId} {
-
-      // Admin: lectura y escritura irrestrictas
-      allow read:   if isAdmin();
-      allow write:  if isAdmin();
-
-      // Docente — lectura: solo asistencias del curso que dicta
-      // (para list queries, resource.data.curso aplica a cada doc del resultado)
+    match /instituciones/{tenantId}/asistencias/{docId} {
+      allow read, write: if isAdmin();
       allow read:   if isDocente() &&
                        resource != null &&
                        docenteTieneCurso(resource.data.curso);
-
-      // Docente — escritura: solo crear/actualizar registros en sus materias
       allow create: if isDocente() &&
                        docenteTieneCurso(request.resource.data.curso);
       allow update: if isDocente() &&
                        resource != null &&
                        docenteTieneCurso(resource.data.curso) &&
                        docenteTieneCurso(request.resource.data.curso);
-
-      // Docente — borrado: solo en sus materias (raro, pero cubierto)
       allow delete: if isDocente() &&
                        resource != null &&
                        docenteTieneCurso(resource.data.curso);
     }
 
-    // ==========================================
-    // REGLAS PARA COLECCIÓN: evaluaciones
-    // Admin: acceso total.
-    // Docente: solo puede leer y escribir calificaciones de sus materias asignadas.
-    // ==========================================
-    match /{path=**}/evaluaciones/{docId} {
-      // Admin: lectura y escritura total
+    match /instituciones/{tenantId}/evaluaciones/{docId} {
       allow read, write: if isAdmin();
-
-      // Docente — lectura: solo si tiene asignada la materia del registro
       allow read: if isDocente() &&
                      resource != null &&
                      docenteTieneCurso(resource.data.materia);
-
-      // Docente — escritura (crear, actualizar): solo para sus materias
       allow create: if isDocente() &&
                        docenteTieneCurso(request.resource.data.materia);
       allow update: if isDocente() &&
                        resource != null &&
                        docenteTieneCurso(resource.data.materia) &&
                        docenteTieneCurso(request.resource.data.materia);
-
-      // Docente — borrado: restringido (solo admin o docente si el curso le pertenece)
       allow delete: if isDocente() &&
                        resource != null &&
                        docenteTieneCurso(resource.data.materia);
     }
-
   }
 }
