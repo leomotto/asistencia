@@ -238,7 +238,7 @@ export async function buildContextSwitcher() {
     
     try {
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const { db, getPath } = await import("./firebase-config.js?v=9.90");
+      const { db, getPath } = await import("./firebase-config.js?v=9.92");
       
       const qSnap = await getDocs(collection(db, getPath("escuelas")));
       let html = `<option value="root" ${window.app.currentTenant === 'root' ? 'selected' : ''}>[SUPERADMIN] ROOT</option>`;
