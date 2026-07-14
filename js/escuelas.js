@@ -40,18 +40,28 @@ export async function cargarListaEscuelas() {
               <p class="text-xs text-slate-400 font-mono mt-0.5">${docSnap.id}</p>
             </div>
           </div>
-          <div class="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+          <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
             <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
               <i class="ph ph-pencil-simple"></i> Editar
             </button>
-            <button onclick="app.eliminarEscuela('${docSnap.id}')" class="text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1 ml-auto">
+            <button onclick="app.eliminarEscuela('${docSnap.id}')" class="text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
               <i class="ph ph-trash"></i> Eliminar
             </button>
-            ${!isCurrent ? `
-              <button onclick="app.switchContext('${docSnap.id}')" class="text-xs bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 px-2 py-1 rounded transition ml-2">
-                Entrar
+            
+            <div class="w-full flex gap-1 mt-2">
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'inicioTab')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1 font-bold">
+                <i class="ph ph-sign-in"></i> ENTRAR
               </button>
-            ` : ''}
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionMaterias')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+                <i class="ph ph-books"></i> MATERIAS
+              </button>
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionDocentes')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+                <i class="ph ph-users"></i> DOCENTES
+              </button>
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionAlumnos')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+                <i class="ph ph-student"></i> ALUMNOS
+              </button>
+            </div>
           </div>
         </div>
       `;

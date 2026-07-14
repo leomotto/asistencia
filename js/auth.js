@@ -100,50 +100,24 @@ export function setupAuthListener() {
           }
         }
 
-        // Determinar currentTenant
+        // Determinar currentTenant inicial
         let savedTenant = localStorage.getItem('activeTenant');
         const userEscuelas = Object.keys(userData.escuelas || {});
         
+        let initialTenant = 'root';
         if (userData.superadmin) {
-           window.app.currentTenant = savedTenant || 'root';
+           initialTenant = savedTenant || 'root';
         } else {
            if (savedTenant && userEscuelas.includes(savedTenant)) {
-               window.app.currentTenant = savedTenant;
+               initialTenant = savedTenant;
            } else if (userEscuelas.length > 0) {
-               window.app.currentTenant = userEscuelas[0];
-               localStorage.setItem('activeTenant', window.app.currentTenant);
-           } else {
-               window.app.currentTenant = 'root';
+               initialTenant = userEscuelas[0];
+               localStorage.setItem('activeTenant', initialTenant);
            }
         }
         
-        // Determinar rol activo
-        if (userData.superadmin) {
-           userData.rolActivo = 'SUPERADMIN';
-           if (window.app.currentTenant !== 'root') {
-             try {
-               const tenantDoc = await getDoc(doc(db, "escuelas", window.app.currentTenant));
-               if (tenantDoc.exists()) {
-                 userData.materiasActivas = tenantDoc.data().materias || [];
-               } else {
-                 userData.materiasActivas = [];
-               }
-             } catch(err) {
-               console.error("Error al cargar materias de la escuela para SUPERADMIN:", err);
-               userData.materiasActivas = [];
-             }
-           } else {
-             userData.materiasActivas = userData.materias || [];
-           }
-        } else if (userData.escuelas && userData.escuelas[window.app.currentTenant]) {
-           userData.rolActivo = userData.escuelas[window.app.currentTenant].rol || 'PENDIENTE';
-           userData.materiasActivas = userData.escuelas[window.app.currentTenant].materias || [];
-        } else {
-           userData.rolActivo = 'PENDIENTE';
-           userData.materiasActivas = [];
-        }
-
         window.app.currentUser = { uid: user.uid, email: user.email, ...userData };
+        await setAppTenant(initialTenant);
       } catch(e) {
         console.error("Error al obtener datos del usuario:", e);
         window.app.currentUser = { uid: user.uid, email: user.email, nombre: user.displayName || '', rolActivo: "ERR: " + (e.name === 'FirebaseError' ? e.code : e.message), superadmin: false };
@@ -320,4 +294,37 @@ export function initAuth() {
 
   // Si la auth sí responde (exitosa o no), cancelamos el timer
   onAuthStateChanged(auth, () => clearTimeout(safetyTimer));
+}
+
+export async function setAppTenant(newTenant) {
+  if (!window.app.currentUser) return;
+  
+  window.app.currentTenant = newTenant;
+  localStorage.setItem('activeTenant', newTenant);
+  const userData = window.app.currentUser;
+  
+  if (userData.superadmin) {
+     userData.rolActivo = 'SUPERADMIN';
+     if (newTenant !== 'root') {
+       try {
+         const tenantDoc = await getDoc(doc(db, "escuelas", newTenant));
+         if (tenantDoc.exists()) {
+           userData.materiasActivas = tenantDoc.data().materias || [];
+         } else {
+           userData.materiasActivas = [];
+         }
+       } catch(err) {
+         console.error("Error al cargar materias de la escuela para SUPERADMIN:", err);
+         userData.materiasActivas = [];
+       }
+     } else {
+       userData.materiasActivas = userData.materias || [];
+     }
+  } else if (userData.escuelas && userData.escuelas[newTenant]) {
+     userData.rolActivo = userData.escuelas[newTenant].rol || 'PENDIENTE';
+     userData.materiasActivas = userData.escuelas[newTenant].materias || [];
+  } else {
+     userData.rolActivo = 'PENDIENTE';
+     userData.materiasActivas = [];
+  }
 }

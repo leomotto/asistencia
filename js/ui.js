@@ -269,10 +269,20 @@ export async function buildContextSwitcher() {
   `;
 }
 
-export function switchContext(newTenant) {
-  if (!newTenant) return;
-  localStorage.setItem('activeTenant', newTenant);
-  window.location.reload();
+export async function switchContext(newTenant) {
+  if (!newTenant || newTenant === window.app.currentTenant) return;
+  
+  if (window.app.setAppTenant) {
+    await window.app.setAppTenant(newTenant);
+    buildContextSwitcher();
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+      switchTab(activeTab.dataset.tab);
+    }
+  } else {
+    localStorage.setItem('activeTenant', newTenant);
+    window.location.reload();
+  }
 }
 
 export function popularCursos() {
@@ -597,4 +607,11 @@ export function renderAgenda() {
     
     container.innerHTML = html;
   }
+}
+
+export async function enterContextAndGoTo(tenant, tabId) {
+  if (window.app.currentTenant !== tenant) {
+    await switchContext(tenant);
+  }
+  switchTab(tabId);
 }

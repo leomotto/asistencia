@@ -1,7 +1,7 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext } from "./ui.js?v=9.94";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.94";
+import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext, enterContextAndGoTo } from "./ui.js?v=9.94";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth, setAppTenant } from "./auth.js?v=9.94";
 import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=9.94";
 import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=9.94";
 import { 
@@ -47,6 +47,7 @@ window.app.iniciarSesionGoogle  = iniciarSesionGoogle;
 window.app.cerrarSesion         = cerrarSesion;
 window.app.entrarModoDesarrollo = entrarModoDesarrollo;
 window.app.solicitarUnirseEscuela = solicitarUnirseEscuela;
+window.app.setAppTenant = setAppTenant;
 
 
 // ui.js
@@ -58,10 +59,13 @@ window.app.toggleDarkMode   = toggleDarkMode;
 window.app.popularCursos    = popularCursos;
 window.app.toggleMenuMobile = toggleMenuMobile;
 window.app.toggleSidebar    = toggleSidebar;
+window.app.initSidebar      = initSidebar;
+window.app.cargarVersion    = cargarVersion;
 window.app.switchTab        = switchTab;
 window.app.renderAgenda     = renderAgenda;
 window.app.buildContextSwitcher = buildContextSwitcher;
 window.app.switchContext    = switchContext;
+window.app.enterContextAndGoTo = enterContextAndGoTo;
 
 // materias.js
 window.app.HORARIOS_DINAMICOS       = HORARIOS_DINAMICOS;
