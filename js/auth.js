@@ -326,3 +326,27 @@ export async function setAppTenant(newTenant) {
      userData.materiasActivas = [];
   }
 }
+
+export async function actualizarBadgePendientes() {
+  try {
+    let q;
+    if (window.app.currentTenant && window.app.currentTenant !== 'root') {
+      q = query(collection(db, 'usuarios'), where(`escuelas.${window.app.currentTenant}.rol`, '==', 'PENDIENTE'));
+    } else {
+       q = query(collection(db, 'usuarios'), where('rol', '==', 'PENDIENTE'));
+    }
+    
+    const pendSnap = await getDocs(q);
+    const btnDoc = document.getElementById('btnDocentes');
+    if (btnDoc) {
+      btnDoc.querySelector('#pendientesBadge')?.remove();
+      if (pendSnap.size > 0 && window.app.currentTenant !== 'root') {
+        const badge = document.createElement('span');
+        badge.id = 'pendientesBadge';
+        badge.className = 'ml-auto flex-shrink-0 inline-flex items-center justify-center min-w-[1rem] h-4 px-0.5 text-[9px] font-bold bg-red-500 text-white rounded-full';
+        badge.textContent = pendSnap.size;
+        btnDoc.appendChild(badge);
+      }
+    }
+  } catch(e) { console.warn('No se pudo verificar usuarios pendientes:', e); }
+}
