@@ -87,6 +87,25 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    match /materias/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /estudiantes/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /asistencias/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /evaluaciones/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /evaluaciones_locks/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /horarios/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     // Compatibilidad para `getPath` con prefijo artifacts
     match /artifacts/mi-app-asistencia/public/data/escuelas/{docId} {
       allow read: if isAuthed();

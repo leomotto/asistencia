@@ -75,20 +75,31 @@ export function setupAuthListener() {
               };
             }
             
-            // Auto-promover a leomotto@gmail.com a SUPERADMIN si no lo es
-            if (user.email === 'leomotto@gmail.com' && userData.superadmin !== true) {
+            // Auto-promover cuentas del dueño a SUPERADMIN si no lo son
+            const ownerEmails = ['leomotto@gmail.com', 'leopoldo.motto@bue.edu.ar'];
+            if (ownerEmails.includes(user.email) && userData.superadmin !== true) {
               userData.superadmin = true;
               userData.rol = 'SUPERADMIN'; // Para retrocompatibilidad
               try {
                 await setDoc(doc(db, getPath("usuarios"), user.uid), { superadmin: true, rol: 'SUPERADMIN' }, { merge: true });
+                if (userData.escuelas) {
+                  // También asegurar que en todas las escuelas tenga rol ADMIN/SUPERADMIN
+                  for (let esc in userData.escuelas) {
+                    userData.escuelas[esc].rol = 'ADMIN';
+                    await setDoc(doc(db, getPath("usuarios"), user.uid), { 
+                      [`escuelas.${esc}.rol`]: 'ADMIN' 
+                    }, { merge: true });
+                  }
+                }
               } catch(promoError) {
-                console.warn("No se pudo guardar la auto-promoción en BD (posible regla de seguridad), pero se aplicó en memoria.", promoError);
+                console.warn("No se pudo guardar la auto-promoción en BD, pero se aplicó en memoria.", promoError);
               }
             }
           } else {
             // Usuario nuevo → siempre PENDIENTE (promover desde UI o wizard)
-            let defaultRol = user.email === 'leomotto@gmail.com' ? 'SUPERADMIN' : 'PENDIENTE';
-            let isSuper = user.email === 'leomotto@gmail.com';
+            const ownerEmails = ['leomotto@gmail.com', 'leopoldo.motto@bue.edu.ar'];
+            let isSuper = ownerEmails.includes(user.email);
+            let defaultRol = isSuper ? 'SUPERADMIN' : 'PENDIENTE';
             userData = { rol: defaultRol, superadmin: isSuper, escuelas: {} };
             try {
               await setDoc(doc(db, getPath("usuarios"), user.uid), {
