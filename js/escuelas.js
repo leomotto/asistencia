@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.09";
+import { db, getPath } from "./firebase-config.js?v=10.15";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -435,7 +435,7 @@ export async function migrateDataToSchool(schoolId) {
 
   try {
     const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const { db } = await import("./firebase-config.js?v=10.09");
+    const { db } = await import("./firebase-config.js?v=10.15");
     
     const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
     
