@@ -277,6 +277,12 @@ export async function switchContext(newTenant) {
     await window.app.setAppTenant(newTenant);
     buildContextSwitcher();
     
+    // Recargar datos de la escuela para no mezclar
+    if (window.app.cargarMateriasDinamicas) {
+      await window.app.cargarMateriasDinamicas();
+      window.app.popularCursos?.();
+    }
+    
     // Encontrar el tab activo buscando el que tenga bg-white/10
     let currentTabId = 'inicioTab';
     const tabBtns = document.querySelectorAll('.tab-btn');
