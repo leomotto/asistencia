@@ -24,8 +24,8 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
    - La agenda de `Inicio` se pulió para mostrar correctamente si el docente tiene el "Día Libre" y cuándo es su próxima clase.
 
 ## ⚠️ Advertencias para Futuros Agentes (REGLAS ESTRICTAS)
-- **DEPLOYMENT:** El proyecto se sube a producción con el comando `./deploy.sh`. **JAMÁS** corras `firebase deploy` ni asumas que el hosting es de Firebase. El Frontend vive en un FTP/SSH (Alwaysdata).
-- **Gestión de Versiones (Caché):** Cuando hagas cambios en la lógica o en los archivos `.js` o `.css`, asegúrate de actualizar el número de versión (ej. de `v=9.84` a `v=9.85`) en todas las importaciones `<script src="...v=9.84">` en `index.html` y dentro de las importaciones de módulos en `js/`.
+- **DEPLOYMENT:** El proyecto se sube a producción con el comando `./deploy.sh`. El Frontend vive en un FTP/SSH (Alwaysdata). **Para la base de datos (Firestore)**: La CLI de Firebase ya está instalada y autenticada; puedes usar `npx firebase-tools deploy --only firestore:rules` para actualizar reglas de seguridad en Firebase, pero **NUNCA uses `firebase deploy` para el Hosting**.
+- **Gestión de Versiones (Caché):** Cuando hagas cambios en la lógica o en los archivos `.js` o `.css`, asegúrate de usar `./deploy.sh "mensaje"`, el cual ya automatiza el bump y commit.
 - **Compatibilidad JS:** El usuario ha reportado el uso de dispositivos/navegadores antiguos. EVITA usar sintaxis hiper moderna (aunque se relajó un poco, sigue siendo buena práctica tener precaución con bugs raros).
 - **Guardado en Firestore:** Utiliza siempre el flag `{merge: true}` al actualizar documentos complejos con `setDoc`.
 
