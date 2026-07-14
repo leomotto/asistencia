@@ -22,17 +22,21 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() {
-      return isAuthed() && hasUserRecord() && (getUserData().rol == 'SUPERADMIN' || getUserData().superadmin == true);
+      return isAuthed() && (
+        (request.auth.token.email == 'leomotto@gmail.com') ||
+        (hasUserRecord() && (getUserData().rol == 'SUPERADMIN' || getUserData().superadmin == true))
+      );
     }
 
     // Un Admin puede serlo a nivel global o a nivel de la institución (tenant)
     // O si es SUPERADMIN, hereda permisos.
     function isAdmin(tenantId) {
-      return isAuthed() && hasUserRecord() && (
-        getUserData().rol == 'SUPERADMIN' || 
-        getUserData().superadmin == true || 
-        getUserData().rol == 'ADMIN' ||
-        (tenantId != null && 'escuelas' in getUserData() && tenantId in getUserData().escuelas && getUserData().escuelas[tenantId].rol == 'ADMIN')
+      return isAuthed() && (
+        isSuperAdmin() || 
+        (hasUserRecord() && (
+          getUserData().rol == 'ADMIN' ||
+          (tenantId != null && 'escuelas' in getUserData() && tenantId in getUserData().escuelas && getUserData().escuelas[tenantId].rol == 'ADMIN')
+        ))
       );
     }
 
