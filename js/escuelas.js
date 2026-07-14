@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.01";
+import { db, getPath } from "./firebase-config.js?v=10.02";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -40,30 +40,43 @@ export async function cargarListaEscuelas() {
               <p class="text-xs text-slate-400 font-mono mt-0.5">${docSnap.id}</p>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-            <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-              <i class="ph ph-pencil-simple"></i> Editar
-            </button>
-            <button onclick="app.eliminarEscuela('${docSnap.id}')" class="text-xs text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
-              <i class="ph ph-trash"></i> Eliminar
-            </button>
+              <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 rounded-full ${isCurrent ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600'} flex items-center justify-center">
+                  <i class="ph ph-buildings text-xl"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-800 dark:text-white text-lg">${e.nombre}</h3>
+                  <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 inline-block px-2 py-0.5 rounded-full">ID: ${docSnap.id}</p>
+                </div>
+              </div>
+            </div>
             
-            <div class="w-full flex gap-1 mt-2">
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'inicioTab')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1 font-bold">
+            <div class="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'inicioTab')" class="flex-1 md:flex-none px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-medium transition-colors text-sm shadow-sm border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-center gap-2">
                 <i class="ph ph-sign-in"></i> ENTRAR
               </button>
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionMaterias')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+              
+              <div class="hidden md:block w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+              
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionMaterias')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
                 <i class="ph ph-books"></i> MATERIAS
               </button>
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionDocentes')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionDocentes')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
                 <i class="ph ph-users"></i> DOCENTES
               </button>
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionAlumnos')" class="flex-1 text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-purple-100 hover:text-purple-700 py-1.5 rounded transition flex items-center justify-center gap-1">
+              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionAlumnos')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
                 <i class="ph ph-student"></i> ALUMNOS
+              </button>
+              
+              <button onclick="app.migrateDataToSchool('${docSnap.id}')" class="px-3 py-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 font-medium transition-colors text-sm shadow-sm border border-amber-100 dark:border-amber-800/50 flex items-center justify-center gap-1" title="Migrar datos globales a esta escuela">
+                <i class="ph ph-database"></i> MIGRAR
+              </button>
+
+              <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 ml-2">
+                <i class="ph ph-pencil-simple"></i> Editar
               </button>
             </div>
           </div>
-        </div>
       `;
     });
     html += `</div>`;
@@ -407,3 +420,45 @@ export async function cargarMateriasParaEscuela(escuelaId) {
     container.innerHTML = '<p class="text-[10px] text-red-500">Error al cargar materias.</p>';
   }
 }
+
+
+
+window.app.migrateDataToSchool = async function(schoolId) {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+  const { db } = await import("./firebase-config.js?v=10.02");
+  
+  const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
+  
+  console.log("Iniciando migración a " + schoolId);
+  for (const col of collections) {
+    console.log("Migrando " + col + "...");
+    const snap = await getDocs(collection(db, col));
+    let count = 0;
+    for (const d of snap.docs) {
+      await setDoc(doc(db, "instituciones", schoolId, col, d.id), d.data());
+      count++;
+    }
+    console.log("-> " + count + " documentos migrados en " + col);
+  }
+  
+  console.log("Migrando docentes (usuarios)...");
+  const snapUsers = await getDocs(collection(db, 'usuarios'));
+  let userCount = 0;
+  for (const u of snapUsers.docs) {
+    const data = u.data();
+    if (data.rol === 'DOCENTE' || data.rol === 'ADMIN') {
+      const userData = { ...data };
+      if (!userData.escuelas) userData.escuelas = {};
+      userData.escuelas[schoolId] = {
+        rol: data.rol,
+        materias: data.materias || []
+      };
+      await setDoc(doc(db, 'usuarios', u.id), userData, { merge: true });
+      userCount++;
+    }
+  }
+  console.log("-> " + userCount + " usuarios actualizados con acceso a " + schoolId);
+  console.log("Migración completada.");
+  alert("Migración completada. Revisa la consola para más detalles.");
+};
