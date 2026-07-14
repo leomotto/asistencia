@@ -18,9 +18,25 @@ export const db   = getFirestore(firebaseApp);
 export const appId = typeof __app_id !== 'undefined' ? __app_id : 'mi-app-asistencia';
 
 export function getPath(coleccion) {
-  return typeof __app_id !== 'undefined'
+  const rootColeccion = typeof __app_id !== 'undefined'
     ? `artifacts/${appId}/public/data/${coleccion}`
     : coleccion;
+
+  // Colecciones globales que no dependen de la institución
+  if (coleccion === "usuarios" || coleccion === "instituciones" || coleccion === "escuelas") {
+    return rootColeccion;
+  }
+
+  // Ruteo multi-tenant (SaaS)
+  const tenantId = window.app?.currentTenant || 'root';
+  if (tenantId !== 'root') {
+    return typeof __app_id !== 'undefined'
+      ? `artifacts/${appId}/public/data/instituciones/${tenantId}/${coleccion}`
+      : `instituciones/${tenantId}/${coleccion}`;
+  }
+
+  // Fallback (compatible con la estructura original sin tenantId)
+  return rootColeccion;
 }
 
 const provider = new GoogleAuthProvider();

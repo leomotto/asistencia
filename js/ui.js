@@ -1,5 +1,83 @@
 // js/ui.js — Toast, navegación de tabs, dark mode, dropdowns de cursos
 
+
+
+export function mostrarSkeletonCards(count = 3) {
+  let html = `<div class="animate-pulse flex flex-col gap-4">`;
+  for(let i=0; i<count; i++){
+    html += `
+      <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border dark:border-slate-700 shadow-sm flex flex-col sm:flex-row gap-4 items-start sm:items-center w-full">
+        <div class="w-12 h-12 bg-slate-200 dark:bg-slate-700 rounded-full flex-shrink-0"></div>
+        <div class="flex-1 space-y-3 w-full">
+          <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
+          <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/4"></div>
+        </div>
+      </div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+export function mostrarSkeletonTable(colsCount = 4, rowsCount = 5) {
+  let html = "";
+  for(let i=0; i<rowsCount; i++){
+    html += `<tr class="animate-pulse bg-white dark:bg-slate-800 border-b dark:border-slate-700">`;
+    for(let j=0; j<colsCount; j++){
+      html += `<td class="p-4"><div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full"></div></td>`;
+    }
+    html += `</tr>`;
+  }
+  return html;
+}
+
+export function showConfirm(title, text, confirmText = "Confirmar", isDestructive = true) {
+  return new Promise((resolve) => {
+    let modal = document.getElementById("modalConfirmCustom");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "modalConfirmCustom";
+      modal.className = "fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity";
+      document.body.appendChild(modal);
+    }
+    
+    const iconClass = isDestructive ? "bg-red-100 text-red-600" : "bg-indigo-100 text-indigo-600";
+    const iconIcon  = isDestructive ? "ph-warning" : "ph-question";
+    const btnClass  = isDestructive ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700";
+    
+    modal.innerHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 w-full max-w-sm overflow-hidden scale-in">
+        <div class="p-6 text-center">
+          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full ${iconClass} mb-4">
+            <i class="ph ${iconIcon} text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">${title}</h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400">${text}</p>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-900/50 px-4 py-3 flex gap-3 justify-end border-t dark:border-slate-700">
+          <button id="btnConfirmCustomCancel" class="px-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm flex-1">Cancelar</button>
+          <button id="btnConfirmCustomOk" class="px-4 py-2 text-white font-bold rounded-lg transition text-sm flex-1 ${btnClass}">${confirmText}</button>
+        </div>
+      </div>
+    `;
+    
+    modal.classList.remove("hidden");
+    
+    const cleanup = () => {
+      modal.classList.add("hidden");
+    };
+    
+    document.getElementById("btnConfirmCustomCancel").onclick = () => {
+      cleanup();
+      resolve(false);
+    };
+    
+    document.getElementById("btnConfirmCustomOk").onclick = () => {
+      cleanup();
+      resolve(true);
+    };
+  });
+}
+
 export function showToast(msg, type = 'success') {
   const toast = document.getElementById('toast');
   const toastMsg = document.getElementById('toastMsg');
@@ -13,23 +91,31 @@ export function showToast(msg, type = 'success') {
 }
 
 export function switchTab(tabId) {
-  if (window.app.currentUser?.rol === 'PENDIENTE') {
+  if (window.app.currentUser?.rolActivo === 'PENDIENTE') {
     showToast('⚠️ Tu cuenta está pendiente de autorización por un Administrador.', 'error');
     return;
   }
 
   const performSwitch = () => {
-    ['tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes', 'auditoriaTab'].forEach(id => {
+    ['inicioTab', 'tomaDiaria', 'planillaGrilla', 'evaluaciones', 'panelBI', 'gestionAlumnos', 'gestionMaterias', 'gestionDocentes', 'auditoriaTab', 'gestionEscuelas'].forEach(id => {
       document.getElementById(id)?.classList.add('hidden');
     });
     const targetSection = document.getElementById(tabId);
     targetSection?.classList.remove('hidden');
     targetSection?.scrollTo({ top: 0, behavior: 'instant' });
 
-    ['btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes', 'btnAuditoria'].forEach(id => {
+    ['btnInicio', 'btnToma', 'btnGrilla', 'btnEval', 'btnPanel', 'btnGestion', 'btnMaterias', 'btnDocentes', 'btnAuditoria', 'btnEscuelas'].forEach(id => {
       document.getElementById(id)?.classList.remove('bg-white/10');
     });
+    ['btnMobileInicio', 'btnMobileToma', 'btnMobileGrilla', 'btnMobileEval', 'btnMobileGestion'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('text-indigo-600', 'dark:text-indigo-400');
+        el.classList.add('text-slate-500', 'dark:text-slate-400');
+      }
+    });
     const btnMap = {
+      inicioTab:       'btnInicio',
       tomaDiaria:      'btnToma',
       planillaGrilla:  'btnGrilla',
       evaluaciones:    'btnEval',
@@ -37,9 +123,25 @@ export function switchTab(tabId) {
       gestionAlumnos:  'btnGestion',
       gestionMaterias: 'btnMaterias',
       gestionDocentes: 'btnDocentes',
-      auditoriaTab:    'btnAuditoria'
+      auditoriaTab:    'btnAuditoria',
+      gestionEscuelas: 'btnEscuelas'
     };
     if (btnMap[tabId]) document.getElementById(btnMap[tabId])?.classList.add('bg-white/10');
+    
+    const mobileBtnMap = {
+      inicioTab:      'btnMobileInicio',
+      tomaDiaria:     'btnMobileToma',
+      planillaGrilla: 'btnMobileGrilla',
+      evaluaciones:   'btnMobileEval',
+      gestionAlumnos: 'btnMobileGestion'
+    };
+    if (mobileBtnMap[tabId]) {
+      const activeEl = document.getElementById(mobileBtnMap[tabId]);
+      if (activeEl) {
+        activeEl.classList.remove('text-slate-500', 'dark:text-slate-400');
+        activeEl.classList.add('text-indigo-600', 'dark:text-indigo-400');
+      }
+    }
   };
 
   // View Transitions API para transiciones suaves entre pestañas (Chrome 111+)
@@ -54,6 +156,7 @@ export function switchTab(tabId) {
   if (tabId === 'gestionAlumnos')  window.app.cargarAlumnosMatricula();
   if (tabId === 'gestionMaterias') window.app.cargarListaMateriasAdmin();
   if (tabId === 'gestionDocentes') window.app.cargarListaUsuarios();
+  if (tabId === 'gestionEscuelas') window.app.cargarListaEscuelas();
 
   // Cerrar menú lateral al navegar en móvil
   const nav = document.getElementById('sideNav');
@@ -108,9 +211,73 @@ export function popularPeriodos() {
   });
 }
 
+export async function buildContextSwitcher() {
+  const container = document.getElementById('contextSwitcherContainer');
+  if (!container) return;
+
+  const currentUser = window.app.currentUser;
+  if (!currentUser) return;
+
+  const escuelasIds = Object.keys(currentUser.escuelas || {});
+  
+  if (currentUser.superadmin) {
+    // Si es superadmin mostramos un selector con todas las escuelas
+    container.innerHTML = `
+      <div class="flex items-center justify-between mb-1">
+        <label class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Modo SuperAdmin</label>
+      </div>
+      <div class="flex items-center gap-2 w-full">
+        <select id="superadminTenantSelect" class="bg-slate-700 text-white text-xs p-1.5 rounded w-full border border-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          <option value="root">Cargando...</option>
+        </select>
+        <button onclick="app.switchContext(document.getElementById('superadminTenantSelect').value)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1.5 rounded text-xs transition" title="Ir a Escuela">
+          <i class="ph ph-arrow-right"></i>
+        </button>
+      </div>
+    `;
+    
+    try {
+      const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const { db, getPath } = await import("./firebase-config.js?v=9.90");
+      
+      const qSnap = await getDocs(collection(db, getPath("escuelas")));
+      let html = `<option value="root" ${window.app.currentTenant === 'root' ? 'selected' : ''}>[SUPERADMIN] ROOT</option>`;
+      qSnap.forEach(doc => {
+        html += `<option value="${doc.id}" ${window.app.currentTenant === doc.id ? 'selected' : ''}>${doc.data().nombre || doc.id}</option>`;
+      });
+      document.getElementById('superadminTenantSelect').innerHTML = html;
+    } catch (e) {
+      console.error(e);
+      document.getElementById('superadminTenantSelect').innerHTML = `<option value="root">[SUPERADMIN] ROOT</option>`;
+    }
+    return;
+  }
+
+  // Para usuarios normales, un botón que abre el modal de escuelas y roles
+  const tenantName = window.app.currentTenant !== 'root' ? window.app.currentTenant : 'Sin escuela activa';
+  
+  container.innerHTML = `
+    <div class="mt-2">
+      <button onclick="app.abrirModalUnirseEscuela()" class="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs p-2 rounded border border-slate-600 focus:outline-none transition flex items-center justify-between group">
+        <div class="flex flex-col items-start truncate">
+          <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider group-hover:text-slate-300">Mis Escuelas</span>
+          <span class="truncate font-semibold mt-0.5">${tenantName}</span>
+        </div>
+        <i class="ph ph-buildings text-lg text-indigo-400"></i>
+      </button>
+    </div>
+  `;
+}
+
+export function switchContext(newTenant) {
+  if (!newTenant) return;
+  localStorage.setItem('activeTenant', newTenant);
+  window.location.reload();
+}
+
 export function popularCursos() {
-  const esDocente          = window.app.currentUser?.rol === 'DOCENTE';
-  const materiasPermitidas = window.app.currentUser?.materias || [];
+  const esDocente          = window.app.currentUser?.rolActivo === 'DOCENTE';
+  const materiasPermitidas = window.app.currentUser?.materiasActivas || [];
 
   // Lista base permitida
   let permitidas = [];
@@ -126,11 +293,33 @@ export function popularCursos() {
       opcionesLocal = permitidas.filter(m => !m.toLowerCase().includes('taller'));
     }
 
-    // 1. Ocultar el original y llenarlo (por si otro script lee sus options)
-    originalSelect.innerHTML = `<option value="">Seleccione...</option>`;
-    if (originalSelect.id === 'mCurso' && !esDocente) {
-      originalSelect.innerHTML += `<option value="__TODOS__">📋 TODOS LOS ESTUDIANTES</option>`;
+    // 1. Caso especial: Matricula solo usa divisiones
+    if (originalSelect.id === 'mCurso') {
+      const divisionesUnicas = [...new Set(opcionesLocal.map(m => {
+        const idx = m.indexOf(' - ');
+        return idx > -1 ? m.substring(0, idx) : 'General';
+      }))];
+      
+      originalSelect.innerHTML = `<option value="">Filtrar por División...</option>`;
+      if (!esDocente) {
+        originalSelect.innerHTML += `<option value="__TODOS__" class="font-bold text-indigo-700">📋 TODOS LOS ESTUDIANTES</option>`;
+      }
+      divisionesUnicas.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.innerText = d;
+        originalSelect.appendChild(opt);
+      });
+      
+      const nextNode = originalSelect.nextElementSibling;
+      if (nextNode && nextNode.classList.contains('dual-select-container')) {
+        nextNode.remove();
+      }
+      originalSelect.style.display = '';
+      return; // Fin para mCurso
     }
+
+    // 2. Ocultar el original y llenarlo (por si otro script lee sus options)
+    originalSelect.innerHTML = `<option value="">Seleccione...</option>`;
     opcionesLocal.forEach(mat => {
       const opt = document.createElement('option');
       opt.value = mat; opt.innerText = mat;
@@ -145,11 +334,16 @@ export function popularCursos() {
       dualContainer.className = 'dual-select-container flex flex-wrap sm:flex-nowrap gap-2 w-full';
       
       const selDiv = document.createElement('select');
-      selDiv.className = 'flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-div cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow';
+      selDiv.className = 'flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-div cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow';
       
       const selAsig = document.createElement('select');
-      selAsig.className = 'flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-asig cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50';
+      selAsig.className = 'flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 outline-none font-medium select-asig cursor-pointer focus:ring-2 focus:ring-indigo-500 transition-shadow disabled:opacity-50';
       selAsig.disabled = true;
+
+      // Si es el módulo de matrícula, ocultamos el select de asignatura
+      if (originalSelect.id === 'mCurso') {
+        selAsig.style.display = 'none';
+      }
 
       dualContainer.appendChild(selDiv);
       dualContainer.appendChild(selAsig);
@@ -159,6 +353,14 @@ export function popularCursos() {
       // Lógica de dependencia
       selDiv.addEventListener('change', () => {
         const div = selDiv.value;
+
+        // Caso Matrícula: solo filtramos por división
+        if (originalSelect.id === 'mCurso') {
+          originalSelect.value = div || '';
+          originalSelect.dispatchEvent(new Event('change'));
+          return;
+        }
+
         if (!div) {
           selAsig.innerHTML = '<option value="">Asignatura...</option>';
           selAsig.disabled = true;
@@ -198,6 +400,8 @@ export function popularCursos() {
       });
 
       selAsig.addEventListener('change', () => {
+        if (originalSelect.id === 'mCurso') return; // En matrícula no importa
+
         const div = selDiv.value;
         const asig = selAsig.value;
         if (!asig) {
@@ -277,5 +481,120 @@ export async function cargarVersion() {
     }
   } catch (e) {
     el.textContent = 'dev';
+  }
+}
+
+export function renderAgenda() {
+  const container = document.getElementById('agendaContainer');
+  if (!container) return;
+
+  const materias = window.app?.currentUser?.materiasActivas || [];
+  const esAdmin = window.app?.currentUser?.rolActivo === 'ADMIN' || window.app?.currentUser?.rolActivo === 'SUPERADMIN';
+  const nombreUsuario = window.app?.currentUser?.nombre || window.app?.currentUser?.displayName || window.app?.currentUser?.email?.split('@')[0] || '';
+  
+  const titleEl = document.getElementById('welcomeUserTitle');
+  if (titleEl && nombreUsuario) {
+    titleEl.textContent = `¡Hola, ${nombreUsuario}!`;
+  }
+
+  if (esAdmin && materias.length === 0) {
+    container.innerHTML = `
+      <div class="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300">
+        <div class="flex items-center gap-2 font-bold mb-1"><i class="ph ph-shield-check text-xl"></i> Modo Administrador</div>
+        <p class="text-sm">Tenés acceso a todas las secciones del sistema desde el menú principal.</p>
+      </div>`;
+    return;
+  }
+
+  if (materias.length === 0) {
+    container.innerHTML = `<p class="text-slate-500 text-sm py-4">No tenés materias asignadas.</p>`;
+    return;
+  }
+
+  const hoy = new Date().getDay();
+  const DIAS_NOMBRES = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  
+  let materiasHoy = [];
+  let proximasMaterias = [];
+
+  materias.forEach(materia => {
+    const horario = window.app.HORARIOS_DINAMICOS?.[materia];
+    const dias = horario?.dias || [];
+    let claseHoy = dias.find(d => d.dia === hoy);
+    
+    if (claseHoy) {
+      materiasHoy.push({ materia, info: claseHoy });
+    } else {
+      // Find the next closest day
+      let nextDay = null;
+      let minDiff = 8;
+      dias.forEach(d => {
+        let diff = d.dia - hoy;
+        if (diff <= 0) diff += 7; // Next week
+        if (diff < minDiff) {
+          minDiff = diff;
+          nextDay = d;
+        }
+      });
+      if (nextDay) {
+        proximasMaterias.push({ materia, info: nextDay, diff: minDiff });
+      }
+    }
+  });
+
+  const btnTemplate = (matName, info, isToday) => {
+    const timeStr = (info.horaInicio && info.horaFin) ? `${info.horaInicio} – ${info.horaFin}` : (info.horaInicio ? info.horaInicio : '');
+    const badgeHtml = timeStr ? `<span class="mt-1 inline-block bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${timeStr}</span>` : '';
+    const dayLabel = !isToday ? `<span class="mt-1 inline-block bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold px-2 py-0.5 rounded-full">${DIAS_NOMBRES[info.dia]}</span>` : '';
+    
+    return `
+      <button onclick="document.getElementById('tomaCurso').value = '${matName}'; window.app.switchTab('tomaDiaria'); document.getElementById('tomaCurso').dispatchEvent(new Event('change'));" 
+              class="w-full bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 transition-colors text-left flex items-center justify-between group mb-2">
+        <div class="flex items-center gap-3">
+          <div class="bg-indigo-50 dark:bg-slate-700 p-2.5 rounded-lg text-indigo-500 dark:text-indigo-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+            <i class="ph ph-chalkboard-teacher text-xl"></i>
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-800 dark:text-slate-100 text-sm md:text-base leading-tight">${matName}</h4>
+            <div class="flex gap-1 flex-wrap">
+              ${badgeHtml}
+              ${dayLabel}
+            </div>
+          </div>
+        </div>
+        <i class="ph ph-caret-right text-slate-300 group-hover:text-indigo-500 transition-colors"></i>
+      </button>
+    `;
+  };
+
+  if (materiasHoy.length > 0) {
+    // Sort today's classes by start time if available
+    materiasHoy.sort((a, b) => (a.info.horaInicio || '').localeCompare(b.info.horaInicio || ''));
+    
+    let html = `<h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Clases de hoy</h3>`;
+    html += materiasHoy.map(m => btnTemplate(m.materia, m.info, true)).join('');
+    container.innerHTML = html;
+  } else {
+    let html = `
+      <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center mb-4">
+        <i class="ph ph-confetti text-3xl text-emerald-500 mb-2"></i>
+        <h3 class="font-bold text-slate-800 dark:text-slate-100">¡Día libre!</h3>
+        <p class="text-sm text-slate-500 dark:text-slate-400">Hoy no tenés clases asignadas.</p>
+      </div>
+    `;
+
+    if (proximasMaterias.length > 0) {
+      proximasMaterias.sort((a, b) => a.diff - b.diff);
+      const nextDiff = proximasMaterias[0].diff;
+      const nextClasses = proximasMaterias.filter(m => m.diff === nextDiff);
+      // sort those by time
+      nextClasses.sort((a, b) => (a.info.horaInicio || '').localeCompare(b.info.horaInicio || ''));
+      
+      const dayName = DIAS_NOMBRES[nextClasses[0].info.dia];
+      html += `<h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Próximas clases (${dayName})</h3>`;
+      html += nextClasses.map(m => btnTemplate(m.materia, m.info, false)).join('');
+    }
+    
+    container.innerHTML = html;
   }
 }

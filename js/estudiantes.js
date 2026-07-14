@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.54";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.54";
+import { db, getPath } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.90";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.90";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -30,8 +30,11 @@ export async function cargarAlumnosMatricula() {
 
     window.app.alumnosMatriculaCache = esTodos
       ? todos.sort((a, b) => a.apellido.localeCompare(b.apellido))
-      : todos.filter(a => a.curso === curso || (a.materias && a.materias.includes(curso)))
-             .sort((a, b) => a.apellido.localeCompare(b.apellido));
+      : todos.filter(a => {
+          if (a.curso === curso) return true;
+          if (a.materias && a.materias.some(m => m.startsWith(curso + ' -') || m === curso)) return true;
+          return false;
+        }).sort((a, b) => a.apellido.localeCompare(b.apellido));
 
     const terminoBusqueda = (document.getElementById('mBuscadorAlumno')?.value || '').toLowerCase().trim();
     let alumnosFiltrados = window.app.alumnosMatriculaCache;
@@ -52,52 +55,58 @@ export async function cargarAlumnosMatricula() {
     alumnosFiltrados.forEach(est => {
       const apodoStr = est.apodo ? ` (${escaparHTML(est.apodo)})` : "";
       const notasStr = est.notas ? `<p class="text-xs text-amber-600 italic">📌 ${escaparHTML(est.notas)}</p>` : "";
-      const materiasAMostrar = esTodos
+      const esDivision = !curso.includes(" - "); const materiasAMostrar = (esTodos || esDivision)
         ? (est.materias || [est.curso])
         : (est.materias || [est.curso]).filter(m => m === curso);
 
-      const materiasHtml = materiasAMostrar.map(m => {
-        let grupoEnMateria = 'GENERAL', estadoEnMateria = 'ACTIVO', desde = '', hasta = '';
+      // Agrupar materias por división para no saturar la vista con 14 chips
+      const materiasAgrupadas = {};
+      materiasAMostrar.forEach(m => {
+        const div = m.includes(' - ') ? m.split(' - ')[0] : m;
+        if (!materiasAgrupadas[div]) {
+          materiasAgrupadas[div] = { count: 0, grupos: new Set(), estados: new Set() };
+        }
+        materiasAgrupadas[div].count++;
+        
+        let grupo = 'GENERAL', estado = 'ACTIVO';
         if (est.inscripciones && est.inscripciones[m] && est.inscripciones[m].length > 0) {
           const insc = est.inscripciones[m][est.inscripciones[m].length - 1];
-          grupoEnMateria = insc.grupo || 'GENERAL';
-          estadoEnMateria = insc.estado || 'ACTIVO';
-          desde = insc.desde || ''; hasta = insc.hasta || '';
+          grupo = insc.grupo || 'GENERAL';
+          estado = insc.estado || 'ACTIVO';
         } else {
-          grupoEnMateria = (est.grupos && est.grupos[m]) || est.grupo || 'GENERAL';
-          estadoEnMateria = est.estado || 'ACTIVO';
-          desde = est.fechaIngreso || ''; hasta = est.fechaBaja || '';
+          grupo = (est.grupos && est.grupos[m]) || est.grupo || 'GENERAL';
+          estado = est.estado || 'ACTIVO';
         }
-        const isActivo    = estadoEnMateria === 'ACTIVO';
-        const estadoColor = isActivo ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300 font-bold';
-        const bgClass     = isActivo ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-100 border-gray-300 opacity-80';
-        return `
-          <div class="flex flex-col border dark:border-slate-700 rounded-md px-2 py-1.5 ${bgClass} text-[10px] leading-tight min-w-[140px] mb-1">
-            <div class="flex justify-between items-center mb-0.5">
-              <span class="font-bold text-slate-800 dark:text-slate-100 tracking-wide text-xs">${m}</span>
-              <span class="text-[9px] px-1 py-0.5 rounded bg-white dark:bg-slate-800 border dark:border-slate-700 ${estadoColor}">${estadoEnMateria}</span>
-            </div>
-            <div class="flex items-center gap-1 mt-0.5">
-              ${grupoEnMateria !== 'GENERAL' ? `<span class="bg-amber-100 text-amber-800 px-1 rounded font-bold">${grupoEnMateria}</span>` : '<span class="text-slate-500 dark:text-slate-400">GENERAL</span>'}
-            </div>
-            <div class="mt-1 flex flex-col gap-0.5 text-[9px] text-slate-500 dark:text-slate-400">
-              ${desde ? `<span>Ingreso: ${formatISOToDisplay(desde)}</span>` : ''}
-              ${hasta ? `<span class="text-red-600 font-medium">Baja: ${formatISOToDisplay(hasta)}</span>` : ''}
-            </div>
-          </div>`;
+        materiasAgrupadas[div].grupos.add(grupo);
+        materiasAgrupadas[div].estados.add(estado);
+      });
+
+      const materiasHtml = Object.keys(materiasAgrupadas).map(div => {
+        const data = materiasAgrupadas[div];
+        const isBaja = !data.estados.has('ACTIVO'); // Si todas son baja, es baja
+        const hasBaja = data.estados.has('BAJA'); // Si al menos una es baja
+        const bgClass = isBaja ? 'bg-red-50 text-red-700 border-red-200' : (hasBaja ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200');
+        
+        const gruposArr = Array.from(data.grupos).filter(g => g !== 'GENERAL');
+        const gruposStr = gruposArr.length > 0 ? ` [${gruposArr.join(', ')}]` : '';
+        const estadoStr = isBaja ? ' (B)' : (hasBaja ? ' (M)' : '');
+        
+        return `<span class="inline-flex items-center px-1.5 py-0.5 text-[9px] rounded border ${bgClass} font-bold whitespace-nowrap mb-0.5 mr-0.5 max-w-[120px] truncate" title="${div}${gruposStr}${estadoStr === ' (B)' ? ' BAJA' : (estadoStr === ' (M)' ? ' MIXTO' : '')}">
+          ${div}${gruposStr}${estadoStr}
+        </span>`;
       }).join('');
 
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 block md:table-row mb-2 md:mb-0 pb-3 md:pb-0";
+      tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200";
       tr.innerHTML = `
-        <td class="px-4 py-2 md:py-3 align-top block md:table-cell border-b md:border-none border-slate-100 dark:border-slate-800">
-          <p class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-2 text-[10px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
+        <td class="px-2 py-1.5 align-middle">
+          <p class="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-1 text-[9px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
           ${notasStr}
         </td>
-        <td class="px-4 py-2 md:py-3 block md:table-cell"><div class="flex flex-wrap gap-2">${materiasHtml}</div></td>
-        <td class="px-4 py-2 md:py-3 text-right align-top block md:table-cell">
-          <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="bg-slate-100 dark:bg-slate-900 border dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold py-1.5 px-3 rounded hover:bg-slate-800 hover:text-white transition text-xs mt-1 w-full md:w-auto">
-            <i class="ph ph-note-pencil"></i> Editar
+        <td class="px-2 py-1.5 align-middle"><div class="flex flex-wrap gap-0.5">${materiasHtml}</div></td>
+        <td class="px-2 py-1.5 text-right align-middle">
+          <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-1.5 rounded transition" title="Editar Estudiante">
+            <i class="ph ph-pencil-simple text-lg"></i>
           </button>
         </td>
       `;
@@ -148,6 +157,7 @@ export function toggleDivisionMaestra(masterCb) {
 
 // Extrae división y materia base de un nombre como "1ro A - Matemática"
 function _descomponerMat(nombre) {
+  if (!nombre) return { div: '', base: '' };
   const idx = nombre.indexOf(' - ');
   return idx !== -1
     ? { div: nombre.substring(0, idx), base: nombre.substring(idx + 3) }
@@ -252,10 +262,16 @@ export function _toggleMateriasIndividuales() {
 export function abrirModalAlumno(alumno = null) {
   const modal = document.getElementById('modalAlumno');
   const title = document.getElementById('modalTitle');
-  
-  ['formId','formApellido','formNombre','formApodo','formDni','formNotas'].forEach(id => {
-    document.getElementById(id).value = "";
-  });
+  const selectDiv = document.getElementById('formDivisionPrimaria');
+
+  // Reset form
+  document.getElementById('formId').value = '';
+  document.getElementById('formAlumnoAnio').value = '';
+  document.getElementById('formApellido').value = '';
+  document.getElementById('formNombre').value = '';
+  document.getElementById('formApodo').value = '';
+  document.getElementById('formDni').value = '';
+  document.getElementById('formNotas').value = '';
   
   const container = document.getElementById('formMateriasContainer');
   container.innerHTML = '';
@@ -290,7 +306,6 @@ export function abrirModalAlumno(alumno = null) {
     container.appendChild(block);
   });
 
-  const selectDiv = document.getElementById('formDivisionPrimaria');
   selectDiv.innerHTML = '<option value="">-- Seleccione una División --</option>' + 
     divisiones.filter(d => d !== '').map(d => `<option value="${d}">${d}</option>`).join('');
 
@@ -303,17 +318,24 @@ export function abrirModalAlumno(alumno = null) {
 
   if (alumno) {
     title.innerText = "Editar Ficha de Estudiante";
-    document.getElementById('formId').value       = alumno.id;
-    document.getElementById('formApellido').value = alumno.apellido || "";
-    document.getElementById('formNombre').value   = alumno.nombre || "";
-    document.getElementById('formApodo').value    = alumno.apodo || "";
-    document.getElementById('formDni').value      = alumno.dni || "";
-    document.getElementById('formNotas').value    = alumno.notas || "";
+    document.getElementById('formId').value         = alumno.id;
+    document.getElementById('formAlumnoAnio').value = alumno.planEstudio || "";
+    document.getElementById('formApellido').value   = alumno.apellido || "";
+    document.getElementById('formNombre').value     = alumno.nombre || "";
+    document.getElementById('formApodo').value      = alumno.apodo || "";
+    document.getElementById('formDni').value        = alumno.dni || "";
+    document.getElementById('formNotas').value      = alumno.notas || "";
 
     const inscripciones = alumno.inscripciones || {};
     document.querySelectorAll('.cb-materia').forEach(cb => {
       const mat = cb.value;
-      const estaAsignado = (alumno.materias && alumno.materias.includes(mat)) || (alumno.curso === mat);
+      const nCursoMat = mat.replace(/\s+/g, ' ').toLowerCase().trim();
+      const nDivAlum = (alumno.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+      const pertenecePorDivision = (nDivAlum && nDivAlum.length > 1 && nCursoMat.includes(nDivAlum));
+
+      const estaAsignado = (alumno.materias && alumno.materias.includes(mat)) || 
+                           (alumno.curso === mat) || 
+                           pertenecePorDivision;
       cb.checked = !!estaAsignado;
       
       let insc = null;
@@ -328,12 +350,20 @@ export function abrirModalAlumno(alumno = null) {
             hasta:  alumno.fechaBaja || ""
           };
         }
+      } else {
+        // Pre-fill fields to prevent overwriting with today's date if user checks the box
+        insc = {
+          grupo: "GENERAL",
+          estado: alumno.estado || "ACTIVO",
+          desde: alumno.fechaIngreso || "",
+          hasta: alumno.fechaBaja || ""
+        };
       }
       
       window.app._toggleInscripcionDetails(cb);
       
       const row = cb.closest('.group-materia-row');
-      if (row && insc && estaAsignado) {
+      if (row && insc) {
         row.querySelector('.sel-grupo-materia').value  = insc.grupo  || "GENERAL";
         row.querySelector('.sel-estado-materia').value = insc.estado || "ACTIVO";
         row.querySelector('.sel-desde-materia').value  = normalizeDateToISO(insc.desde) || "";
@@ -395,8 +425,9 @@ export function cerrarModalAlumno() {
 }
 
 export async function guardarAlumnoMatricula() {
-  const curso    = document.getElementById('mCurso').value;
+  const divisionPrimaria = document.getElementById('formDivisionPrimaria').value;
   const id       = document.getElementById('formId').value;
+  const planEstudio = document.getElementById('formAlumnoAnio').value.trim();
   const apellido = document.getElementById('formApellido').value.trim();
   const nombre   = document.getElementById('formNombre').value.trim();
   const apodo    = document.getElementById('formApodo').value.trim();
@@ -432,11 +463,11 @@ export async function guardarAlumnoMatricula() {
       : doc(collection(db, getPath("estudiantes")));
 
     await setDoc(docRef, {
-      apellido, nombre, apodo, dni, notas,
+      apellido, nombre, apodo, dni, notas, planEstudio,
       inscripciones: inscripcionesMap,
       materias: materiasSeleccionadas,
       grupos:   gruposMap,
-      curso:    materiasSeleccionadas.length > 0 ? materiasSeleccionadas[0] : (curso || "")
+      curso:    divisionPrimaria || ""
     }, { merge: true });
 
     window.app.invalidarCacheBI?.();
@@ -451,7 +482,7 @@ export async function guardarAlumnoMatricula() {
 }
 
 export async function eliminarAlumno(id, nombreFmt) {
-  if (!confirm(`¿Estás seguro de que deseas ELIMINAR por completo a ${nombreFmt}? Esta acción es irreversible.`)) return;
+  if (!await window.app.showConfirm("Confirmación", `¿Estás seguro de que deseas ELIMINAR por completo a ${nombreFmt}? Esta acción es irreversible.`)) return;
 
   try {
     await deleteDoc(doc(db, getPath("estudiantes"), id));
@@ -640,7 +671,7 @@ export async function ejecutarFusion() {
     snapEvals.forEach(docSnap => {
       const data = docSnap.data();
       const materia = data.materia || '';
-      const newDocId = `${primario.id}_${materia.replace(/\s+/g, '')}`;
+      const newDocId = `${primario.id}_${materia.replace(/[\s/]+/g, '')}`;
       const newRef = doc(db, getPath('evaluaciones'), newDocId);
       
       const newData = { ...data, alumnoId: primario.id };
@@ -716,6 +747,17 @@ export async function abrirPerfilAlumno(uid, curso) {
   barra.style.width  = '0%';
   barra.className    = 'h-full rounded-full bg-slate-300 transition-all duration-500';
 
+  const btnPase = document.getElementById('btnEmitirPase');
+  if (btnPase) {
+    if (window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN') {
+      btnPase.style.display = 'flex';
+      btnPase.classList.remove('hidden');
+      btnPase.onclick = () => app.emitirPase(uid);
+    } else {
+      btnPase.style.display = 'none';
+    }
+  }
+
   modal.classList.remove('hidden');
 
   try {
@@ -758,6 +800,102 @@ export function cerrarPerfilAlumno() {
   document.getElementById('modalPerfilAlumno')?.classList.add('hidden');
 }
 
+export async function emitirPase(uid) {
+  const modal = document.getElementById('modalPase');
+  if (!modal) return;
+  
+  document.getElementById('paseEstudianteId').value = uid;
+  
+  // Load schools
+  const select = document.getElementById('paseEscuelaDestino');
+  if (select) {
+    try {
+      const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
+      const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+      const fbdb = (await import("./firebase-config.js?v=9.90")).db;
+      const { getPath } = await import("./firebase-config.js?v=9.90");
+      
+      const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
+      let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
+      qSnap.forEach(d => {
+        if (d.id !== window.app.currentTenant) {
+          html += `<option value="${d.id}">${d.data().nombre || d.id}</option>`;
+        }
+      });
+      select.innerHTML = html;
+    } catch(e) {
+      console.error(e);
+      select.innerHTML = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
+    }
+  }
+
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.querySelector('div').classList.remove('scale-95', 'opacity-0');
+  }, 10);
+}
+
+export function cerrarModalPase() {
+  const modal = document.getElementById('modalPase');
+  if (!modal) return;
+  modal.querySelector('div').classList.add('scale-95', 'opacity-0');
+  setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+export async function confirmarEmitirPase() {
+  const uid = document.getElementById('paseEstudianteId').value;
+  const destino = document.getElementById('paseEscuelaDestino').value;
+  if (!uid || !destino) return;
+
+  try {
+    const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
+    const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const fbdb = (await import("./firebase-config.js?v=9.90")).db;
+    const { appId } = await import("./firebase-config.js?v=9.90");
+
+    // Construir rutas absolutas
+    const oldPath = typeof __app_id !== 'undefined' 
+      ? `artifacts/${appId}/public/data/instituciones/${window.app.currentTenant}/estudiantes`
+      : `instituciones/${window.app.currentTenant}/estudiantes`;
+      
+    const newPath = typeof __app_id !== 'undefined'
+      ? `artifacts/${appId}/public/data/instituciones/${destino}/estudiantes`
+      : `instituciones/${destino}/estudiantes`;
+
+    const oldRef = doc(fbdb, oldPath, uid);
+    const newRef = doc(fbdb, newPath, uid);
+
+    const docSnap = await getDoc(oldRef);
+    if (!docSnap.exists()) {
+      window.app.showToast("No se encontró el legajo del estudiante.", "error");
+      return;
+    }
+
+    const data = docSnap.data();
+    data.fechaPase = new Date().toISOString();
+    data.escuelaOrigen = window.app.currentTenant;
+    // Si va a una escuela real, se limpia su estado global para que empiece de cero, o se deja 'PASE'?
+    // Mejor lo dejamos como PASE en la de origen (aunque la borramos de ahí), pero en la destino debería entrar como ACTIVO o similar.
+    data.estadoGlobal = 'ACTIVO';
+    // Limpiamos las materias individuales (no van a coincidir con la nueva escuela)
+    data.materiasActivas = {};
+    data.materiasInactivas = {};
+    // La asistencia NO viaja porque la asistencia está en la colección 'asistencias' (aislada), 
+    // y no en el doc del alumno, por lo que el alumno llega con asistencia "limpia".
+
+    await setDoc(newRef, data);
+    await deleteDoc(oldRef);
+
+    window.app.showToast("Pase emitido exitosamente. El legajo fue transferido a " + destino, "success");
+    cerrarModalPase();
+    if (typeof window.app.cerrarPerfilAlumno === 'function') window.app.cerrarPerfilAlumno();
+    if (typeof window.app.cargarAlumnosMatricula === 'function') window.app.cargarAlumnosMatricula();
+
+  } catch (error) {
+    console.error("Error al emitir pase:", error);
+    window.app.showToast("Error al emitir el pase. Revisá la consola.", "error");
+  }
+}
 
 let normalizacionGrupos = [];
 let normalizacionSeleccionados = new Set();
@@ -875,7 +1013,7 @@ export async function ejecutarNormalizacionSeleccionada() {
   const gruposAEjecutar = normalizacionGrupos.filter(g => normalizacionSeleccionados.has(g.id));
   if (gruposAEjecutar.length === 0) return;
 
-  if (!confirm(`⚠️ ¿Estás seguro de fusionar los ${gruposAEjecutar.length} grupos seleccionados?\nEsta operación no se puede deshacer.`)) return;
+  if (!await window.app.showConfirm("Confirmación", `⚠️ ¿Estás seguro de fusionar los ${gruposAEjecutar.length} grupos seleccionados?\nEsta operación no se puede deshacer.`)) return;
 
   const btn = document.getElementById('btnConfirmarNormalizacion');
   btn.disabled = true;
@@ -931,7 +1069,7 @@ export async function ejecutarNormalizacionSeleccionada() {
         const evalsSecundario = todasEvals.filter(e => e.alumnoId === secundario.id);
         for (const docSnap of evalsSecundario) {
           const materia = docSnap.materia || '';
-          const newDocId = `${primario.id}_${materia.replace(/\s+/g, '')}`;
+          const newDocId = `${primario.id}_${materia.replace(/[\s/]+/g, '')}`;
           const newRef = doc(db, getPath('evaluaciones'), newDocId);
           
           const newData = { ...docSnap, alumnoId: primario.id };

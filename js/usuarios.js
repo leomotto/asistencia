@@ -1,8 +1,6 @@
-// js/usuarios.js — Panel de Gestión de Docentes (solo ADMIN)
-
-import { doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
+import { doc, setDoc, collection, getDocs, query, where, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {
@@ -18,10 +16,20 @@ function descomponerNombre(nombre = '') {
 export async function cargarListaUsuarios() {
   const contenedor = document.getElementById('listaDocentes');
   if (!contenedor) return;
-  contenedor.innerHTML = '<p class="text-center text-blue-500 animate-pulse py-8">Cargando usuarios...</p>';
+  contenedor.innerHTML = `${window.app.mostrarSkeletonCards(3)}`;
 
   try {
-    // Leer materias desde Firestore para obtener materiaBase/division
+    const myTenant = window.app?.currentTenant || 'root';
+    const currentUserUid = window.app?.currentUser?.uid;
+    const isSuperAdmin = window.app.currentUser?.rolActivo === 'SUPERADMIN';
+    const isMainAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || isSuperAdmin;
+
+    if (!isMainAdmin) {
+       contenedor.innerHTML = '<p class="text-center text-red-500 py-8">No tienes permisos para gestionar docentes en esta escuela.</p>';
+       return;
+    }
+
+    // Leer materias desde Firestore del tenant actual
     const snapMaterias = await getDocs(collection(db, getPath('materias')));
     const materiasData = [];
     snapMaterias.forEach(d => {
@@ -32,7 +40,7 @@ export async function cargarListaUsuarios() {
     });
     materiasData.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-    // Agrupar por División: { "1ro A": [{nombre:"1ro A - Matemática", base:"Matemática"}, ...] }
+    // Agrupar por División
     const grupos = {};
     materiasData.forEach(m => {
       const divisionKey = m.div || '(Sin División)';
@@ -41,49 +49,99 @@ export async function cargarListaUsuarios() {
     });
     const divisionesOrdenadas = Object.keys(grupos).sort();
 
-    // Leer usuarios
-    const snapU = await getDocs(collection(db, getPath('usuarios')));
-    const usuarios = [];
-    snapU.forEach(d => usuarios.push({ uid: d.id, ...d.data() }));
+    // Leer usuarios (si es SUPERADMIN podría querer ver a todos o solo los del tenant, en este modulo ve los del tenant actual)
+    let qUsers = collection(db, "usuarios");
+    // Filtrar los que pertenecen a esta escuela
+    // Firestore no soporta `where('escuelas.TENANT', '!=', null)` de forma simple a veces, así que traemos todos y filtramos en JS o usamos in.
+    const snapU = await getDocs(qUsers);
+    let usuarios = [];
+    snapU.forEach(d => {
+      const data = d.data();
+      const uid = d.id;
+      // Si el superadmin no tiene la escuela actual configurada pero está operando globalmente, se saltea.
+      // Acá buscamos a la gente que tiene un rol en myTenant.
+      if (data.superadmin || (data.escuelas && data.escuelas[myTenant])) {
+         usuarios.push({ uid, ...data });
+      }
+    });
 
     const filtrados = usuarios
       .filter(u => u.email && u.email !== 'dev@localhost')
       .sort((a, b) => (a.nombre || a.email).localeCompare(b.nombre || b.email));
 
     if (filtrados.length === 0) {
-      contenedor.innerHTML = '<p class="text-center text-slate-400 py-8">No hay usuarios registrados.</p>';
+      contenedor.innerHTML = '<p class="text-center text-slate-400 py-8">No hay docentes registrados en esta escuela.</p>';
       return;
     }
 
     contenedor.innerHTML = '';
     filtrados.forEach(u => {
-      const esYoMismo = u.uid === window.app.currentUser?.uid;
-      const rolActual = u.rol || 'PENDIENTE';
-      const materiasU = Array.isArray(u.materias) ? u.materias : [];
+      const esYoMismo = (u.uid === currentUserUid);
+      
+      // Obtener rol y materias específicos de este tenant
+      let rolEnTenant = 'DOCENTE';
+      let materiasU = [];
+      
+      if (u.superadmin) {
+        rolEnTenant = 'SUPERADMIN';
+      } else if (u.escuelas && u.escuelas[myTenant]) {
+        rolEnTenant = u.escuelas[myTenant].rol || 'PENDIENTE';
+        materiasU = u.escuelas[myTenant].materias || [];
+      } else {
+        // En teoría no debería llegar acá por el filtro de arriba
+        rolEnTenant = 'PENDIENTE';
+      }
 
-      const rolBadgeClass = {
-        ADMIN:    'bg-purple-100 text-purple-800',
-        DOCENTE:  'bg-blue-100 text-blue-800',
-        PENDIENTE:'bg-yellow-100 text-yellow-800',
-      }[rolActual] || 'bg-slate-100 text-slate-700';
+      let rolBadgeClass = "bg-slate-100 text-slate-500";
+      if (rolEnTenant === 'SUPERADMIN') rolBadgeClass = "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      else if (rolEnTenant === 'ADMIN') rolBadgeClass = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+      else if (rolEnTenant === 'DOCENTE') rolBadgeClass = "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
+      else if (rolEnTenant.startsWith('PENDIENTE')) rolBadgeClass = "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
 
-      // Renderizar materias agrupadas por División
-      const materiasHtml = divisionesOrdenadas.length === 0
-        ? '<p class="text-xs text-slate-400 italic">No hay materias configuradas.</p>'
-        : divisionesOrdenadas.map(div => {
-            const items = grupos[div];
-            const checkboxes = items.map(m => `
-              <label class="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-                <input type="checkbox" class="cb-materia-docente h-4 w-4 rounded text-indigo-600"
-                  value="${m.nombre}" ${materiasU.includes(m.nombre) ? 'checked' : ''}>
-                <span>${m.base || m.nombre}</span>
-              </label>`).join('');
-            return `
-              <div class="break-inside-avoid mb-4">
-                <p class="text-xs font-black text-slate-800 dark:text-slate-200 mb-2 uppercase tracking-wider border-b dark:border-slate-700 pb-1">${div}</p>
-                <div class="flex flex-col gap-y-2">${checkboxes}</div>
-              </div>`;
-          }).join('');
+      // Filtrar materias asignadas vs no asignadas
+      const assignedMaterias = materiasData.filter(m => materiasU.includes(m.nombre));
+      const unassignedMaterias = materiasData.filter(m => !materiasU.includes(m.nombre));
+
+      // Construir dropdown de no asignadas
+      let optionsHtml = '<option value="">+ Asignar nueva materia...</option>';
+      divisionesOrdenadas.forEach(div => {
+        const unassignedInDiv = grupos[div].filter(m => !materiasU.includes(m.nombre));
+        if (unassignedInDiv.length > 0) {
+          optionsHtml += `<optgroup label="${div}">`;
+          unassignedInDiv.forEach(m => {
+            optionsHtml += `<option value="${m.nombre}">${m.base || m.nombre}</option>`;
+          });
+          optionsHtml += `</optgroup>`;
+        }
+      });
+
+      // Filtrar materias solicitadas pero que no existen en la base de datos
+      const unassignedButRequested = materiasU.filter(mu => !materiasData.find(m => m.nombre === mu));
+
+      // Construir chips de asignadas
+      let chipsHtml = assignedMaterias.length > 0 
+        ? assignedMaterias.map(m => `
+            <span class="inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold px-2.5 py-1 rounded-md">
+              <span><span class="opacity-70 font-normal mr-1">${m.div || ''}</span>${m.base || m.nombre}</span>
+              ${!esYoMismo && !u.superadmin ? `<button type="button" onclick="this.parentElement.remove(); document.getElementById('btn-save-${u.uid}').classList.remove('hidden');" class="ml-1 hover:text-red-500 transition-colors"><i class="ph ph-x"></i></button>` : ''}
+              <input type="hidden" class="cb-materia-docente" value="${m.nombre}" checked>
+            </span>
+          `).join('')
+        : '';
+        
+      if (unassignedButRequested.length > 0) {
+        chipsHtml += unassignedButRequested.map(mu => `
+            <span class="inline-flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-800 text-xs font-semibold px-2.5 py-1 rounded-md" title="Materia solicitada no encontrada en la escuela">
+              <span>${mu} (Solicitada)</span>
+              ${!esYoMismo && !u.superadmin ? `<button type="button" onclick="this.parentElement.remove(); document.getElementById('btn-save-${u.uid}').classList.remove('hidden');" class="ml-1 hover:text-red-500 transition-colors"><i class="ph ph-x"></i></button>` : ''}
+              <input type="hidden" class="cb-materia-docente" value="${mu}" checked>
+            </span>
+        `).join('');
+      }
+      
+      if (!chipsHtml) {
+        chipsHtml = '<p class="text-xs text-slate-400 italic">No tiene materias asignadas o solicitadas.</p>';
+      }
 
       const card = document.createElement('div');
       card.className = "bg-white dark:bg-slate-800 rounded-xl border dark:border-slate-700 p-5 shadow-sm";
@@ -95,26 +153,42 @@ export async function cargarListaUsuarios() {
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">${u.email}</p>
           </div>
           <div class="flex flex-wrap items-center gap-3 flex-shrink-0">
-            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase shadow-sm ${rolBadgeClass}">${rolActual}</span>
-            ${esYoMismo
-              ? '<span class="text-[11px] text-slate-400 italic">(sos vos)</span>'
-              : `<select class="sel-rol-docente text-sm border dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-700 dark:text-slate-200 transition-shadow">
-                  <option value="ADMIN"    ${rolActual==='ADMIN'    ? 'selected':''}>ADMIN</option>
-                  <option value="DOCENTE"  ${rolActual==='DOCENTE'  ? 'selected':''}>DOCENTE</option>
-                  <option value="PENDIENTE"${rolActual==='PENDIENTE'? 'selected':''}>PENDIENTE</option>
+            <span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase shadow-sm ${rolBadgeClass}">${rolEnTenant}</span>
+            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded uppercase border border-slate-200"><i class="ph ph-buildings"></i> ${myTenant}</span>
+            ${esYoMismo || u.superadmin
+              ? '<span class="text-[11px] text-slate-400 italic">(intocable)</span>'
+              : `<select class="sel-rol-docente text-sm border dark:border-slate-700 rounded-lg px-3 py-1 bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-slate-700 dark:text-slate-200 transition-shadow" onchange="document.getElementById('btn-save-${u.uid}').classList.remove('hidden')">
+                  <option value="ADMIN"    ${rolEnTenant==='ADMIN'    ? 'selected':''}>ADMIN</option>
+                  <option value="DOCENTE"  ${rolEnTenant==='DOCENTE'  ? 'selected':''}>DOCENTE</option>
+                  <option value="PENDIENTE"${rolEnTenant==='PENDIENTE'? 'selected':''}>PENDIENTE</option>
                 </select>`}
           </div>
         </div>
+        
         <div>
-          <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"><i class="ph ph-books mr-1"></i> Materias asignadas (Por División)</p>
-          <div class="bg-slate-50 dark:bg-slate-900 rounded-lg p-5 border dark:border-slate-700 columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 max-h-[500px] overflow-y-auto custom-scrollbar">
-            ${materiasHtml}
+          <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3"><i class="ph ph-books mr-1"></i> Materias que dicta aquí</p>
+          <div class="flex flex-wrap gap-2 mb-3" id="chip-container-${u.uid}">
+            ${chipsHtml}
           </div>
+          ${!esYoMismo && !u.superadmin ? `
+            <div class="flex gap-2 mt-4 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+              <select id="sel-add-${u.uid}" class="text-sm border dark:border-slate-700 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-800 flex-1 outline-none text-slate-700 dark:text-slate-200">
+                ${optionsHtml}
+              </select>
+              <button onclick="app.agregarMateriaChip('${u.uid}')" type="button" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-bold px-4 py-1.5 rounded-lg transition-colors">
+                Agregar
+              </button>
+            </div>
+          ` : ''}
         </div>
-        ${esYoMismo ? '' : `
-          <div class="flex justify-end mt-4 pt-3 border-t dark:border-slate-700">
-            <button onclick="app.guardarAsignacionDocente('${u.uid}', this)"
-              class="bg-emerald-600 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2">
+        
+        ${esYoMismo || u.superadmin ? '' : `
+          <div class="flex justify-between items-center mt-5 pt-4 border-t dark:border-slate-700">
+            <button onclick="app.eliminarDocente('${u.uid}')" class="text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+              <i class="ph ph-trash"></i> Desvincular de escuela
+            </button>
+            <button id="btn-save-${u.uid}" onclick="app.guardarAsignacionDocente('${u.uid}', this)"
+              class="hidden bg-emerald-600 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm">
               <i class="ph ph-floppy-disk"></i> Guardar Cambios
             </button>
           </div>`}
@@ -122,39 +196,107 @@ export async function cargarListaUsuarios() {
       contenedor.appendChild(card);
     });
 
-  } catch (e) {
-    console.error(e);
-    contenedor.innerHTML = '<p class="text-center text-red-500 py-8">Error al cargar usuarios.</p>';
-    showToast('❌ Error al cargar la lista de usuarios.', 'error');
+  } catch (error) {
+    console.error("Error cargando usuarios:", error);
+    contenedor.innerHTML = '<p class="text-center text-red-500 py-8">Error al cargar docentes. Revisá la consola.</p>';
   }
 }
 
-// ==========================================
-// GUARDAR ROL + MATERIAS DE UN DOCENTE
-// ==========================================
+export function agregarMateriaChip(uid) {
+  const select = document.getElementById(`sel-add-${uid}`);
+  const val = select.value;
+  if (!val) return;
+  const texto = select.options[select.selectedIndex].text;
+
+  const container = document.getElementById(`chip-container-${uid}`);
+  const check = container.querySelector(`input[value="${val}"]`);
+  if (check) {
+    window.app.showToast("Esta materia ya está asignada", "info");
+    return;
+  }
+
+  // Si había un mensaje de "No tiene materias...", sacarlo
+  if (container.innerHTML.includes('No tiene materias asignadas')) {
+    container.innerHTML = '';
+  }
+
+  // Div y base (aprox)
+  const decomp = descomponerNombre(val);
+  const divName = decomp.div;
+  const baseName = decomp.base;
+
+  const span = document.createElement('span');
+  span.className = "inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold px-2.5 py-1 rounded-md";
+  span.innerHTML = `
+    <span><span class="opacity-70 font-normal mr-1">${divName}</span>${baseName}</span>
+    <button type="button" onclick="this.parentElement.remove(); document.getElementById('btn-save-${uid}').classList.remove('hidden');" class="ml-1 hover:text-red-500 transition-colors"><i class="ph ph-x"></i></button>
+    <input type="hidden" class="cb-materia-docente" value="${val}" checked>
+  `;
+  container.appendChild(span);
+  
+  select.value = '';
+  document.getElementById(`btn-save-${uid}`).classList.remove('hidden');
+}
 
 export async function guardarAsignacionDocente(uid, btnEl) {
-  const card = btnEl.closest('[data-uid]');
+  const card = btnEl.closest(`[data-uid="${uid}"]`);
   if (!card) return;
 
   const selRol = card.querySelector('.sel-rol-docente');
-  const rol    = selRol ? selRol.value : null;
+  const nuevoRol = selRol ? selRol.value : 'DOCENTE';
 
-  const materiasSeleccionadas = [];
-  card.querySelectorAll('.cb-materia-docente:checked').forEach(cb => materiasSeleccionadas.push(cb.value));
-
-  btnEl.disabled = true;
-  const iconOriginal = btnEl.innerHTML;
-  btnEl.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Guardando...';
+  const hiddenInputs = card.querySelectorAll('.cb-materia-docente');
+  const materiasSeleccionadas = Array.from(hiddenInputs).map(i => i.value);
+  
+  const myTenant = window.app.currentTenant;
 
   try {
-    await setDoc(doc(db, getPath('usuarios'), uid), { rol, materias: materiasSeleccionadas }, { merge: true });
-    showToast(`✅ Permisos actualizados correctamente.`);
-    await cargarListaUsuarios();
+    btnEl.innerHTML = `<i class="ph ph-spinner animate-spin"></i> Guardando...`;
+    btnEl.disabled = true;
+
+    // Actualizamos las propiedades específicas de este tenant
+    const userRef = doc(db, "usuarios", uid);
+    await updateDoc(userRef, {
+      [`escuelas.${myTenant}.rol`]: nuevoRol,
+      [`escuelas.${myTenant}.materias`]: materiasSeleccionadas
+    });
+
+    window.app.showToast("Cambios guardados con éxito", "success");
+    btnEl.classList.add('hidden');
+    
+    // Recargar la lista para reflejar estado actual (ej: nuevo badge color)
+    setTimeout(() => {
+      cargarListaUsuarios();
+    }, 500);
+
+  } catch (error) {
+    console.error("Error guardando cambios:", error);
+    window.app.showToast("Hubo un error al guardar", "error");
+    btnEl.disabled = false;
+    btnEl.innerHTML = `<i class="ph ph-floppy-disk"></i> Guardar Cambios`;
+  }
+}
+
+export async function eliminarDocente(uid) {
+  const confirm = await window.app.showConfirm(
+    "Desvincular de la Escuela",
+    "¿Confirmás que querés remover a este docente de esta institución? Dejará de tener acceso a los cursos."
+  );
+  if (!confirm) return;
+
+  try {
+    const myTenant = window.app.currentTenant;
+    const userRef = doc(db, "usuarios", uid);
+    
+    // Borramos su objeto tenant de 'escuelas'
+    await updateDoc(userRef, {
+      [`escuelas.${myTenant}`]: deleteField()
+    });
+    
+    window.app.showToast("Docente desvinculado con éxito", "success");
+    cargarListaUsuarios();
   } catch (e) {
     console.error(e);
-    showToast('❌ Error al guardar los permisos.', 'error');
-    btnEl.disabled = false;
-    btnEl.innerHTML = iconOriginal;
+    window.app.showToast("Error al desvincular", "error");
   }
 }

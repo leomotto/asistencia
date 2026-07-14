@@ -1,10 +1,10 @@
 // js/auth.js — Sesión, login, logout y listener de autenticación
 
-import { doc, setDoc, getDoc, getDocs, collection, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, getDocs, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.54";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.90";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 
@@ -22,7 +22,7 @@ export async function iniciarSesionGoogle() {
 }
 
 export async function cerrarSesion() {
-  if (confirm("¿Querés cerrar sesión?")) await logout();
+  if (await window.app.showConfirm("Cerrar sesión", "¿Estás seguro de que querés salir?")) await logout();
 }
 
 export async function entrarModoDesarrollo() {
@@ -64,18 +64,89 @@ export function setupAuthListener() {
           userData = { rol: "PENDIENTE", materias: [] };
           if (userDoc.exists()) {
             userData = userDoc.data();
+            
+            // Migrar a estructura multi-escuela si no existe
+            if (!userData.escuelas) {
+              const oldTenant = userData.tenantId || 'root';
+              userData.escuelas = {};
+              userData.escuelas[oldTenant] = {
+                rol: userData.rol || 'PENDIENTE',
+                materias: userData.materias || []
+              };
+            }
+            
+            // Auto-promover a leomotto@gmail.com a SUPERADMIN si no lo es
+            if (user.email === 'leomotto@gmail.com' && userData.superadmin !== true) {
+              userData.superadmin = true;
+              userData.rol = 'SUPERADMIN'; // Para retrocompatibilidad
+              try {
+                await setDoc(doc(db, getPath("usuarios"), user.uid), { superadmin: true, rol: 'SUPERADMIN' }, { merge: true });
+              } catch(promoError) {
+                console.warn("No se pudo guardar la auto-promoción en BD (posible regla de seguridad), pero se aplicó en memoria.", promoError);
+              }
+            }
           } else {
-            // Usuario nuevo → siempre PENDIENTE (promover el primer admin desde Firebase Console)
-            userData = { rol: "PENDIENTE", materias: [] };
-            await setDoc(doc(db, getPath("usuarios"), user.uid), {
-              rol: "PENDIENTE", email: user.email || '', nombre: user.displayName || ''
-            });
+            // Usuario nuevo → siempre PENDIENTE (promover desde UI o wizard)
+            let defaultRol = user.email === 'leomotto@gmail.com' ? 'SUPERADMIN' : 'PENDIENTE';
+            let isSuper = user.email === 'leomotto@gmail.com';
+            userData = { rol: defaultRol, superadmin: isSuper, escuelas: {} };
+            try {
+              await setDoc(doc(db, getPath("usuarios"), user.uid), {
+                rol: defaultRol, superadmin: isSuper, escuelas: {}, email: user.email || '', nombre: user.displayName || ''
+              });
+            } catch(newUserError) {
+              console.warn("No se pudo crear el documento de usuario nuevo en BD.", newUserError);
+            }
           }
         }
+
+        // Determinar currentTenant
+        let savedTenant = localStorage.getItem('activeTenant');
+        const userEscuelas = Object.keys(userData.escuelas || {});
+        
+        if (userData.superadmin) {
+           window.app.currentTenant = savedTenant || 'root';
+        } else {
+           if (savedTenant && userEscuelas.includes(savedTenant)) {
+               window.app.currentTenant = savedTenant;
+           } else if (userEscuelas.length > 0) {
+               window.app.currentTenant = userEscuelas[0];
+               localStorage.setItem('activeTenant', window.app.currentTenant);
+           } else {
+               window.app.currentTenant = 'root';
+           }
+        }
+        
+        // Determinar rol activo
+        if (userData.superadmin) {
+           userData.rolActivo = 'SUPERADMIN';
+           if (window.app.currentTenant !== 'root') {
+             try {
+               const tenantDoc = await getDoc(doc(db, "escuelas", window.app.currentTenant));
+               if (tenantDoc.exists()) {
+                 userData.materiasActivas = tenantDoc.data().materias || [];
+               } else {
+                 userData.materiasActivas = [];
+               }
+             } catch(err) {
+               console.error("Error al cargar materias de la escuela para SUPERADMIN:", err);
+               userData.materiasActivas = [];
+             }
+           } else {
+             userData.materiasActivas = userData.materias || [];
+           }
+        } else if (userData.escuelas && userData.escuelas[window.app.currentTenant]) {
+           userData.rolActivo = userData.escuelas[window.app.currentTenant].rol || 'PENDIENTE';
+           userData.materiasActivas = userData.escuelas[window.app.currentTenant].materias || [];
+        } else {
+           userData.rolActivo = 'PENDIENTE';
+           userData.materiasActivas = [];
+        }
+
         window.app.currentUser = { uid: user.uid, email: user.email, ...userData };
       } catch(e) {
-        console.error("Error al obtener rol:", e);
-        window.app.currentUser = { uid: user.uid, rol: "ERROR" };
+        console.error("Error al obtener datos del usuario:", e);
+        window.app.currentUser = { uid: user.uid, email: user.email, nombre: user.displayName || '', rolActivo: "ERR: " + (e.name === 'FirebaseError' ? e.code : e.message), superadmin: false };
       }
 
       // Ocultar pantalla de carga, mostrar app
@@ -83,20 +154,22 @@ export function setupAuthListener() {
       loginScreen.classList.add('hidden');
       appContainer.classList.remove('hidden');
 
-      const rol = window.app.currentUser.rol;
+      const rol = window.app.currentUser.rolActivo;
       let rolBadge;
       if (esDevLocal)           rolBadge = `<span class="bg-amber-100 text-amber-800 text-[9px] px-1 rounded uppercase font-bold ml-1">DEV</span>`;
+      else if (rol === 'SUPERADMIN') rolBadge = `<span class="bg-purple-100 text-purple-800 text-[9px] px-1 rounded uppercase font-bold ml-1">SUPERADMIN</span>`;
       else if (rol === 'ADMIN') rolBadge = `<span class="bg-purple-100 text-purple-800 text-[9px] px-1 rounded uppercase font-bold ml-1">ADMIN</span>`;
       else if (rol === 'PENDIENTE') rolBadge = `<span class="bg-yellow-100 text-yellow-800 text-[9px] px-1 rounded uppercase font-bold ml-1">PENDIENTE</span>`;
       else                      rolBadge = `<span class="bg-blue-100 text-blue-800 text-[9px] px-1 rounded uppercase font-bold ml-1">${rol}</span>`;
 
       // Visibilidad de tabs y controles según rol
-      const esAdmin = (rol === 'ADMIN');
+      const esAdmin = (rol === 'ADMIN' || rol === 'SUPERADMIN');
 
       // Tabs exclusivos de Admin
       document.getElementById('btnMaterias')?.classList.toggle('hidden', !esAdmin);
       document.getElementById('btnDocentes')?.classList.toggle('hidden', !esAdmin);
       document.getElementById('btnAuditoria')?.classList.toggle('hidden', !esAdmin);
+      document.getElementById('btnEscuelas')?.classList.toggle('hidden', rol !== 'SUPERADMIN');
 
       // Tab Matrícula: Admin lo ve siempre; Docente no tiene acceso a inscripciones
       document.getElementById('btnGestion')?.classList.toggle('hidden', rol === 'DOCENTE');
@@ -107,15 +180,79 @@ export function setupAuthListener() {
 
       const displayName  = esDevLocal ? 'Dev Admin' : (user.displayName || user.email);
       const displayEmail = esDevLocal ? 'localhost'  : user.email;
+      
+      let tenantBadge = window.app.currentTenant !== 'root' ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded uppercase font-bold ml-2 shadow-sm border border-indigo-200"><i class="ph ph-buildings"></i> ${window.app.currentTenant}</span>` : '';
+
       status.innerHTML = `
         <div class="flex flex-col gap-1 items-start w-full">
-          <span class="flex items-center gap-1 ${esDevLocal ? 'text-amber-400' : 'text-emerald-400'} font-medium">
+          <span class="flex items-center gap-1 ${esDevLocal ? 'text-amber-400' : 'text-emerald-400'} font-medium flex-wrap">
             <i class="ph ${esDevLocal ? 'ph-code' : 'ph-user-circle'} text-lg"></i>
-            <span class="truncate max-w-[150px]" title="${displayEmail}">${displayName}</span> ${rolBadge}
+            <span class="truncate max-w-[150px]" title="${displayEmail}">${displayName}</span> 
+            ${rolBadge}
           </span>
-          ${!esDevLocal ? `<button onclick="app.cerrarSesion()" class="text-[10px] text-slate-400 hover:text-red-400 transition"><i class="ph ph-sign-out"></i> Cerrar Sesión</button>` : ''}
+          ${!esDevLocal ? `<button onclick="app.cerrarSesion()" class="text-[10px] text-slate-400 hover:text-red-400 transition flex items-center gap-1 mt-1"><i class="ph ph-sign-out"></i> Cerrar Sesión</button>` : ''}
         </div>
       `;
+
+      const userNameDisplay = document.getElementById('userNameDisplay');
+      if (userNameDisplay) {
+        userNameDisplay.innerHTML = `${user.displayName || user.email} ${rolBadge} ${tenantBadge}`;
+      }
+      
+      if (typeof window.app.buildContextSwitcher === 'function') {
+        window.app.buildContextSwitcher();
+      }
+
+      // Si es un usuario nuevo (PENDIENTE) y no tiene escuelas, abrir el modal para unirse
+      if (rol === 'PENDIENTE' && (!window.app.currentUser.escuelas || Object.keys(window.app.currentUser.escuelas).length === 0)) {
+        setTimeout(() => {
+          if (typeof window.app.abrirModalUnirseEscuela === 'function') {
+            window.app.abrirModalUnirseEscuela();
+          }
+        }, 500);
+      }
+
+      // Si es PENDIENTE, evaluamos si ya pidió unirse a una escuela o no
+
+      if (rol === 'PENDIENTE' && !window.app.currentUser.superadmin) {
+        if (Object.keys(window.app.currentUser.escuelas || {}).length === 0) {
+           appContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-center p-6 bg-slate-50 dark:bg-slate-900 overflow-y-auto">
+              <div class="max-w-xl w-full bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 text-left my-8">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-sm mx-auto">
+                  <i class="ph ph-buildings text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2 text-center">Unite a tu escuela</h2>
+                <p class="text-slate-500 dark:text-slate-400 text-sm mb-6 text-center">
+                  Para comenzar a usar SIDEAC, necesitás solicitar acceso a la institución educativa en la que trabajás.
+                </p>
+                <div id="onboardingFormContainer" class="w-full">
+                  <p class="text-center text-slate-400"><i class="ph ph-spinner animate-spin"></i> Cargando opciones...</p>
+                </div>
+              </div>
+            </div>
+          `;
+          if (typeof window.app.cargarOnboardingEscuelas === 'function') {
+             window.app.cargarOnboardingEscuelas();
+          }
+        } else {
+          appContainer.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-center p-6">
+              <div class="w-20 h-20 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-6 shadow-sm">
+                <i class="ph ph-hourglass text-4xl"></i>
+              </div>
+              <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-3">Solicitud en revisión</h2>
+              <p class="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                Tu solicitud para la escuela <strong>${Object.keys(window.app.currentUser.escuelas)[0]}</strong> está pendiente de aprobación por un administrador.
+              </p>
+              <button onclick="window.app.cerrarSesion()" class="mt-8 px-6 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold rounded-lg transition-colors">
+                Cerrar Sesión
+              </button>
+            </div>
+          `;
+        }
+        return; // Detener flujo normal
+      }
 
       document.getElementById('tomaFecha').valueAsDate = new Date();
       await window.app.cargarMateriasDinamicas();
@@ -125,20 +262,12 @@ export function setupAuthListener() {
       document.getElementById('biFechaHasta').value = limites.hasta;
 
       window.app.popularCursos();
+      window.app.renderAgenda?.();
 
       // Cargar configuración de evaluaciones (columnas habilitadas) — requiere auth
       window.app.cargarConfiguracionHabilitacion?.();
 
-      // #1 Restaurar último curso usado en Toma Diaria
-      const lastCurso = localStorage.getItem('lastCurso');
-      if (lastCurso) {
-        const selCurso = document.getElementById('tomaCurso');
-        if (selCurso && [...selCurso.options].some(o => o.value === lastCurso)) {
-          selCurso.value = lastCurso;
-          window.app.actualizarHorariosYFechasRapidas?.();
-          window.app.cargarAlumnos?.();
-        }
-      }
+
 
       // #3 Badge de usuarios PENDIENTE para admin
       if (esAdmin) {

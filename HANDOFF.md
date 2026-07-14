@@ -4,34 +4,31 @@ Este archivo contiene el contexto más reciente del proyecto para asistir a otro
 
 ## 📝 Resumen del Proyecto
 * **Aplicación:** PWA de gestión de asistencia escolar.
-* **Stack:** JavaScript Vanilla (ES Modules), HTML5, CSS (Tailwind CSS referenciado/estilado custom), Firebase (Firestore + Auth).
-* **Despliegue:** `ssh-muchacholoco.alwaysdata.net` mediante el script local `./deploy.sh`.
-* **Última Versión Estable:** `v9.44`
+* **Stack:** JavaScript Vanilla (ES Modules), HTML5, CSS (Tailwind CSS referenciado/estilado custom), Firebase (Firestore + Auth para Base de Datos y Autenticación, PERO NO PARA HOSTING).
+* **Despliegue:** `ssh-muchacholoco.alwaysdata.net` mediante el script local `./deploy.sh`. NO se usa `firebase deploy`.
+* **Última Versión Estable:** `v9.84`
 
-## 🚨 Últimos Cambios Importantes (Julio 2026)
-1. **Resolución de Crash Crítico (SyntaxError):** Se corrigió un error que dejaba la pantalla de carga bloqueada debido a incompatibilidades de navegador (uso de Optional Chaining `?.` y Nullish Coalescing `??` sin soporte en navegadores viejos) que, sumado a una llave `}` huérfana en `js/evaluaciones.js`, rompían la inicialización del AST en el navegador.
-2. **Refactorización UI/UX (Mobile-First y Viewport):** 
-   - Las tablas de gestión de asistencia y matrículas fueron transformadas para verse como "tarjetas" apiladas en pantallas de celular (usando clases `block md:table-row`), eliminando el scroll horizontal incómodo.
-   - **Fix de "Flex Blowout":** Se corrigió el contenedor principal (`#appContainer`) forzándole límites estrictos (`min-w-0 flex-1 overflow-hidden`). Esto previno que la tabla de la grilla de asistencia creciera infinitamente empujando los filtros fuera de la pantalla.
-   - **Uso de Viewport Completo y Bug de Tablas:** Se eliminó la restricción `max-w-6xl` en todos los contenedores principales (reemplazado por `max-w-full`) para aprovechar el 100% en pantallas grandes. Además, se eliminó un hack "Mobile-First" defectuoso en la tabla de Gestión de Materias (`block md:table`) que forzaba el apilamiento vertical de las celdas en algunos navegadores de escritorio, resolviendo el bug visual donde todo se amontonaba contra un borde.
-3. **Consistencia Visual y Mejoras en Evaluaciones (v9.43 - v9.44):**
-   - Se unificaron los contenedores y estilos de encabezados en `gestionDocentes` y `gestionMaterias` para estandarizar la presentación de las vistas de administración.
-   - En la vista de Calificaciones (`evaluaciones`), los paneles de administración (habilitación de periodos y columnas adicionales) ahora inician colapsados por defecto para ahorrar espacio.
-   - Se compactaron los selectores de notas en la tabla de evaluaciones para mejorar la densidad visual de la planilla.
-4. **Limpieza de "Dead Code" (Ponytail Audit):** 
-   - Se removió por completo la dependencia inútil `acorn` en `package.json` y la carpeta `node_modules` (el proyecto funciona puramente por CDN).
-   - Se borraron tests en Python/JS zombis, scripts utilitarios no referenciados y el archivo huérfano `auditoria.js` y `auditoria.html`.
-5. **Gestión de Matrícula Optimizada:** 
-   - Se eliminaron las masivas listas de checkboxes por división.
-   - Se implementó selección de "División Principal" (ej. "1ro A") que auto-inscribe en todas sus materias al vuelo.
-   - Buscador rápido por nombre/apellido incorporado.
+## 🚨 Últimos Cambios Importantes (Julio 2026 - Arquitectura SaaS Multi-Tenant)
+1. **Transformación a SaaS Multi-Tenant:**
+   - La base de datos ahora aísla la información (estudiantes, materias, asistencias) por institución (`tenantId`).
+   - El SuperAdmin (leomotto@gmail.com) puede crear, editar y eliminar colegios (CRUD en `escuelas.js`).
+   - Los permisos y materias de los usuarios en `usuarios.js` ya no son un array plano global, sino que están atados al contexto de la escuela (`escuelas.tenantId.rol` y `escuelas.tenantId.materias`).
+2. **Onboarding de Docentes (Fase 2):**
+   - Los nuevos usuarios, al autenticarse y no tener escuelas, son presentados con un asistente ("Onboarding") donde deben ingresar el código de la escuela a la cual quieren unirse (estado `PENDIENTE`).
+   - Los Admins de esa escuela aprueban las solicitudes filtradas por su propio "tenant" en la vista de Gestión de Docentes.
+3. **Pases de Estudiantes (Fase 3):**
+   - Se habilitó el botón "Emitir Pase" en el perfil de estudiantes (sólo visible para Admins).
+   - El legajo del estudiante se migra del tenant activo a un repositorio global llamado `EXTERIOR`. El historial de presentismo queda intacto en la base de la escuela original pero no se migra.
+4. **Mejoras Estéticas (UI/UX):**
+   - Se migró la tipografía global de `Plus Jakarta Sans` a `Outfit` para una estética más moderna y elegante.
+   - La agenda de `Inicio` se pulió para mostrar correctamente si el docente tiene el "Día Libre" y cuándo es su próxima clase.
 
-## ⚠️ Advertencias para Futuros Agentes
-- **Compatibilidad JS:** El usuario ha reportado el uso de dispositivos/navegadores antiguos (probablemente Chrome 60-70). **EVITA** usar sintaxis de ES2020+ (`?.`, `??`, clases estáticas modernas) en los archivos `js/` a menos que se introduzca un paso formal de compilación (Babel/ESBuild) en el script de despliegue.
-- **Gestión de Versiones (Caché):** Cuando hagas cambios en la lógica o en los archivos `.js` o `.css`, asegúrate de actualizar el número de versión (ej. de `v=9.41` a `v=9.42`) en todas las importaciones `<script src="...v=9.41">` en `index.html` y dentro de las importaciones de módulos en `js/`, así como en `version.json` para forzar a la PWA a limpiar caché y descargar la nueva versión.
-- **Guardado en Firestore:** Utiliza siempre el flag `{merge: true}` al actualizar documentos complejos con `setDoc` para no destruir campos de información que no se estén mostrando/editando en ese momento en la UI.
+## ⚠️ Advertencias para Futuros Agentes (REGLAS ESTRICTAS)
+- **DEPLOYMENT:** El proyecto se sube a producción con el comando `./deploy.sh`. **JAMÁS** corras `firebase deploy` ni asumas que el hosting es de Firebase. El Frontend vive en un FTP/SSH (Alwaysdata).
+- **Gestión de Versiones (Caché):** Cuando hagas cambios en la lógica o en los archivos `.js` o `.css`, asegúrate de actualizar el número de versión (ej. de `v=9.84` a `v=9.85`) en todas las importaciones `<script src="...v=9.84">` en `index.html` y dentro de las importaciones de módulos en `js/`.
+- **Compatibilidad JS:** El usuario ha reportado el uso de dispositivos/navegadores antiguos. EVITA usar sintaxis hiper moderna (aunque se relajó un poco, sigue siendo buena práctica tener precaución con bugs raros).
+- **Guardado en Firestore:** Utiliza siempre el flag `{merge: true}` al actualizar documentos complejos con `setDoc`.
 
 ## 🚀 Próximos Pasos (Backlog)
-- [ ] **Empaquetador/Transpilador:** Integrar Vite o ESBuild al script de deploy para automatizar la compatibilidad hacia atrás del código y minificación, removiendo la gestión manual de "cache-busting".
-- [ ] **Sistema de Fusión:** Validar y pulir la herramienta de fusión de cuentas de alumnos duplicados.
-- [ ] **Manejo Offline Avanzado:** Extender el Service Worker para permitir caché local de mutaciones (Firestore offline) más robusto si se corta la conexión al tomar asistencia.
+- [ ] **Ajuste de Evaluaciones:** Optimizar el espacio visual de la grilla de calificaciones ("calificaciones muy saturadas de información") en pantallas pequeñas.
+- [ ] **Empaquetador/Transpilador:** Integrar Vite o ESBuild al script de deploy para automatizar el "cache-busting".

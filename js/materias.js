@@ -1,8 +1,8 @@
 // js/materias.js — Gestión de materias/divisiones y horarios dinámicos
 
-import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
+import { doc, setDoc, getDoc, addDoc, deleteDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
 
 export const HORARIOS_DINAMICOS = {};
 
@@ -43,9 +43,9 @@ function opcionesMinutos() {
 // Genera dos selects H:M con el valor pre-seleccionado a partir de "08:30"
 function selectHM(claseH, claseM, hora = '') {
   const [h = '', m = ''] = hora ? hora.split(':') : [];
-  const selH = `<select class="${claseH} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
+  const selH = `<select class="${claseH} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-base md:text-xs outline-none w-12">
     <option value="">HH</option>${opcionesHoras().replace(`value="${h}"`, `value="${h}" selected`)}</select>`;
-  const selM = `<select class="${claseM} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs outline-none w-12">
+  const selM = `<select class="${claseM} py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-base md:text-xs outline-none w-12">
     <option value="">MM</option>${opcionesMinutos().replace(`value="${m}"`, `value="${m}" selected`)}</select>`;
   return `${selH}<span class="font-bold">:</span>${selM}`;
 }
@@ -81,7 +81,7 @@ export async function cargarMateriasDinamicas() {
 
 export async function cargarListaMateriasAdmin() {
   const tbody = document.getElementById('listaMateriasAdmin');
-  tbody.innerHTML = '<tr><td colspan="3" class="px-4 py-8 text-center text-indigo-600 animate-pulse">Cargando materias...</td></tr>';
+  tbody.innerHTML = `${window.app.mostrarSkeletonTable(3, 5)}`;
 
   try {
     const snap = await getDocs(collection(db, getPath("materias")));
@@ -105,10 +105,10 @@ export async function cargarListaMateriasAdmin() {
           <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100">${nombreSeguro}</td>
           <td class="px-4 py-3 text-xs text-slate-600 dark:text-slate-300">${horarioStr}</td>
           <td class="px-4 py-3 text-right">
-            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-1" title="Editar">
+            <button onclick="app.abrirModalMateria('${mat.id}')" class="text-blue-600 hover:text-blue-800 p-2 md:p-1" title="Editar">
               <i class="ph ph-pencil-simple text-lg"></i>
             </button>
-            <button onclick="app.eliminarMateria('${mat.id}', '${nombreSeguro.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 p-1 ml-2" title="Eliminar">
+            <button onclick="app.eliminarMateria('${mat.id}', '${nombreSeguro.replace(/'/g, "\\'")}')" class="text-red-600 hover:text-red-800 p-2 md:p-1 ml-2" title="Eliminar">
               <i class="ph ph-trash text-lg"></i>
             </button>
           </td>
@@ -127,10 +127,11 @@ export async function cargarListaMateriasAdmin() {
 export async function abrirModalMateria(id = null) {
   // Feature 1: dos inputs separados
   document.getElementById('formMateriaId').value        = id || '';
+  document.getElementById('formMateriaAnio').value      = '';
   document.getElementById('formMateriaBase').value      = '';
   document.getElementById('formMateriaDivision').value  = '';
   document.getElementById('materiaDiasContainer').innerHTML = '';
-  document.getElementById('modalMateriaTitulo').innerText   = id ? 'Editar Materia' : 'Nueva Materia';
+  document.getElementById('modalMateriaTitulo').innerText   = id ? 'Editar en Plan de Estudio' : 'Agregar a Plan de Estudio';
 
   if (id) {
     try {
@@ -138,6 +139,9 @@ export async function abrirModalMateria(id = null) {
       if (docSnap.exists()) {
         const data = docSnap.data();
         // Cargar campos nuevos o hacer split retrocompatible del nombre legacy
+        if (data.planEstudio) {
+          document.getElementById('formMateriaAnio').value = data.planEstudio;
+        }
         if (data.materiaBase) {
           document.getElementById('formMateriaBase').value     = data.materiaBase;
           document.getElementById('formMateriaDivision').value = data.division || '';
@@ -180,7 +184,7 @@ export function agregarDiaMateria(diaObj = null) {
     else if (typeof diaObj === 'object') { diaNum = diaObj.dia; horaInicio = diaObj.horaInicio || ''; horaFin = diaObj.horaFin || ''; }
   }
 
-  let diaSelectHtml = `<select class="dia-materia-select py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs font-medium outline-none min-w-[100px]">`;
+  let diaSelectHtml = `<select class="dia-materia-select py-2 md:py-1 px-1 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-base md:text-xs font-medium outline-none min-w-[100px]">`;
   DIAS_NOMBRES.forEach((n, idx) => {
     if (idx > 0 && idx < 6) diaSelectHtml += `<option value="${idx}"${diaNum == idx ? ' selected' : ''}>${n}</option>`;
   });
@@ -195,7 +199,7 @@ export function agregarDiaMateria(diaObj = null) {
       <span class="font-semibold text-slate-600 dark:text-slate-300">a</span>
       ${selectHM('hora-fin-h', 'hora-fin-m', horaFin)}
     </div>
-    <button onclick="document.getElementById('materiaDia_${uid}').remove()" class="text-red-500 hover:bg-red-100 p-1 rounded transition ml-auto">
+    <button onclick="document.getElementById('materiaDia_${uid}').remove()" class="text-red-500 hover:bg-red-100 p-2 md:p-1 rounded transition ml-auto">
       <i class="ph ph-trash"></i>
     </button>
   `;
@@ -208,6 +212,7 @@ export function agregarDiaMateria(diaObj = null) {
 
 export async function guardarMateria() {
   // Feature 1: leer los dos inputs separados
+  const materiaAnio      = document.getElementById('formMateriaAnio').value.trim();
   const materiaBase      = document.getElementById('formMateriaBase').value.trim();
   const materiaDivision  = document.getElementById('formMateriaDivision').value.trim();
   const id               = document.getElementById('formMateriaId').value;
@@ -234,6 +239,7 @@ export async function guardarMateria() {
   const nombreDias = diasArr.map(formatDiaHorario).join(' | ');
   // Feature 1: guardar también los campos desacoplados
   const payload = { nombre, materiaBase, division: materiaDivision, dias: diasArr, nombreDias };
+  if (materiaAnio) payload.planEstudio = materiaAnio;
 
   const btn  = document.getElementById('btnGuardarMateria');
   const icon = document.getElementById('iconGuardarMateria');
@@ -258,8 +264,20 @@ export async function guardarMateria() {
 }
 
 export async function eliminarMateria(id, nombre) {
-  if (!confirm(`¿Seguro que querés eliminar permanentemente la materia "${nombre}"?`)) return;
   try {
+    showToast('Verificando dependencias...', 'info');
+    const [snapEst, snapAsist] = await Promise.all([
+      getDocs(query(collection(db, getPath("estudiantes")), where("materias", "array-contains", nombre))),
+      getDocs(query(collection(db, getPath("asistencias")), where("curso", "==", nombre)))
+    ]);
+
+    if (!snapEst.empty || !snapAsist.empty) {
+      const force = await window.app.showConfirm("Confirmación", `⚠️ ATENCIÓN:\n\nLa materia "${nombre}" tiene vinculados:\n- ${snapEst.size} estudiantes\n- ${snapAsist.size} planillas de asistencia.\n\nSi la eliminás, estos registros NO se borrarán, sino que quedarán "huérfanos" con este nombre viejo. Luego podrás reasignarlos a la materia correcta (como Teatro) desde el módulo de Auditoría.\n\n¿Querés forzar la eliminación para convertirlos en huérfanos?`);
+      if (!force) return;
+    } else {
+      if (!await window.app.showConfirm("Confirmación", `La materia "${nombre}" está vacía (sin estudiantes ni asistencias).\n\n¿Seguro que querés eliminarla permanentemente?`)) return;
+    }
+
     await deleteDoc(doc(db, getPath("materias"), id));
     showToast(`✅ Materia ${nombre} eliminada.`);
     window.app.invalidarCacheBI?.();
@@ -272,50 +290,6 @@ export async function eliminarMateria(id, nombre) {
   }
 }
 
-// ==========================================
-// MIGRACIÓN HISTÓRICA
-// ==========================================
-
-export async function migrarMateriasHistoricas() {
-  const btn = document.getElementById('btnMigrarMaterias');
-  const reset = () => {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-clock-clockwise text-lg"></i> Migrar Materias Históricas'; }
-  };
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Analizando...'; }
-
-  try {
-    showToast('📊 Leyendo perfiles de estudiantes...', 'info');
-    const snap = await getDocs(collection(db, getPath('estudiantes')));
-    const set  = new Set();
-    snap.forEach(d => {
-      const data = d.data();
-      if (data.curso) set.add(data.curso);
-      if (Array.isArray(data.materias)) data.materias.forEach(m => { if (m) set.add(m); });
-    });
-    if (set.size === 0) { showToast('ℹ️ No se encontraron cursos.', 'info'); reset(); return; }
-
-    const snapM = await getDocs(collection(db, getPath('materias')));
-    const exist = new Set();
-    snapM.forEach(d => exist.add(d.data().nombre));
-
-    const faltantes = [...set].filter(c => !exist.has(c)).sort();
-    if (faltantes.length === 0) { showToast('✅ Todas las materias ya están registradas.', 'info'); reset(); return; }
-
-    await Promise.all(faltantes.map(nombre => addDoc(collection(db, getPath('materias')), { nombre, dias: [], nombreDias: '' })));
-
-    await cargarMateriasDinamicas();
-    window.app.popularCursos();
-    await cargarListaMateriasAdmin();
-    showToast(`✅ ${faltantes.length} materia(s) recuperada(s): ${faltantes.join(', ')}`, 'success');
-  } catch (e) {
-    console.error(e);
-    showToast('❌ Error durante la migración.', 'error');
-  } finally {
-    reset();
-  }
-}
-
-// ==========================================
 // GENERADOR DE CURSOS AUTOMÁTICO
 // ==========================================
 

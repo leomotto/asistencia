@@ -1,19 +1,30 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion } from "./ui.js?v=9.54";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.54";
-import { cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, migrarMateriasHistoricas, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=9.54";
-import { cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, abrirPerfilAlumno, cerrarPerfilAlumno, toggleDivisionMaestra } from "./estudiantes.js?v=9.54";
-import { cargarListaUsuarios, guardarAsignacionDocente } from "./usuarios.js?v=9.54";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.54";
-import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion } from "./evaluaciones.js?v=9.54";
-import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad } from "./auditoria.js?v=9.54";
+import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext } from "./ui.js?v=9.90";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth } from "./auth.js?v=9.90";
+import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=9.90";
+import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=9.90";
+import { 
+  cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, 
+  _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, 
+  cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, 
+  buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, 
+  cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, 
+  abrirPerfilAlumno, cerrarPerfilAlumno, emitirPase, cerrarModalPase, confirmarEmitirPase, 
+  toggleDivisionMaestra 
+} from "./estudiantes.js?v=9.90";
+import { cargarListaUsuarios, guardarAsignacionDocente, eliminarDocente, agregarMateriaChip } from "./usuarios.js?v=9.90";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=9.90";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion, abrirModalConfigEval } from "./evaluaciones.js?v=9.90";
+import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad, analizarEstructuraRelacional, ejecutarMigracionEstructura, restaurarBackup, ejecutarRestauracionParcial, auditarAsistencias } from "./auditoria.js?v=9.90";
+import { cargarListaEscuelas, abrirModalEscuela, cerrarModalEscuela, guardarEscuela, eliminarEscuela, abrirModalUnirseEscuela, solicitarUnirseOtraEscuela, cargarMateriasParaEscuela } from "./escuelas.js?v=9.90";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
 // ==========================================
 window.app = {
   currentUser:             null,
+  currentTenant:           null,
   cursos:                  [],
   alumnosActivos:          [],
   alumnosMatriculaCache:   [],
@@ -21,8 +32,8 @@ window.app = {
 
   tienePermiso: function(curso) {
     if (!this.currentUser) return false;
-    if (this.currentUser.rol === 'ADMIN') return true;
-    if (this.currentUser.rol === 'DOCENTE' && this.currentUser.materias?.includes(curso)) return true;
+    if (this.currentUser.rolActivo === 'ADMIN' || this.currentUser.rolActivo === 'SUPERADMIN') return true;
+    if (this.currentUser.rolActivo === 'DOCENTE' && this.currentUser.materiasActivas?.includes(curso)) return true;
     return false;
   }
 };
@@ -35,14 +46,25 @@ window.app = {
 window.app.iniciarSesionGoogle  = iniciarSesionGoogle;
 window.app.cerrarSesion         = cerrarSesion;
 window.app.entrarModoDesarrollo = entrarModoDesarrollo;
+window.app.solicitarUnirseEscuela = solicitarUnirseEscuela;
+
 
 // ui.js
+window.app.showToast          = showToast;
+window.app.showConfirm        = showConfirm;
+window.app.mostrarSkeletonTable = mostrarSkeletonTable;
+window.app.mostrarSkeletonCards = mostrarSkeletonCards;
 window.app.toggleDarkMode   = toggleDarkMode;
 window.app.popularCursos    = popularCursos;
 window.app.toggleMenuMobile = toggleMenuMobile;
 window.app.toggleSidebar    = toggleSidebar;
+window.app.switchTab        = switchTab;
+window.app.renderAgenda     = renderAgenda;
+window.app.buildContextSwitcher = buildContextSwitcher;
+window.app.switchContext    = switchContext;
 
 // materias.js
+window.app.HORARIOS_DINAMICOS       = HORARIOS_DINAMICOS;
 window.app.cargarMateriasDinamicas  = cargarMateriasDinamicas;
 window.app.cargarListaMateriasAdmin = cargarListaMateriasAdmin;
 window.app.abrirModalMateria        = abrirModalMateria;
@@ -50,7 +72,7 @@ window.app.cerrarModalMateria       = cerrarModalMateria;
 window.app.agregarDiaMateria        = agregarDiaMateria;
 window.app.guardarMateria           = guardarMateria;
 window.app.eliminarMateria          = eliminarMateria;
-window.app.migrarMateriasHistoricas = migrarMateriasHistoricas;
+
 window.app.abrirModalGenerador      = abrirModalGenerador;
 window.app.cerrarModalGenerador     = cerrarModalGenerador;
 window.app.ejecutarGenerador        = ejecutarGenerador;
@@ -58,6 +80,8 @@ window.app.ejecutarGenerador        = ejecutarGenerador;
 // usuarios.js
 window.app.cargarListaUsuarios      = cargarListaUsuarios;
 window.app.guardarAsignacionDocente = guardarAsignacionDocente;
+window.app.eliminarDocente          = eliminarDocente;
+window.app.agregarMateriaChip       = agregarMateriaChip;
 
 // estudiantes.js
 window.app.cargarAlumnosMatricula    = cargarAlumnosMatricula;
@@ -82,6 +106,9 @@ window.app.toggleNormalizacionItem   = toggleNormalizacionItem;
 window.app.ejecutarNormalizacionSeleccionada = ejecutarNormalizacionSeleccionada;
 window.app.abrirPerfilAlumno         = abrirPerfilAlumno;
 window.app.cerrarPerfilAlumno        = cerrarPerfilAlumno;
+window.app.emitirPase                = emitirPase;
+window.app.cerrarModalPase           = cerrarModalPase;
+window.app.confirmarEmitirPase       = confirmarEmitirPase;
 window.app._toggleDivisionMaestra    = toggleDivisionMaestra;
 
 // asistencias.js
@@ -117,17 +144,34 @@ window.app.eliminarColumnaAdicional        = eliminarColumnaAdicional;
 window.app.moverColumnaAdicional           = moverColumnaAdicional;
 window.app.guardarEstructuraColumnas       = guardarEstructuraColumnas;
 window.app.registrarCambioAdicionalEvaluacion = registrarCambioAdicionalEvaluacion;
+window.app.abrirModalConfigEval            = abrirModalConfigEval;
 window.app.iniciarAuditoriaDatos           = iniciarAuditoriaDatos;
 window.app.simularMigracionAuditoria       = simularMigracionAuditoria;
 window.app.ejecutarMigracionAuditoria      = ejecutarMigracionAuditoria;
 window.app.analizarIntegridadEstudiantes   = analizarIntegridadEstudiantes;
 window.app.ejecutarMigracionIntegridad     = ejecutarMigracionIntegridad;
+window.app.analizarEstructuraRelacional    = analizarEstructuraRelacional;
+window.app.ejecutarMigracionEstructura     = ejecutarMigracionEstructura;
+window.app.restaurarBackup                 = restaurarBackup;
+window.app.ejecutarRestauracionParcial     = ejecutarRestauracionParcial;
+window.app.auditarAsistencias              = auditarAsistencias;
+
+// escuelas.js
+window.app.cargarListaEscuelas = cargarListaEscuelas;
+window.app.abrirModalEscuela = abrirModalEscuela;
+window.app.cerrarModalEscuela = cerrarModalEscuela;
+window.app.guardarEscuela = guardarEscuela;
+window.app.eliminarEscuela = eliminarEscuela;
+window.app.abrirModalUnirseEscuela = abrirModalUnirseEscuela;
+window.app.solicitarUnirseOtraEscuela = solicitarUnirseOtraEscuela;
+window.app.cargarMateriasParaEscuela = cargarMateriasParaEscuela;
 
 // ==========================================
 // ESCUCHAS DOM
 // ==========================================
 document.getElementById('tomaCurso')?.addEventListener('change', () => {
   actualizarHorariosYFechasRapidas();
+  verificarDiaSemana();
   cargarAlumnos();
 });
 document.getElementById('tomaFecha')?.addEventListener('change', () => {

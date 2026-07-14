@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
-import { escaparHTML } from "./utils.js?v=9.54";
+import { db, getPath } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
+import { escaparHTML } from "./utils.js?v=9.90";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -120,7 +120,7 @@ export async function toggleBloqueoCurso() {
   const curso = document.getElementById('evalCurso').value;
   if (!curso) return;
 
-  const esAdmin = window.app.currentUser?.rol === 'ADMIN';
+  const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
   if (!esAdmin && planillaBloqueadaCurso) {
     showToast("⚠️ Solo un Administrador puede desbloquear la planilla.", "error");
     return;
@@ -154,7 +154,7 @@ function _actualizarBotonBloqueo() {
   const badge = document.getElementById('badgeEvalBloqueada');
   if (!btn) return;
 
-  const esAdmin = window.app.currentUser?.rol === 'ADMIN';
+  const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
 
   if (planillaBloqueadaCurso) {
     btn.innerHTML = `<i class="ph ph-lock-key-open"></i> <span class="hidden sm:inline">Desbloquear</span>`;
@@ -209,14 +209,14 @@ function _renderizarEstructuraEditor() {
     const isPrincipal = col.type === 'principal';
     
     const btnUp = index > 0 
-      ? `<button onclick="app.moverColumnaAdicional(${index}, -1)" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500" title="Subir"><i class="ph ph-arrow-up"></i></button>`
+      ? `<button onclick="app.moverColumnaAdicional(${index}, -1)" class="p-2 md:p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500" title="Subir"><i class="ph ph-arrow-up"></i></button>`
       : `<span class="w-6"></span>`;
     const btnDown = index < cols.length - 1 
-      ? `<button onclick="app.moverColumnaAdicional(${index}, 1)" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500" title="Bajar"><i class="ph ph-arrow-down"></i></button>`
+      ? `<button onclick="app.moverColumnaAdicional(${index}, 1)" class="p-2 md:p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500" title="Bajar"><i class="ph ph-arrow-down"></i></button>`
       : `<span class="w-6"></span>`;
       
     const btnDelete = !isPrincipal 
-      ? `<button onclick="app.eliminarColumnaAdicional(${index})" class="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded ml-1" title="Eliminar"><i class="ph ph-trash"></i></button>`
+      ? `<button onclick="app.eliminarColumnaAdicional(${index})" class="p-2 md:p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded ml-1" title="Eliminar"><i class="ph ph-trash"></i></button>`
       : `<span class="w-6"></span>`;
 
     item.innerHTML = `
@@ -322,35 +322,144 @@ export async function guardarEstructuraColumnas() {
 }
 
 function _renderizarControlesAdmin() {
-  const esAdmin = window.app.currentUser?.rol === 'ADMIN';
-  const panel = document.getElementById('panelAdminConfigEval');
-  if (!panel) return;
-
-  if (esAdmin) {
-    panel.classList.remove('hidden');
-    const c1 = document.getElementById('cfgB1'); if (c1) c1.checked = !!configHabilitacionEvaluaciones.b1;
-    const c2 = document.getElementById('cfgB2'); if (c2) c2.checked = !!configHabilitacionEvaluaciones.b2;
-    const c3 = document.getElementById('cfgB3'); if (c3) c3.checked = !!configHabilitacionEvaluaciones.b3;
-    const c4 = document.getElementById('cfgB4'); if (c4) c4.checked = !!configHabilitacionEvaluaciones.b4;
-    const cD = document.getElementById('cfgPoDic'); if (cD) cD.checked = !!configHabilitacionEvaluaciones.po_dic;
-    const cF = document.getElementById('cfgPoFeb'); if (cF) cF.checked = !!configHabilitacionEvaluaciones.po_feb;
-
-    const periodo = document.getElementById('evalPeriodo')?.value;
-    const panelCols = document.getElementById('panelAdminColumnasEval');
-    if (panelCols) {
-      if (periodo) {
-        panelCols.classList.remove('hidden');
-        const lblPeriodo = document.getElementById('lblPeriodoConfig');
-        if (lblPeriodo) lblPeriodo.innerText = _obtenerNombrePeriodo(periodo);
-        _renderizarEstructuraEditor();
-      } else {
-        panelCols.classList.add('hidden');
-      }
-    }
-  } else {
-    panel.classList.add('hidden');
-    document.getElementById('panelAdminColumnasEval')?.classList.add('hidden');
+  const user = window.app.currentUser;
+  const esAdmin = user && (user.rolActivo === 'ADMIN' || user.rolActivo === 'SUPERADMIN' || user.rol === 'SUPERADMIN');
+  const btnConfig = document.getElementById('btnConfigEvalAdmin');
+  if (btnConfig) {
+    if (esAdmin) btnConfig.classList.remove('hidden');
+    else btnConfig.classList.add('hidden');
   }
+}
+
+export function abrirModalConfigEval() {
+  let modal = document.getElementById('modalConfigEval');
+  
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modalConfigEval';
+    modal.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-3xl overflow-hidden transform transition-all scale-95 opacity-0 flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 shrink-0">
+          <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-gear-six text-indigo-500"></i> Configuración de Planillas (Admin)
+          </h3>
+          <button onclick="document.getElementById('modalConfigEval').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <i class="ph ph-x text-xl"></i>
+          </button>
+        </div>
+        
+        <div class="overflow-y-auto flex-1 p-6 space-y-6">
+          <!-- PANEL DE CONFIGURACIÓN ADMIN: Habilitación de Periodos -->
+          <div>
+            <h4 class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1 mb-3">
+              <i class="ph ph-sliders"></i> Habilitación de Carga de Periodos
+            </h4>
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-700">
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgB1" class="h-4 w-4 text-indigo-600 rounded">
+                <span>1er Bim (Val.)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgB2" class="h-4 w-4 text-indigo-600 rounded">
+                <span>2do Bim (Num.)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgB3" class="h-4 w-4 text-indigo-600 rounded">
+                <span>3er Bim (Val.)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgB4" class="h-4 w-4 text-indigo-600 rounded">
+                <span>4to Bim (Num.)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgPoDic" class="h-4 w-4 text-indigo-600 rounded">
+                <span>PO Dic (Num.)</span>
+              </label>
+              <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                <input type="checkbox" id="cfgPoFeb" class="h-4 w-4 text-indigo-600 rounded">
+                <span>PO Feb (Num.)</span>
+              </label>
+              <button onclick="app.guardarConfiguracionHabilitacion()" id="btnGuardarConfigEval" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-indigo-700 transition flex items-center gap-1 sm:ml-auto">
+                <i class="ph ph-floppy-disk"></i> Guardar Periodos
+              </button>
+            </div>
+          </div>
+
+          <!-- PANEL DE CONFIGURACIÓN DE COLUMNAS -->
+          <div>
+            <h4 class="text-xs font-black text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1 mb-3">
+              <i class="ph ph-layout"></i> Estructura de Columnas para <span id="lblPeriodoConfig" class="underline text-indigo-600 dark:text-indigo-400 mx-1">el Periodo</span>
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Formulario agregar -->
+              <div class="border dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-900">
+                <p class="text-xs font-bold text-slate-500 mb-3">AGREGAR CAMPO ADICIONAL</p>
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">ETIQUETA DE LA COLUMNA (Ej: ID Planilla)</label>
+                    <input type="text" id="addColLabel" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs font-medium focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Ej: ID Estudiante Oficial">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-slate-400 font-bold mb-1">CLAVE DE BASE DE DATOS (Solo letras y guión bajo)</label>
+                    <input type="text" id="addColKey" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-xs font-mono focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Ej: id_estudiante_oficial">
+                  </div>
+                  <button onclick="app.agregarColumnaAdicional()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded text-xs transition flex justify-center items-center gap-1 mt-2">
+                    <i class="ph ph-plus-circle"></i> Agregar Columna
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Lista y orden -->
+              <div class="border dark:border-slate-700 p-4 rounded-lg bg-slate-50 dark:bg-slate-900 flex flex-col justify-between">
+                <div>
+                  <p class="text-xs font-bold text-slate-500 mb-3">ORDEN DE COLUMNAS</p>
+                  <div id="lstColumnasConfig" class="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                    <!-- Render dinámico de columnas -->
+                  </div>
+                </div>
+                <button onclick="app.guardarEstructuraColumnas()" class="w-full mt-4 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 dark:hover:bg-slate-600 text-white font-bold py-2 rounded text-xs transition flex justify-center items-center gap-1">
+                  <i class="ph ph-floppy-disk"></i> Guardar Estructura
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // Pre-cargar valores actuales
+  const c1 = document.getElementById('cfgB1'); if (c1) c1.checked = !!configHabilitacionEvaluaciones.b1;
+  const c2 = document.getElementById('cfgB2'); if (c2) c2.checked = !!configHabilitacionEvaluaciones.b2;
+  const c3 = document.getElementById('cfgB3'); if (c3) c3.checked = !!configHabilitacionEvaluaciones.b3;
+  const c4 = document.getElementById('cfgB4'); if (c4) c4.checked = !!configHabilitacionEvaluaciones.b4;
+  const cD = document.getElementById('cfgPoDic'); if (cD) cD.checked = !!configHabilitacionEvaluaciones.po_dic;
+  const cF = document.getElementById('cfgPoFeb'); if (cF) cF.checked = !!configHabilitacionEvaluaciones.po_feb;
+
+  const periodo = document.getElementById('evalPeriodo')?.value || '1';
+  if (periodo) {
+    const lbl = document.getElementById('lblPeriodoConfig');
+    if (lbl) {
+      if(periodo==='1') lbl.innerText = '1er Bimestre';
+      else if(periodo==='2') lbl.innerText = '2do Bimestre';
+      else if(periodo==='3') lbl.innerText = '3er Bimestre';
+      else if(periodo==='4') lbl.innerText = '4to Bimestre';
+      else if(periodo==='po_dic') lbl.innerText = 'PO Diciembre';
+      else if(periodo==='po_feb') lbl.innerText = 'PO Febrero';
+    }
+  }
+  
+  _renderizarEstructuraEditor();
+
+  // Mostrar modal con animación
+  modal.classList.remove('hidden');
+  const inner = modal.querySelector('div.bg-white, div.dark\\:bg-slate-800');
+  setTimeout(() => {
+    inner.classList.remove('scale-95', 'opacity-0');
+    inner.classList.add('scale-100', 'opacity-100');
+  }, 10);
 }
 
 // ==========================================
@@ -563,7 +672,7 @@ export async function cargarPlanillaEvaluaciones() {
     return;
   }
 
-  tablaBody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-indigo-500 animate-pulse">Cargando planilla de calificaciones...</td></tr>';
+  tablaBody.innerHTML = `${window.app.mostrarSkeletonTable(8, 5)}`;
   limpiarCambiosEvaluaciones();
 
   try {
@@ -585,7 +694,15 @@ export async function cargarPlanillaEvaluaciones() {
       const inscrip = data.inscripciones?.[curso] || [];
       const ultimoEstado = inscrip.length > 0 ? inscrip[inscrip.length - 1].estado : data.estado || 'ACTIVO';
       
-      const esActivo = (data.curso === curso || data.materias?.includes(curso)) && ultimoEstado === 'ACTIVO';
+      const nCurso = curso.replace(/\s+/g, ' ').toLowerCase().trim();
+      const nDataMaterias = (data.materias || []).map(m => m.replace(/\s+/g, ' ').toLowerCase().trim());
+      const nDataCurso = (data.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+      
+      const isInMaterias = nDataCurso === nCurso || 
+                           nDataMaterias.includes(nCurso) ||
+                           (nDataCurso && nDataCurso.length > 1 && nCurso.includes(nDataCurso));
+
+      const esActivo = isInMaterias && ultimoEstado === 'ACTIVO';
       const tieneNotas = !!notasMap[data.id];
 
       if (esActivo || tieneNotas) {
@@ -608,23 +725,23 @@ export async function cargarPlanillaEvaluaciones() {
     const mostrarResumen = PERIODOS_CON_RESUMEN.includes(periodo);
 
     let headersHtml = `
-      <tr class="bg-slate-800 text-white text-[11px] uppercase font-semibold">
-        <th class="px-4 py-3 text-left w-48 sm:w-64 max-w-[250px] sticky left-0 z-20 bg-slate-900 border-r border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Estudiante</th>
+      <tr class="bg-slate-800 text-white text-[10px] md:text-[11px] uppercase font-semibold">
+        <th class="px-2 py-2 md:px-4 md:py-3 text-left w-32 sm:w-64 max-w-[200px] sm:max-w-[250px] sticky left-0 z-20 bg-slate-900 border-r border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Estudiante</th>
 `;
       cols.forEach(col => {
-        headersHtml += `<th class="px-2 py-3 text-center min-w-[70px]">${escaparHTML(col.label)}</th>`;
+        headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[50px] leading-tight break-words">${escaparHTML(col.label)}</th>`;
       });
       if (mostrarResumen) {
         headersHtml += `
-          <th class="px-3 py-3 text-center min-w-[90px] bg-slate-700/80">Calif. Final</th>
-          <th class="px-3 py-3 text-center min-w-[110px] bg-slate-700/80">Calif. Definitiva</th>
-          <th class="px-3 py-3 text-center min-w-[70px]">Condición</th>
+          <th class="px-1 py-2 md:px-3 md:py-3 text-center min-w-[60px] bg-slate-700/80 leading-tight">C. Final</th>
+          <th class="px-1 py-2 md:px-3 md:py-3 text-center min-w-[60px] bg-slate-700/80 leading-tight">C. Def.</th>
+          <th class="px-1 py-2 md:px-3 md:py-3 text-center min-w-[60px] leading-tight">Cond.</th>
         `;
       }
       headerRow.innerHTML = headersHtml;
 
 
-    const esAdmin = window.app.currentUser?.rol === 'ADMIN';
+    const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
     const isPeriodoHabilitado = esAdmin || (!planillaBloqueadaCurso && !!configHabilitacionEvaluaciones[periodo]);
     const disabledAttr = isPeriodoHabilitado ? '' : 'disabled';
 
@@ -650,8 +767,8 @@ export async function cargarPlanillaEvaluaciones() {
       tr.dataset.alumnoId = al.id;
 
       let colsHtml = `
-        <td class="px-4 py-3 font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r dark:border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.05)] w-48 sm:w-64 max-w-[250px]">
-          <div class="truncate" title="${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
+        <td class="px-2 py-2 md:px-4 md:py-3 font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r dark:border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.05)] w-32 sm:w-64 max-w-[200px] sm:max-w-[250px]">
+          <div class="truncate text-xs md:text-sm" title="${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
             ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}
           </div>
         </td>
@@ -671,8 +788,8 @@ export async function cargarPlanillaEvaluaciones() {
                              'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700';
 
             colsHtml += `
-              <td class="px-1 py-1.5 text-center border-b dark:border-slate-700/50 min-w-[80px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[74px] mx-auto py-2 md:py-0.5 px-1 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+              <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[70px]">
+                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[65px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-100 text-\\w+-800 border-\\w+-300 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v==='EN PROCESO') this.classList.add('bg-orange-100','text-orange-800','border-orange-300'); else if(v==='SUFICIENTE') this.classList.add('bg-emerald-100','text-emerald-800','border-emerald-300'); else if(v==='AVANZADO') this.classList.add('bg-indigo-100','text-indigo-800','border-indigo-300'); else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   <option value="" ${val === '' ? 'selected' : ''}>-</option>
                   <option value="EN PROCESO" ${val === 'EN PROCESO' ? 'selected' : ''}>EP</option>
@@ -689,8 +806,8 @@ export async function cargarPlanillaEvaluaciones() {
                                 'bg-blue-50 text-blue-700 border-blue-200';
                                 
             colsHtml += `
-              <td class="px-1 py-1.5 text-center border-b dark:border-slate-700/50 min-w-[60px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[54px] mx-auto py-2 md:py-0.5 px-1 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+              <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[50px]">
+                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[48px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-50 text-\\w+-700 border-\\w+-200 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v!==''){ const n = parseFloat(v); if(n<7) this.classList.add('bg-red-50','text-red-700','border-red-200'); else this.classList.add('bg-blue-50','text-blue-700','border-blue-200'); } else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   ${_getOptionsNumericas(val)}
                 </select>
@@ -700,8 +817,8 @@ export async function cargarPlanillaEvaluaciones() {
         } else {
           const val = notaData[`adicionales_${periodo}_${col.key}`] ?? '';
           colsHtml += `
-            <td class="px-1 py-1.5 text-center border-b dark:border-slate-700/50 min-w-[70px]">
-              <input type="text" ${disabledAttr} class="w-full max-w-[80px] mx-auto p-0.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs text-center font-medium focus:ring-1 focus:ring-indigo-500"
+            <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[60px]">
+              <input type="text" ${disabledAttr} class="w-full max-w-[70px] mx-auto p-0.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs text-center font-medium focus:ring-1 focus:ring-indigo-500"
                 value="${escaparHTML(val)}" 
                 onchange="app.registrarCambioAdicionalEvaluacion('${al.id}', '${periodo}', '${col.key}', this.value)" placeholder="Opcional">
             </td>
@@ -721,13 +838,13 @@ export async function cargarPlanillaEvaluaciones() {
 
         if (verColumnas) {
           colsHtml += `
-            <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/80 min-w-[70px]">
-              <span class="font-bold text-slate-800 dark:text-slate-100">${res.final !== null ? res.final : '—'}</span>
+            <td class="px-2 py-2 md:px-3 md:py-3 text-center border-b dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/80 min-w-[60px]">
+              <span class="font-bold text-slate-800 dark:text-slate-100 text-xs md:text-sm">${res.final !== null ? res.final : '—'}</span>
             </td>
-            <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/80 min-w-[70px]">
-              <span class="font-black text-indigo-600 dark:text-indigo-400">${res.definitiva !== null ? res.definitiva : '—'}</span>
+            <td class="px-2 py-2 md:px-3 md:py-3 text-center border-b dark:border-slate-700/50 bg-slate-100 dark:bg-slate-800/80 min-w-[60px]">
+              <span class="font-black text-indigo-600 dark:text-indigo-400 text-xs md:text-sm">${res.definitiva !== null ? res.definitiva : '—'}</span>
             </td>
-            <td class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[70px]">
+            <td class="px-2 py-2 md:px-3 md:py-3 text-center border-b dark:border-slate-700/50 min-w-[60px]">
               <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">
                 ${res.condicion}
               </span>
@@ -735,7 +852,7 @@ export async function cargarPlanillaEvaluaciones() {
           `;
         } else {
           // Alumno ya aprobado en periodo regular (b4 >=6) → no necesita PO
-          colsHtml += `<td colspan="3" class="px-3 py-3 text-center border-b dark:border-slate-700/50 min-w-[70px]">
+          colsHtml += `<td colspan="3" class="px-2 py-2 md:px-3 md:py-3 text-center border-b dark:border-slate-700/50 min-w-[60px]">
             <span class="text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${res.colorClass}">${res.condicion}</span>
           </td>`;
         }
@@ -770,7 +887,7 @@ export async function guardarCambiosEvaluaciones() {
     const batch = writeBatch(db);
 
     uids.forEach(uid => {
-      const docId = `${uid}_${curso.replace(/\s+/g, '')}`;
+      const docId = `${uid}_${curso.replace(/[\s/]+/g, '')}`;
       const docRef = doc(db, getPath('evaluaciones'), docId);
       
       const p = cambiosPendientesEvaluaciones[uid];

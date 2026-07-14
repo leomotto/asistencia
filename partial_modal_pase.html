@@ -1,0 +1,35 @@
+    <!-- MODAL EMITIR PASE -->
+    <div id="modalPase" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-xl transform transition-all scale-95 opacity-0 border dark:border-slate-700">
+        <div class="flex items-center justify-between p-4 border-b dark:border-slate-700">
+          <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-export text-orange-500"></i> Emitir Pase
+          </h3>
+          <button onclick="app.cerrarModalPase()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <i class="ph ph-x text-xl"></i>
+          </button>
+        </div>
+        <div class="p-4 space-y-4">
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            Seleccioná la escuela de destino para transferir el legajo del estudiante. Si la escuela no utiliza este sistema, seleccioná "Otra / Fuera del sistema".
+          </p>
+          <input type="hidden" id="paseEstudianteId">
+          
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ESCUELA DESTINO</label>
+            <select id="paseEscuelaDestino" class="w-full p-2.5 border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-orange-500 transition">
+              <option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>
+              <!-- Dinámico -->
+            </select>
+          </div>
+        </div>
+        <div class="p-4 border-t dark:border-slate-700 flex justify-end gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
+          <button onclick="app.cerrarModalPase()" class="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
+            Cancelar
+          </button>
+          <button onclick="app.confirmarEmitirPase()" class="px-4 py-2 text-sm font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition flex items-center gap-2 shadow-sm">
+            <i class="ph ph-check"></i> Transferir Estudiante
+          </button>
+        </div>
+      </div>
+    </div>

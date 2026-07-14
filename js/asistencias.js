@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=9.54";
-import { showToast } from "./ui.js?v=9.54";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=9.54";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=9.54";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.54";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.54";
+import { db, getPath } from "./firebase-config.js?v=9.90";
+import { showToast } from "./ui.js?v=9.90";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=9.90";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=9.90";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=9.90";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=9.90";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -102,7 +102,13 @@ export async function cargarAlumnos() {
     snap.forEach(d => todos.push({ id: d.id, ...d.data() }));
 
     window.app.alumnosActivos = todos.filter(a => {
-      const isInMaterias = a.curso === curso || (a.materias && a.materias.includes(curso));
+      // Permitir coincidencia exacta, estar en el array `materias`, o que el nombre de la materia (curso) contenga la división (a.curso)
+      const nCurso = curso.replace(/\s+/g, ' ').toLowerCase().trim();
+      const nDiv = (a.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+      const isInMaterias = a.curso === curso || 
+                           (a.materias && a.materias.includes(curso)) ||
+                           (nDiv && nDiv.length > 1 && nCurso.includes(nDiv));
+                           
       let inscripciones = (a.inscripciones && a.inscripciones[curso] && a.inscripciones[curso].length > 0)
         ? a.inscripciones[curso]
         : [];
@@ -229,7 +235,7 @@ export async function guardarAsistencia() {
     registros[est.id] = document.getElementById(`asist_${est.id}`).value || "-";
   });
 
-  const docId = `${curso.replace(/\s+/g, '')}_${fecha}`;
+  const docId = `${curso.replace(/[\s/]+/g, '')}_${fecha}`;
   const btn   = document.getElementById('btnGuardarAsistencia');
   const icon  = document.getElementById('iconGuardarAsistencia');
   const text  = document.getElementById('textGuardarAsistencia');
@@ -255,7 +261,7 @@ export async function traerAsistencia(silent = false) {
   const fecha = document.getElementById('tomaFecha').value;
   if (!curso || !fecha) { if (!silent) showToast('⚠️ Complete Curso y Fecha para buscar.', 'error'); return; }
 
-  const docId = `${curso.replace(/\s+/g, '')}_${fecha}`;
+  const docId = `${curso.replace(/[\s/]+/g, '')}_${fecha}`;
   try {
     const docSnap = await getDoc(doc(db, getPath("asistencias"), docId));
     const badgeGuardada = document.getElementById('badgeGuardada');
@@ -290,7 +296,7 @@ export async function cambiarTipoColumna(fecha, nuevoTipo) {
   const curso = document.getElementById('grillaCurso').value;
   if (!curso) return;
   try {
-    const docId = `${curso.replace(/\s+/g, '')}_${fecha}`;
+    const docId = `${curso.replace(/[\s/]+/g, '')}_${fecha}`;
     await setDoc(doc(db, getPath("asistencias"), docId), { tipoClase: nuevoTipo }, { merge: true });
     showToast(`✅ ${fecha} → ${nuevoTipo}`);
     cargarPlanillaGrilla();
@@ -310,7 +316,7 @@ export async function cargarPlanillaGrilla() {
     saveFooter.classList.add('hidden'); return;
   }
 
-  gridBody.innerHTML = '<tr><td class="px-4 py-8 text-center text-indigo-600 animate-pulse font-semibold">Cargando grilla interactiva...</td></tr>';
+  gridBody.innerHTML = `${window.app.mostrarSkeletonTable(6, 5)}`;
   saveFooter.classList.add('hidden');
   window.app.cambiosPendientesGrilla = {};
 
@@ -480,7 +486,7 @@ export async function guardarCambiosMasivosGrilla() {
       const chunk = fechas.slice(i, i + LIMITE_BATCH);
       const batch = writeBatch(db);
       for (const fecha of chunk) {
-        const docId  = `${curso.replace(/\s+/g, '')}_${fecha}`;
+        const docId  = `${curso.replace(/[\s/]+/g, '')}_${fecha}`;
         const docRef = doc(db, getPath("asistencias"), docId);
         const snap   = await getDoc(docRef);
         const registrosActuales = snap.exists() ? (snap.data().registros || {}) : {};
@@ -521,7 +527,7 @@ export async function crearColumnaPlanilla() {
   if (!fecha) { showToast('⚠️ Seleccioná una fecha primero.', 'error'); return; }
 
   try {
-    const docId = `${curso.replace(/\s+/g, '')}_${fecha}`;
+    const docId = `${curso.replace(/[\s/]+/g, '')}_${fecha}`;
     await setDoc(doc(db, getPath("asistencias"), docId), {
       curso, fecha, tipoClase: tipo, registros: {}, timestamp: new Date().toISOString()
     });
@@ -622,7 +628,7 @@ export async function cargarPanelBI() {
       let alumnos = [];
       snapAlumnos.forEach(d => {
         const data = { id: d.id, ...d.data() };
-        const isInMaterias = data.curso === curso || (data.materias && data.materias.includes(curso));
+        const isInMaterias = data.curso === curso || data.materias?.includes(curso) || (data.curso && (curso.startsWith(data.curso + ' -') || curso.endsWith('- ' + data.curso)));
         if (isInMaterias || alumnosConNota.has(data.id) || (data.inscripciones && data.inscripciones[curso])) {
           alumnos.push(data);
         }
@@ -676,7 +682,7 @@ export async function cargarPanelBI() {
     let alumnos = [];
     snapAlumnos.forEach(d => {
       const data = { id: d.id, ...d.data() };
-      const isInMaterias = data.curso === curso || (data.materias && data.materias.includes(curso));
+      const isInMaterias = data.curso === curso || data.materias?.includes(curso) || (data.curso && (curso.startsWith(data.curso + ' -') || curso.endsWith('- ' + data.curso)));
       // Incluir si está actualmente anotado, si tiene asistencias históricas o si tiene inscripción
       if (isInMaterias || alumnosConAsistencia.has(data.id) || (data.inscripciones && data.inscripciones[curso])) {
         alumnos.push(data);

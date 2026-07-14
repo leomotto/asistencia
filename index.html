@@ -25,21 +25,88 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.54">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=9.90">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class'
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Outfit"', 'sans-serif'],
+          },
+          colors: {
+            slate: {
+              50: '#fafafa',
+              100: '#f4f4f5',
+              200: '#e4e4e7',
+              300: '#d4d4d8',
+              400: '#a1a1aa',
+              500: '#71717a',
+              600: '#52525b',
+              700: '#3f3f46',
+              800: '#27272a',
+              900: '#18181b',
+              950: '#09090b',
+            },
+            indigo: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+              950: '#1e1b4b',
+            }
+          }
+        }
+      }
     }
   </script>
   <!-- Iconos de Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
-  <link rel="stylesheet" href="css/styles.css?v=9.54">
+  <link rel="stylesheet" href="css/styles.css?v=9.68">
 </head>
-<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col md:flex-row">
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-[100dvh] flex flex-col md:flex-row">
 
   <!-- Modal Toast para Alertas -->
-  <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden transition-opacity duration-300">
+  
+    <!-- BOTTOM NAVIGATION (MOBILE ONLY) -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white dark:bg-slate-800 border-t dark:border-slate-700 z-40 pb-safe flex justify-around items-center px-2 py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+            <button id="btnMobileInicio" onclick="switchTab('inicioTab')" class="flex flex-col items-center justify-center p-2 text-indigo-600 dark:text-indigo-400 transition-colors w-16">
+        <i class="ph ph-house text-2xl mb-1"></i>
+        <span class="text-[10px] font-bold">Inicio</span>
+      </button>
+      <button id="btnMobileToma" onclick="switchTab('tomaDiaria')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
+        <i class="ph ph-calendar-check text-2xl mb-1"></i>
+        <span class="text-[10px] font-semibold leading-none">Toma</span>
+      </button>
+      <button id="btnMobileGrilla" onclick="switchTab('planillaGrilla')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
+        <i class="ph ph-table text-2xl mb-1"></i>
+        <span class="text-[10px] font-semibold leading-none">Asistencia</span>
+      </button>
+      <button id="btnMobileEval" onclick="switchTab('evaluaciones')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
+        <i class="ph ph-exam text-2xl mb-1"></i>
+        <span class="text-[10px] font-semibold leading-none">Notas</span>
+      </button>
+      <button id="btnMobileGestion" onclick="switchTab('gestionAlumnos')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
+        <i class="ph ph-users text-2xl mb-1"></i>
+        <span class="text-[10px] font-semibold leading-none">Alumnos</span>
+      </button>
+      <button onclick="app.toggleMenuMobile()" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
+        <i class="ph ph-list text-2xl mb-1"></i>
+        <span class="text-[10px] font-semibold leading-none">Más</span>
+      </button>
+    </nav>
+
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg z-50 hidden transition-opacity duration-300">
     <span id="toastMsg">Mensaje</span>
   </div>
 
@@ -77,7 +144,7 @@
     </div>
   </div>
 
-  <div id="appContainer" class="flex-1 w-full min-w-0 overflow-hidden flex flex-col md:flex-row h-full hidden">
+  <div id="appContainer" class="flex-1 w-full min-w-0 overflow-hidden flex flex-col md:flex-row h-full hidden pb-[72px] md:pb-0">
     <!-- Sidebar / Menú de Navegación -->
   <!-- Overlay para cerrar menú en móvil -->
   <div id="menuOverlay" class="fixed inset-0 bg-black/50 z-30 hidden md:hidden" onclick="app.toggleMenuMobile()"></div>
@@ -88,7 +155,7 @@
       <i class="ph ph-books text-xl text-emerald-400"></i>
       <span class="font-black text-sm tracking-wider">SIDEAC</span>
     </div>
-    <button onclick="app.toggleMenuMobile()" class="p-1.5 rounded hover:bg-white/10 transition" aria-label="Menú">
+    <button onclick="app.toggleMenuMobile()" class="hidden p-1.5 rounded hover:bg-white/10 transition" aria-label="Menú">
       <i class="ph ph-list text-xl"></i>
     </button>
   </div>
@@ -110,7 +177,11 @@
 
       <!-- Navegación principal -->
       <div class="flex flex-col gap-1 w-full flex-1">
-        <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex w-full items-center justify-start gap-3 bg-white/10 px-3 py-2.5 rounded-lg hover:bg-white/20 transition text-sm font-semibold" title="Toma Diaria">
+        <button onclick="switchTab('inicioTab')" id="btnInicio" class="flex w-full items-center justify-start gap-3 bg-white/10 px-3 py-2.5 rounded-lg hover:bg-white/20 transition text-sm font-semibold" title="Inicio">
+          <i class="ph ph-house text-xl flex-shrink-0"></i>
+          <span class="truncate sidebar-text">Inicio</span>
+        </button>
+        <button onclick="switchTab('tomaDiaria')" id="btnToma" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/20 transition text-sm font-semibold" title="Toma Diaria">
           <i class="ph ph-list-checks text-xl flex-shrink-0"></i>
           <span class="nav-label">Toma Diaria</span>
         </button>
@@ -132,11 +203,15 @@
         </button>
         <button onclick="switchTab('gestionMaterias')" id="btnMaterias" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Materias">
           <i class="ph ph-books text-xl flex-shrink-0"></i>
-          <span class="nav-label">Materias</span>
+          <span class="nav-label">Plan de Estudio</span>
         </button>
         <button onclick="switchTab('gestionDocentes')" id="btnDocentes" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden" title="Docentes">
           <i class="ph ph-users text-xl flex-shrink-0"></i>
           <span class="nav-label">Docentes</span>
+        </button>
+        <button onclick="switchTab('gestionEscuelas')" id="btnEscuelas" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden text-purple-300" title="Escuelas (Superadmin)">
+          <i class="ph ph-buildings text-xl flex-shrink-0"></i>
+          <span class="nav-label">Escuelas</span>
         </button>
         <button onclick="switchTab('auditoriaTab')" id="btnAuditoria" class="flex w-full items-center justify-start gap-3 px-3 py-2.5 rounded-lg hover:bg-white/10 transition text-sm font-semibold hidden text-amber-300" title="Auditoría DB">
           <i class="ph ph-database text-xl flex-shrink-0"></i>
@@ -153,9 +228,10 @@
 
       <!-- Footer: sesión + versión -->
       <div class="mt-4 pt-3 border-t border-white/15">
-        <div id="authStatus" class="text-xs text-slate-400">
+        <div id="authStatus" class="text-xs text-slate-400 mb-2">
           <i class="ph ph-spinner animate-spin"></i> Conectando DB...
         </div>
+        <div id="contextSwitcherContainer" class="my-2"></div>
         <div id="appVersion" class="sidebar-version text-[10px] text-slate-400 mt-1.5 font-mono tracking-widest">cargando...</div>
       </div>
     </nav>
@@ -163,8 +239,36 @@
   <!-- Contenedor Principal -->
   <main class="flex-1 overflow-hidden relative flex flex-col min-w-0 w-full h-full bg-slate-100 dark:bg-slate-900">
     
+    
+    <!-- PANTALLA: INICIO -->
+    <section id="inicioTab" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8">
+      <div class="max-w-3xl mx-auto space-y-6">
+        
+        <!-- Welcome Banner -->
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
+          <div class="relative z-10">
+            <h2 class="text-2xl md:text-3xl font-black mb-1" id="welcomeUserTitle">¡Hola!</h2>
+            <p class="text-indigo-100 text-sm md:text-base">Acá tenés tu agenda para el día de hoy.</p>
+          </div>
+          <i class="ph ph-calendar-check text-8xl absolute -right-4 -bottom-6 text-white opacity-10 transform -rotate-12"></i>
+        </div>
+
+        <!-- Agenda Container -->
+        <div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <i class="ph ph-list-bullets text-indigo-500"></i> Tus materias
+          </h3>
+          
+          <div id="agendaContainer" class="grid grid-cols-1 gap-3">
+            <div class="text-slate-500 text-sm py-4">Cargando agenda...</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
     <!-- PANTALLA: TOMA DIARIA -->
-    <section id="tomaDiaria" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8">
+    <section id="tomaDiaria" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-full mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
         <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
           <i class="ph ph-calendar-check text-emerald-500"></i> Registro de Asistencia
@@ -236,26 +340,26 @@
     </section>
 
     <!-- PANTALLA: CALIFICACIONES (BIMESTRES Y PO) -->
-    <section id="evaluaciones" class="flex-1 w-full h-full min-w-0 overflow-hidden p-4 md:p-8 hidden flex flex-col">
-      <div class="max-w-full w-full min-w-0 mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6 flex flex-col flex-1 min-h-0">
+    <section id="evaluaciones" class="flex-1 w-full h-full min-w-0 overflow-hidden p-2 md:p-8 hidden flex flex-col">
+      <div class="max-w-full w-full min-w-0 mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-2 md:p-6 flex flex-col flex-1 min-h-0">
         
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-3 border-b dark:border-slate-700 pb-2 md:pb-4 mb-2 md:mb-4">
           <div class="min-w-0 flex items-center gap-2 flex-wrap">
-            <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-              <i class="ph ph-exam text-emerald-500"></i> Planilla de Calificaciones
+            <h2 class="text-lg md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
+              <i class="ph ph-exam text-emerald-500"></i> Calificaciones
             </h2>
             <span id="badgeEvalBloqueada" class="hidden text-xs bg-orange-100 text-orange-850 px-2 py-1 rounded-md font-bold flex items-center gap-1 border border-orange-200">
               <i class="ph ph-lock-key"></i> BLOQUEADA
             </span>
           </div>
 
-          <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <select id="evalCurso" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[180px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
-              <option value="">Seleccione división...</option>
+          <div class="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto text-sm">
+            <select id="evalCurso" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[140px] p-1.5 md:p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+              <option value="">División...</option>
               <!-- Dinámico -->
             </select>
-            <select id="evalPeriodo" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[180px] p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
-              <option value="">Seleccione periodo...</option>
+            <select id="evalPeriodo" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[140px] p-1.5 md:p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
+              <option value="">Periodo...</option>
               <option value="b1">1er Bimestre (Valorativo)</option>
               <option value="b2">2do Bimestre (Numérico)</option>
               <option value="b3">3er Bimestre (Valorativo)</option>
@@ -263,101 +367,26 @@
               <option value="po_dic">PO Diciembre (Numérico)</option>
               <option value="po_feb">PO Febrero (Numérico)</option>
             </select>
-            <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla contra cambios involuntarios">
-              <i class="ph ph-lock-key"></i> <span class="hidden sm:inline">Bloquear Planilla</span>
+            <div class="flex items-center justify-end w-full md:w-auto gap-2">
+            <button onclick="app.abrirModalConfigEval()" id="btnConfigEvalAdmin" class="hidden bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border dark:border-slate-700 px-2 md:px-3 py-1.5 md:py-2 rounded font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5" title="Configurar Planillas">
+              <i class="ph ph-gear-six text-lg"></i> <span class="hidden sm:inline">Config</span>
             </button>
-            <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
-              <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar Notas</span>
+            <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-2 md:px-3 py-1.5 md:py-2 rounded font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla">
+              <i class="ph ph-lock-key text-lg"></i> <span class="hidden sm:inline">Bloquear</span>
             </button>
-          </div>
-        </div>
-
-        <!-- PANEL DE CONFIGURACIÓN ADMIN: Habilitación de Periodos (solo visible para Admin) -->
-        <div id="panelAdminConfigEval" class="hidden bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl p-4 mb-4">
-          <button onclick="document.getElementById('panelAdminConfigEvalBody').classList.toggle('hidden')" class="w-full flex items-center justify-between gap-2 text-left">
-            <span class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
-              <i class="ph ph-sliders"></i> Habilitación de Carga de Periodos (Solo Administradores)
-            </span>
-            <i class="ph ph-caret-down text-indigo-400 text-sm"></i>
-          </button>
-          <div id="panelAdminConfigEvalBody" class="hidden flex flex-wrap items-center gap-x-6 gap-y-3 mt-3">
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgB1" class="h-4 w-4 text-indigo-600 rounded">
-              <span>1er Bim (Val.)</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgB2" class="h-4 w-4 text-indigo-600 rounded">
-              <span>2do Bim (Num.)</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgB3" class="h-4 w-4 text-indigo-600 rounded">
-              <span>3er Bim (Val.)</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgB4" class="h-4 w-4 text-indigo-600 rounded">
-              <span>4to Bim (Num.)</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgPoDic" class="h-4 w-4 text-indigo-600 rounded">
-              <span>PO Dic (Num.)</span>
-            </label>
-            <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
-              <input type="checkbox" id="cfgPoFeb" class="h-4 w-4 text-indigo-600 rounded">
-              <span>PO Feb (Num.)</span>
-            </label>
-            <button onclick="app.guardarConfiguracionHabilitacion()" id="btnGuardarConfigEval" class="bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-indigo-700 transition flex items-center gap-1 sm:ml-auto">
-              <i class="ph ph-floppy-disk"></i> Guardar Periodos
+            <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-3 md:px-4 py-1.5 md:py-2 rounded font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+              <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar</span>
             </button>
           </div>
         </div>
 
-        <!-- PANEL DE CONFIGURACIÓN DE COLUMNAS (solo visible para Admin) -->
-        <div id="panelAdminColumnasEval" class="hidden bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl p-4 mb-4">
-          <button onclick="document.getElementById('panelAdminColumnasEvalBody').classList.toggle('hidden')" class="w-full flex items-center justify-between gap-2 text-left">
-            <span class="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1">
-              <i class="ph ph-layout"></i> Estructura de Columnas para <span id="lblPeriodoConfig" class="underline">el Periodo</span> (Solo Administradores)
-            </span>
-            <i class="ph ph-caret-down text-indigo-400 text-sm"></i>
-          </button>
-          <div id="panelAdminColumnasEvalBody" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-            <!-- Formulario agregar -->
-            <div class="border dark:border-slate-800 p-3 rounded bg-white dark:bg-slate-800">
-              <p class="text-xs font-bold text-slate-500 mb-2">AGREGAR CAMPO ADICIONAL</p>
-              <div class="space-y-2">
-                <div>
-                  <label class="block text-[10px] text-slate-400 font-bold mb-0.5">ETIQUETA DE LA COLUMNA (Ej: ID Planilla)</label>
-                  <input type="text" id="addColLabel" class="w-full p-1.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-medium" placeholder="Ej: ID Estudiante Oficial">
-                </div>
-                <div>
-                  <label class="block text-[10px] text-slate-400 font-bold mb-0.5">CLAVE DE BASE DE DATOS (Solo letras y guión bajo)</label>
-                  <input type="text" id="addColKey" class="w-full p-1.5 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 text-xs font-mono" placeholder="Ej: id_estudiante_oficial">
-                </div>
-                <button onclick="app.agregarColumnaAdicional()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 rounded text-xs transition flex justify-center items-center gap-1">
-                  <i class="ph ph-plus-circle"></i> Agregar Columna
-                </button>
-              </div>
-            </div>
-            
-            <!-- Lista y orden -->
-            <div class="border dark:border-slate-800 p-3 rounded bg-white dark:bg-slate-800 flex flex-col justify-between">
-              <div>
-                <p class="text-xs font-bold text-slate-500 mb-2">ORDEN DE COLUMNAS</p>
-                <div id="lstColumnasConfig" class="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
-                  <!-- Render dinámico de columnas -->
-                </div>
-              </div>
-              <button onclick="app.guardarEstructuraColumnas()" class="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded text-xs transition flex justify-center items-center gap-1">
-                <i class="ph ph-floppy-disk"></i> Guardar Estructura de Columnas
-              </button>
-            </div>
-          </div>
-        </div>
+        <!-- CONFIGURACIÓN ADMIN (Habilitaciones y Columnas) AHORA EN MODAL (Ver final del archivo o app.js render) -->
 
         <!-- Tabla Planilla de Calificaciones -->
-        <div class="flex-1 min-h-0 md:overflow-auto w-full md:custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 ">
-          <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800 block md:table">
-            <thead class="hidden md:table-header-group bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
-              <tr id="evalHeaders" class="md:table-row">
+        <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto w-full custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 ">
+          <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800">
+            <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
+              <tr id="evalHeaders">
                 <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
                 <th class="px-2 py-3 text-center min-w-[90px]">1er Bim (Val)</th>
                 <th class="px-2 py-3 text-center min-w-[80px]">2do Bim (Num)</th>
@@ -370,9 +399,9 @@
                 <th class="px-3 py-3 text-center min-w-[120px]">Condición</th>
               </tr>
             </thead>
-            <tbody id="evalBody" class="block md:table-row-group md:divide-y divide-slate-200 dark:divide-slate-700">
-              <tr class="block md:table-row">
-                <td colspan="10" class="px-4 py-8 text-center text-slate-400 block md:table-cell">Seleccione un curso del menú superior.</td>
+            <tbody id="evalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
+              <tr>
+                <td colspan="10" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td>
               </tr>
             </tbody>
           </table>
@@ -394,10 +423,10 @@
           </div>
 
           <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
               <option value="">Seleccione división...</option>
             </select>
-            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global">
+            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global">
               <!-- Poblado dinámicamente por popularPeriodos() -->
             </select>
 
@@ -456,18 +485,18 @@
           
           <!-- Filtros BI -->
           <div class="flex flex-wrap gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border dark:border-slate-700 w-full md:w-auto">
-            <select id="biCurso" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
+            <select id="biCurso" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
               <option value="">Curso...</option>
             </select>
             
-            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global" data-fecha-manual="true">
+            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global" data-fecha-manual="true">
               <!-- Poblado dinámicamente por popularPeriodos() -->
             </select>
 
             <div id="biFechasManuales" class="hidden flex gap-1 items-center">
-              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
+              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
               <span class="text-xs text-slate-400">a</span>
-              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="p-2 text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
+              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
             </div>
             
             <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700"><i class="ph ph-arrows-clockwise"></i></button>
@@ -500,7 +529,7 @@
         <!-- Tabla de Datos -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left block md:table">
+            <table class="w-full text-sm text-left">
               <thead class="bg-slate-800 text-white text-xs uppercase font-semibold">
                 <tr>
                   <th class="px-4 py-3 w-10 text-center">N°</th>
@@ -567,15 +596,15 @@
           <!-- Tabla de Matrícula -->
           <div class="border dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
             <div class="overflow-x-auto">
-              <table class="w-full text-sm text-left block md:table">
-                <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700 hidden md:table-header-group">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700">
                   <tr>
                     <th class="px-4 py-3">Estudiante</th>
                     <th class="px-4 py-3">Historial por División</th>
                     <th class="px-4 py-3 text-right">Acción</th>
                   </tr>
                 </thead>
-                <tbody id="tablaMatricula" class="divide-y divide-gray-200 dark:divide-slate-700 block md:table-row-group">
+                <tbody id="tablaMatricula" class="divide-y divide-gray-200 dark:divide-slate-700">
                   <tr>
                     <td colspan="4" class="px-4 py-8 text-center text-slate-400 italic">Seleccione un curso para ver la matrícula actual de alumnos.</td>
                   </tr>
@@ -611,28 +640,23 @@
       </div>
     </section>
 
-    <!-- PANTALLA: GESTIÓN DE MATERIAS -->
+    <!-- PANTALLA: GESTIÓN DE PLAN DE ESTUDIO -->
     <section id="gestionMaterias" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-5xl mx-auto space-y-4">
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-4 md:p-6">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b dark:border-slate-700 pb-4 mb-4 gap-4">
             <div>
               <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                <i class="ph ph-books text-emerald-500"></i> Gestión de Materias
+                <i class="ph ph-books text-emerald-500"></i> Plan de Estudio
               </h2>
               <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Configuración de cursos y horarios de cursada</p>
             </div>
             <div class="flex flex-wrap gap-2">
-              <button onclick="app.migrarMateriasHistoricas()" id="btnMigrarMaterias"
-                class="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 transition flex items-center gap-2 shadow-sm"
-                title="Escanea las asistencias históricas y crea en Firestore las materias que faltan">
-                <i class="ph ph-clock-clockwise text-lg"></i> Migrar Materias Históricas
-              </button>
               <button onclick="app.abrirModalGenerador()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm">
-                <i class="ph ph-magic-wand text-lg"></i> Generador de Cursos
+                <i class="ph ph-magic-wand text-lg"></i> Generar Plan de Estudio
               </button>
               <button onclick="app.abrirModalMateria()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
-                <i class="ph ph-plus-circle text-lg"></i> Crear Materia
+                <i class="ph ph-plus-circle text-lg"></i> Agregar al Plan de Estudio
               </button>
             </div>
           </div>
@@ -680,6 +704,30 @@
       </div>
     </section>
 
+    <!-- PANTALLA: GESTION DE ESCUELAS (Superadmin) -->
+    <section id="gestionEscuelas" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
+      <div class="max-w-5xl mx-auto space-y-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-buildings text-purple-500"></i> Gestión de Escuelas (Multi-Tenant)
+          </h2>
+          <button onclick="app.abrirModalEscuela()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow transition flex items-center gap-2 text-sm">
+            <i class="ph ph-plus-circle text-lg"></i>
+            <span class="hidden sm:inline">Nueva Escuela</span>
+          </button>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow p-4 md:p-6 border border-slate-200 dark:border-slate-700">
+          <p class="text-sm text-slate-500 mb-4 border-b pb-4 dark:border-slate-700">
+            En este panel podés gestionar todas las escuelas de la plataforma. Cada escuela funciona como un tenant aislado.
+          </p>
+          <div id="listaEscuelas" class="space-y-4">
+            <p class="text-center text-slate-400 py-8"><i class="ph ph-spinner animate-spin"></i> Cargando escuelas...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- PANTALLA: AUDITORÍA DE DATOS -->
     <section id="auditoriaTab" class="flex-1 w-full h-full overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-5xl mx-auto space-y-4">
@@ -691,7 +739,11 @@
               </h2>
               <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Identifica discrepancias en nombres de materias entre colecciones para normalizarlos.</p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-col md:flex-row gap-2">
+              <input type="file" id="fileRestaurarBackup" accept=".json" class="hidden" onchange="app.restaurarBackup(event)" />
+              <button onclick="document.getElementById('fileRestaurarBackup').click()" class="bg-rose-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-rose-700 transition flex items-center gap-2 shadow-sm" title="Solo usar en caso de emergencia">
+                <i class="ph ph-upload-simple text-lg"></i> Restaurar JSON
+              </button>
               <button onclick="app.iniciarAuditoriaDatos()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
                 <i class="ph ph-magnifying-glass text-lg"></i> Auditar Base de Datos
               </button>
@@ -722,6 +774,9 @@
             <button onclick="app.analizarIntegridadEstudiantes()" id="btnAnalizarIntegridad" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
               <i class="ph ph-magnifying-glass text-lg"></i> Analizar Estudiantes
             </button>
+            <button onclick="app.auditarAsistencias()" id="btnAuditarAsistencias" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+              <i class="ph ph-warning-circle text-lg"></i> Auditar Planillas de Asistencia (Incompletas/Huérfanas)
+            </button>
           </div>
           
           <div id="integridadProgreso" class="hidden text-center py-8">
@@ -732,16 +787,42 @@
           <div id="integridadResultados" class="space-y-6 hidden">
              <!-- Dinamico -->
           </div>
+          
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+          
+          <div class="mb-4">
+            <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              <i class="ph ph-tree-structure text-emerald-500"></i> Auto-Estructurador Relacional (Años y Divisiones)
+            </h3>
+            <p class="text-sm text-slate-500 mt-1">
+              Esta herramienta analiza toda la base de datos (materias y estudiantes) e infiere a qué "Año / Nivel" pertenecen basándose en los nombres de las divisiones (ej. "1ro A" -> Año: "1ro"). Luego guarda esta estructura jerárquica en todos los registros para normalizar el sistema.
+            </p>
+          </div>
+          
+          <div class="flex gap-2 mb-4">
+            <button onclick="app.analizarEstructuraRelacional()" id="btnAnalizarEstructura" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+              <i class="ph ph-tree-structure text-lg"></i> Inferir y Estructurar Años
+            </button>
+          </div>
+          
+          <div id="estructuraProgreso" class="hidden text-center py-8">
+             <i class="ph ph-spinner animate-spin text-4xl text-emerald-500 mb-2 block mx-auto"></i>
+             <p class="text-sm text-slate-500 font-bold" id="estructuraProgresoMsg">Analizando jerarquías...</p>
+          </div>
+
+          <div id="estructuraResultados" class="space-y-6 hidden">
+             <!-- Dinamico -->
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- MODAL GENERADOR DE CURSOS -->
+    <!-- MODAL GENERAR PLAN DE ESTUDIO -->
     <div id="modalGeneradorCursos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
         <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
           <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-            <i class="ph ph-magic-wand text-emerald-600"></i> Generador de Cursos
+            <i class="ph ph-magic-wand text-emerald-600"></i> Generar Plan de Estudio
           </h3>
           <button onclick="app.cerrarModalGenerador()" class="text-slate-400 hover:text-red-500 transition">
             <i class="ph ph-x text-2xl"></i>
@@ -753,25 +834,25 @@
           </div>
           <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">AÑO / NIVEL *</label>
-            <input type="text" id="genAño" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1er Año">
+            <input type="text" id="genAño" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold" placeholder="Ej: 1er Año">
           </div>
           <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">PREFIJO DE DIVISIÓN *</label>
-            <input type="text" id="genPrefijoDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1ro, 2do, 3ro">
+            <input type="text" id="genPrefijoDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold" placeholder="Ej: 1ro, 2do, 3ro">
           </div>
           <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">LETRAS DE LAS DIVISIONES (separadas por coma) *</label>
-            <input type="text" id="genLetrasDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: A, B, C, D, E, F">
+            <input type="text" id="genLetrasDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold" placeholder="Ej: A, B, C, D, E, F">
           </div>
           <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MATERIAS (separadas por coma) *</label>
-            <textarea id="genMaterias" rows="3" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Matemática, Prácticas del Lenguaje, Historia, Geografía"></textarea>
+            <textarea id="genMaterias" rows="3" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="Ej: Matemática, Prácticas del Lenguaje, Historia, Geografía"></textarea>
           </div>
         </div>
         <div class="flex gap-2 justify-end pt-4 border-t dark:border-slate-700">
           <button onclick="app.cerrarModalGenerador()" class="px-4 py-2 bg-gray-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-lg hover:bg-gray-300 transition text-sm">Cancelar</button>
           <button onclick="app.ejecutarGenerador()" id="btnEjecutarGenerador" class="px-6 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm text-sm">
-            <i id="iconEjecutarGenerador" class="ph ph-magic-wand text-lg"></i> <span id="textEjecutarGenerador">Generar Materias</span>
+            <i id="iconEjecutarGenerador" class="ph ph-magic-wand text-lg"></i> <span id="textEjecutarGenerador">Generar Plan</span>
           </button>
         </div>
       </div>
@@ -781,7 +862,7 @@
     <div id="modalMateria" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
         <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
-          <h3 id="modalMateriaTitulo" class="text-xl font-bold text-slate-800 dark:text-slate-100">Nueva Materia</h3>
+          <h3 id="modalMateriaTitulo" class="text-xl font-bold text-slate-800 dark:text-slate-100">Agregar a Plan de Estudio</h3>
           <button onclick="app.cerrarModalMateria()" class="text-slate-400 hover:text-red-500 transition">
             <i class="ph ph-x text-2xl"></i>
           </button>
@@ -789,16 +870,18 @@
         <input type="hidden" id="formMateriaId">
         
         <div class="space-y-4 mb-6">
-          <div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MATERIA / ASIGNATURA *</label>
-                <input type="text" id="formMateriaBase" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: Matemática">
-              </div>
-              <div>
-                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">DIVISIÓN (opcional)</label>
-                <input type="text" id="formMateriaDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold" placeholder="Ej: 1ro A">
-              </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">AÑO / NIVEL (Ej: 1ro, 2do)</label>
+              <input type="text" id="formMateriaAnio" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm uppercase">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">DIVISIÓN (Ej: 1ro A)</label>
+              <input type="text" id="formMateriaDivision" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="Ej: 1ro A">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">MATERIA BASE (Ej: Matemática)</label>
+              <input type="text" id="formMateriaBase" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold" placeholder="Ej: Matemática">
             </div>
           </div>
           
@@ -817,7 +900,7 @@
 
         <div class="flex gap-2">
           <button onclick="app.guardarMateria()" id="btnGuardarMateria" class="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 transition flex justify-center items-center gap-2">
-            <i id="iconGuardarMateria" class="ph ph-floppy-disk text-lg"></i> <span id="textGuardarMateria">GUARDAR MATERIA</span>
+            <i id="iconGuardarMateria" class="ph ph-floppy-disk text-lg"></i> <span id="textGuardarMateria">GUARDAR ASIGNATURA</span>
           </button>
         </div>
       </div>
@@ -877,6 +960,13 @@
           </div>
         </div>
 
+        <!-- Footer / Acciones -->
+        <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+          <button id="btnEmitirPase" onclick="" class="hidden items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-bold text-sm rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
+            <i class="ph ph-paper-plane-right"></i> Emitir Pase
+          </button>
+        </div>
+
       </div>
     </div>
 
@@ -891,7 +981,7 @@
         </div>
         <div class="mb-4">
           <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">BUSCAR ESTUDIANTE (nombre o DNI)</label>
-          <input type="text" id="fusionBusqueda" oninput="app.buscarParaFusion()" placeholder="Ej: Pérez, García, 44123..." class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-orange-400 dark:focus:ring-orange-500 bg-white dark:bg-slate-900 text-sm">
+          <input type="text" id="fusionBusqueda" oninput="app.buscarParaFusion()" placeholder="Ej: Pérez, García, 44123..." class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-orange-400 dark:focus:ring-orange-500 bg-white dark:bg-slate-900 text-base md:text-sm">
           <div id="fusionResultados" class="mt-2 border dark:border-slate-700 rounded-lg max-h-40 overflow-y-auto hidden bg-white dark:bg-slate-800"></div>
         </div>
         <div class="grid grid-cols-2 gap-4 mb-5">
@@ -957,31 +1047,39 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">APELLIDO *</label>
-              <input type="text" id="formApellido" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold">
+              <input type="text" id="formApellido" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold">
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE *</label>
-              <input type="text" id="formNombre" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-semibold">
+              <input type="text" id="formNombre" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-semibold">
             </div>
           </div>
           <!-- Fila: Apodo + DNI -->
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">APODO / NOMBRE SOCIAL</label>
-              <input type="text" id="formApodo" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Rodri, Santi">
+              <input type="text" id="formApodo" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="Ej: Rodri, Santi">
             </div>
             <div>
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">DNI / LEGAJO</label>
-              <input type="text" id="formDni" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm font-mono" placeholder="Ej: 44123456">
+              <input type="text" id="formDni" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-mono" placeholder="Ej: 44123456">
             </div>
           </div>
           <!-- Panel de Inscripción a División (Spec-Driven) -->
           <div class="bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-lg p-4">
-            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">DIVISIÓN ASIGNADA *</label>
-            <select id="formDivisionPrimaria" onchange="app._cambiarDivisionPrimaria()" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-sm font-bold mb-3">
-              <option value="">-- Seleccione una División --</option>
-              <!-- Dinámico -->
-            </select>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">AÑO / NIVEL</label>
+                <input type="text" id="formAlumnoAnio" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-base md:text-sm uppercase" placeholder="Ej: 1ro">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">DIVISIÓN PRIMARIA</label>
+                <select id="formDivisionPrimaria" onchange="app._cambiarDivisionPrimaria()" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 text-base md:text-sm font-bold text-indigo-700">
+                  <option value="">-- Seleccione una División --</option>
+                  <!-- Dinámico -->
+                </select>
+              </div>
+            </div>
             
             <div id="tarjetaInscripcionDivision" class="hidden">
               <div class="flex items-center gap-2 mb-3 text-emerald-700 dark:text-emerald-400 font-bold text-sm bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded border border-emerald-200 dark:border-emerald-800/50">
@@ -992,7 +1090,7 @@
               <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">GRUPO GLOBAL</label>
-                  <select id="formGrupoGlobal" onchange="app._sincronizarGlobales()" class="w-full text-xs border dark:border-slate-700 rounded px-1.5 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold">
+                  <select id="formGrupoGlobal" onchange="app._sincronizarGlobales()" class="w-full text-base md:text-xs border dark:border-slate-700 rounded px-1.5 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold">
                     <option value="GENERAL">GENERAL</option>
                     <option value="ARTES VISUALES">ARTES VISUALES</option>
                     <option value="TEATRO">TEATRO</option>
@@ -1002,7 +1100,7 @@
                 </div>
                 <div>
                   <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-0.5">ESTADO GLOBAL</label>
-                  <select id="formEstadoGlobal" onchange="app._sincronizarGlobales()" class="w-full text-xs border dark:border-slate-700 rounded px-1.5 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-indigo-700">
+                  <select id="formEstadoGlobal" onchange="app._sincronizarGlobales()" class="w-full text-base md:text-xs border dark:border-slate-700 rounded px-1.5 py-1.5 bg-white dark:bg-slate-800 outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-indigo-700">
                     <option value="ACTIVO">ACTIVO</option>
                     <option value="CAMBIO DE DIVISIÓN">CAMBIO DE DIVISIÓN</option>
                     <option value="CAMBIO DE TURNO">CAMBIO DE TURNO</option>
@@ -1024,7 +1122,7 @@
           <!-- Se eliminaron las fechas globales -->
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOTAS / COMENTARIOS</label>
-            <textarea id="formNotas" rows="2" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-sm" placeholder="Ej: Es asmático, Pase de escuela, etc."></textarea>
+            <textarea id="formNotas" rows="2" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="Ej: Es asmático, Pase de escuela, etc."></textarea>
           </div>
         </div>
         <div class="flex gap-2 mt-6 border-t dark:border-slate-700 pt-4 justify-end">
@@ -1044,11 +1142,11 @@
         <div class="space-y-4">
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE NUEVA CLASE</label>
-            <input type="date" id="formGrillaFecha" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-sm font-semibold">
+            <input type="date" id="formGrillaFecha" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-base md:text-sm font-semibold">
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">TIPO DE DÍA</label>
-            <select id="formGrillaTipo" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-sm font-semibold">
+            <select id="formGrillaTipo" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-base md:text-sm font-semibold">
               <option value="CLASE">CLASE</option>
               <option value="FERIADO">FERIADO</option>
               <option value="PARO">PARO</option>
@@ -1064,9 +1162,73 @@
         </div>
       </div>
     </div>
+    <!-- MODAL EMITIR PASE -->
+    <div id="modalPase" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl shadow-xl transform transition-all scale-95 opacity-0 border dark:border-slate-700">
+        <div class="flex items-center justify-between p-4 border-b dark:border-slate-700">
+          <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <i class="ph ph-export text-orange-500"></i> Emitir Pase
+          </h3>
+          <button onclick="app.cerrarModalPase()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <i class="ph ph-x text-xl"></i>
+          </button>
+        </div>
+        <div class="p-4 space-y-4">
+          <p class="text-sm text-slate-600 dark:text-slate-300">
+            Seleccioná la escuela de destino para transferir el legajo del estudiante. Si la escuela no utiliza este sistema, seleccioná "Otra / Fuera del sistema".
+          </p>
+          <input type="hidden" id="paseEstudianteId">
+          
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ESCUELA DESTINO</label>
+            <select id="paseEscuelaDestino" class="w-full p-2.5 border border-slate-200 dark:border-slate-600 rounded-lg bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-orange-500 transition">
+              <option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>
+              <!-- Dinámico -->
+            </select>
+          </div>
+        </div>
+        <div class="p-4 border-t dark:border-slate-700 flex justify-end gap-2 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
+          <button onclick="app.cerrarModalPase()" class="px-4 py-2 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
+            Cancelar
+          </button>
+          <button onclick="app.confirmarEmitirPase()" class="px-4 py-2 text-sm font-bold bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition flex items-center gap-2 shadow-sm">
+            <i class="ph ph-check"></i> Transferir Estudiante
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL ESCUELA -->
+    <div id="modalEscuela" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md p-6 transform scale-95 opacity-0 transition-all duration-300">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2" id="modalEscuelaTitle">
+            <i class="ph ph-buildings"></i> Nueva Escuela
+          </h3>
+          <button onclick="app.cerrarModalEscuela()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+            <i class="ph ph-x text-2xl"></i>
+          </button>
+        </div>
+        <div class="space-y-4">
+          <input type="hidden" id="formEscuelaId">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CÓDIGO/ID (Sin espacios)</label>
+            <input type="text" id="formEscuelaCodigo" class="w-full p-2 border dark:border-slate-700 rounded-md bg-slate-100 dark:bg-slate-700 text-base md:text-sm uppercase font-mono" placeholder="Ej: EEST1">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">NOMBRE COMPLETO</label>
+            <input type="text" id="formEscuelaNombre" class="w-full p-2 border dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="Ej: Escuela Técnica N° 1">
+          </div>
+        </div>
+        <div class="flex gap-2 mt-6 border-t dark:border-slate-700 pt-4 justify-end">
+          <button onclick="app.cerrarModalEscuela()" class="px-4 py-2 bg-gray-200 text-slate-700 dark:text-slate-200 font-bold rounded hover:bg-gray-300 transition text-sm">Cancelar</button>
+          <button onclick="app.guardarEscuela()" class="px-5 py-2 bg-purple-600 text-white font-bold rounded hover:bg-purple-700 transition text-sm">Guardar Escuela</button>
+        </div>
+      </div>
+    </div>
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=9.54"></script>
+  <script type="module" src="js/app.js?v=9.90"></script>
 </body>
 </html>

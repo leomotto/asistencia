@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=9.54";
+import { db, getPath } from "./firebase-config.js?v=9.90";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=9.54";
+import { showToast } from "./ui.js?v=9.90";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -22,8 +22,7 @@ export async function iniciarAuditoriaDatos() {
     const materias = [];
     snapMaterias.forEach(d => {
       const m = d.data();
-      // Nombre oficial en formato: "Materia Curso Division"
-      const nombreCompleto = `${m.nombre} ${m.curso || m.materiaBase || ''} ${m.division || ''}`.replace(/\s+/g, ' ').trim();
+      const nombreCompleto = m.nombre; 
       materias.push({ id: d.id, nombreCompleto, ...m });
     });
     datosAuditoria.materiasOficiales = materias.sort((a,b) => a.nombreCompleto.localeCompare(b.nombreCompleto));
@@ -41,10 +40,32 @@ export async function iniciarAuditoriaDatos() {
       if (est.materias && Array.isArray(est.materias)) {
         est.materias.forEach(mat => {
           if (!materiasOficialesNombres.has(mat)) {
-            if (!huerfanos[mat]) huerfanos[mat] = [];
-            huerfanos[mat].push(est);
+            if (!huerfanos[mat]) huerfanos[mat] = { estudiantes: [], asistencias: 0, evaluaciones: 0 };
+            huerfanos[mat].estudiantes.push(est);
           }
         });
+      }
+    });
+
+    progresoMsg.textContent = "Analizando asistencias y evaluaciones...";
+    const [snapAsist, snapEval] = await Promise.all([
+      getDocs(collection(db, getPath("asistencias"))),
+      getDocs(collection(db, getPath("evaluaciones")))
+    ]);
+
+    snapAsist.forEach(d => {
+      const data = d.data();
+      if (data.curso && !materiasOficialesNombres.has(data.curso)) {
+        if (!huerfanos[data.curso]) huerfanos[data.curso] = { estudiantes: [], asistencias: 0, evaluaciones: 0 };
+        huerfanos[data.curso].asistencias++;
+      }
+    });
+
+    snapEval.forEach(d => {
+      const data = d.data();
+      if (data.curso && !materiasOficialesNombres.has(data.curso)) {
+        if (!huerfanos[data.curso]) huerfanos[data.curso] = { estudiantes: [], asistencias: 0, evaluaciones: 0 };
+        huerfanos[data.curso].evaluaciones++;
       }
     });
 
@@ -69,7 +90,7 @@ export async function iniciarAuditoriaDatos() {
           <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
             <tr>
               <th class="p-3 font-bold">Materia Huérfana (String viejo)</th>
-              <th class="p-3 font-bold text-center">Alumnos Afectados</th>
+              <th class="p-3 font-bold text-center">Registros Afectados</th>
               <th class="p-3 font-bold">Mapear a Materia Oficial...</th>
             </tr>
           </thead>
@@ -78,17 +99,18 @@ export async function iniciarAuditoriaDatos() {
     
     const grupos = {};
     datosAuditoria.materiasOficiales.forEach(m => {
-      const c = m.curso || 'Sin Curso';
+      const c = m.planEstudio || 'Sin Año';
       if (!grupos[c]) grupos[c] = [];
       grupos[c].push(m);
     });
 
     let opcionesOficiales = '';
-    Object.keys(grupos).sort().forEach(curso => {
-      opcionesOficiales += `<optgroup label="Curso: ${curso}">`;
-      grupos[curso].forEach(m => {
-        const divStr = m.division ? ` (Div: ${m.division})` : '';
-        opcionesOficiales += `<option value="${m.nombreCompleto}">${m.nombre}${divStr}</option>`;
+    Object.keys(grupos).sort().forEach(anio => {
+      opcionesOficiales += `<optgroup label="Año / Nivel: ${anio}">`;
+      grupos[anio].forEach(m => {
+        const divStr = m.division ? ` | Div: ${m.division}` : '';
+        const matBase = m.materiaBase || m.nombre;
+        opcionesOficiales += `<option value="${m.nombreCompleto}">${matBase}${divStr}</option>`;
       });
       opcionesOficiales += `</optgroup>`;
     });
@@ -99,11 +121,17 @@ export async function iniciarAuditoriaDatos() {
           <td class="p-3 font-bold text-rose-600 dark:text-rose-400">
             "${matVieja}"
             <div class="mt-2 text-xs font-normal text-slate-500 dark:text-slate-400">
-              <b>Alumnos (${huerfanos[matVieja].length}):</b> 
-              ${huerfanos[matVieja].map(e => `${e.apellido}, ${e.nombre}`).join(' &bull; ')}
+              <b>Alumnos (${huerfanos[matVieja].estudiantes.length}):</b> 
+              ${huerfanos[matVieja].estudiantes.slice(0, 5).map(e => `${e.apellido}, ${e.nombre}`).join(' &bull; ')}${huerfanos[matVieja].estudiantes.length > 5 ? '... y más' : ''}
+              <br>
+              <b>Asistencias:</b> ${huerfanos[matVieja].asistencias} planillas | <b>Evaluaciones:</b> ${huerfanos[matVieja].evaluaciones} registros
             </div>
           </td>
-          <td class="p-3 text-center font-mono bg-slate-50 dark:bg-slate-800/50">${huerfanos[matVieja].length}</td>
+          <td class="p-3 text-center font-mono bg-slate-50 dark:bg-slate-800/50">
+            Est: ${huerfanos[matVieja].estudiantes.length}<br>
+            Asi: ${huerfanos[matVieja].asistencias}<br>
+            Eva: ${huerfanos[matVieja].evaluaciones}
+          </td>
           <td class="p-3">
             <select data-vieja="${matVieja}" class="sel-mapeo-materia w-full p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 dark:text-slate-200">
               <option value="">-- Ignorar (No cambiar) --</option>
@@ -183,7 +211,7 @@ export async function ejecutarMigracionAuditoria() {
     return;
   }
   
-  const confirmar = confirm(`Vas a migrar ${cambios} strings huérfanos.\n\nFase 3: Se descargará un Backup en formato JSON automáticamente.\nFase 4: Se actualizarán los estudiantes, asistencias y evaluaciones afectados.\n\n¿Deseas continuar?`);
+  const confirmar = await window.app.showConfirm("Confirmación", `Vas a migrar ${cambios} strings huérfanos.\n\nFase 3: Se descargará un Backup en formato JSON automáticamente.\nFase 4: Se actualizarán los estudiantes, asistencias y evaluaciones afectados.\n\n¿Deseas continuar?`);
   if (!confirmar) return;
   
   const progresoMsg = document.getElementById('auditoriaProgresoMsg');
@@ -216,11 +244,27 @@ export async function ejecutarMigracionAuditoria() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `backup_asistencia_${Date.now()}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     
-    // FASE 4: MIGRACION ATOMICA
-    progresoMsg.textContent = "🚀 Fase 4: Ejecutando WriteBatch atómico...";
-    const batch = writeBatch(db);
+    // FASE 4: MIGRACION ATOMICA (En bloques de 400 para evitar límite de Firebase)
+    progresoMsg.textContent = "🚀 Fase 4: Ejecutando actualizaciones en la nube...";
+    let operaciones = [];
+    
+    const chunkPromises = async (ops) => {
+      const CHUNK_SIZE = 400;
+      for (let i = 0; i < ops.length; i += CHUNK_SIZE) {
+        const batch = writeBatch(db);
+        const chunk = ops.slice(i, i + CHUNK_SIZE);
+        chunk.forEach(op => {
+          if (op.type === 'update') batch.update(op.ref, op.data);
+          else if (op.type === 'set') batch.set(op.ref, op.data, op.options);
+          else if (op.type === 'delete') batch.delete(op.ref);
+        });
+        await batch.commit();
+      }
+    };
     
     // 1. Estudiantes
     snapEst.forEach(d => {
@@ -241,11 +285,7 @@ export async function ejecutarMigracionAuditoria() {
         if (modificado) updates.materias = Array.from(nuevasMateriasSet);
       }
       
-      if (data.curso && mapa[data.curso]) {
-        modificado = true;
-        updates.curso = mapa[data.curso];
-      }
-      
+      // Se elimina la reasignación de data.curso para evitar sobreescribir la División del alumno con una Materia.
       if (data.inscripciones) {
         let inscripModificadas = false;
         const nuevasInscripciones = {};
@@ -281,7 +321,7 @@ export async function ejecutarMigracionAuditoria() {
       }
       
       if (modificado) {
-        batch.update(d.ref, updates);
+        operaciones.push({ type: 'update', ref: d.ref, data: updates });
       }
     });
     
@@ -290,17 +330,13 @@ export async function ejecutarMigracionAuditoria() {
       const data = d.data();
       if (mapa[data.curso]) {
         const matNueva = mapa[data.curso];
-        const nuevoDocId = `${matNueva.replace(/\s+/g, '')}_${data.fecha}`;
+        const nuevoDocId = `${matNueva.replace(/[\s/]+/g, '')}_${data.fecha}`;
         const nuevaRef = doc(db, getPath('asistencias'), nuevoDocId);
         
         // merge: true por si ya habia un documento ese mismo dia para la materia oficial
-        batch.set(nuevaRef, {
-          ...data,
-          curso: matNueva
-        }, { merge: true });
-        
+        operaciones.push({ type: 'set', ref: nuevaRef, data: { ...data, curso: matNueva }, options: { merge: true } });
         // Borramos el documento viejo con el string huérfano
-        batch.delete(d.ref);
+        operaciones.push({ type: 'delete', ref: d.ref });
       }
     });
     
@@ -309,19 +345,15 @@ export async function ejecutarMigracionAuditoria() {
       const data = d.data();
       if (mapa[data.curso]) {
         const matNueva = mapa[data.curso];
-        const nuevoDocId = `${data.alumnoId}_${matNueva.replace(/\s+/g, '')}`;
+        const nuevoDocId = `${data.alumnoId}_${matNueva.replace(/[\s/]+/g, '')}`;
         const nuevaRef = doc(db, getPath('evaluaciones'), nuevoDocId);
         
-        batch.set(nuevaRef, {
-          ...data,
-          curso: matNueva
-        }, { merge: true });
-        
-        batch.delete(d.ref);
+        operaciones.push({ type: 'set', ref: nuevaRef, data: { ...data, curso: matNueva }, options: { merge: true } });
+        operaciones.push({ type: 'delete', ref: d.ref });
       }
     });
     
-    await batch.commit();
+    await chunkPromises(operaciones);
     showToast('🎉 ¡Migración completada con éxito!', 'success');
     
     // Refrescar para ver resultados vacíos
@@ -535,7 +567,7 @@ export async function ejecutarMigracionIntegridad() {
   if (!_planIntegridad || Object.keys(_planIntegridad).length === 0) return;
 
   const count = Object.keys(_planIntegridad).length;
-  if (!confirm(`ATENCIÓN: Se actualizarán los legajos de ${count} estudiantes. Se registrará todo en la base de datos de forma atómica para no perder historiales.\n\n¿Estás seguro de continuar?`)) return;
+  if (!await window.app.showConfirm("Confirmación", `ATENCIÓN: Se actualizarán los legajos de ${count} estudiantes. Se registrará todo en la base de datos de forma atómica para no perder historiales.\n\n¿Estás seguro de continuar?`)) return;
 
   const container = document.getElementById('integridadResultados');
   container.innerHTML = `<div class="text-center py-8">
@@ -560,5 +592,397 @@ export async function ejecutarMigracionIntegridad() {
     console.error(e);
     showToast('❌ Error aplicando la migración: ' + e.message, 'error');
     container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Error: ${e.message}</div>`;
+  }
+}
+
+// ==========================================
+// ESTRUCTURADOR RELACIONAL (AÑO -> DIVISIÓN)
+// ==========================================
+
+let _planEstructura = null;
+
+function inferirAnioDeDivision(division) {
+  if (!division) return "";
+  const match = division.match(/^(\d[a-zA-Z]{0,2})/); // ej. "1", "1ro", "2do", "3er", "4to"
+  if (match) return match[1];
+  return "";
+}
+
+export async function analizarEstructuraRelacional() {
+  const progreso = document.getElementById('estructuraProgreso');
+  const resultados = document.getElementById('estructuraResultados');
+  const msg = document.getElementById('estructuraProgresoMsg');
+  const btn = document.getElementById('btnAnalizarEstructura');
+
+  if (progreso) progreso.classList.remove('hidden');
+  if (resultados) resultados.classList.add('hidden');
+  if (btn) btn.disabled = true;
+
+  try {
+    const planMigracion = { materias: {}, estudiantes: {} };
+    const anomalias = [];
+
+    msg.textContent = 'Analizando materias...';
+    const snapMat = await getDocs(collection(db, getPath('materias')));
+    snapMat.forEach(d => {
+      const mat = d.data();
+      const division = mat.division || "";
+      const anioInferido = inferirAnioDeDivision(division);
+      
+      let modificar = false;
+      const updates = {};
+      
+      if (anioInferido && mat.planEstudio !== anioInferido) {
+        modificar = true;
+        updates.planEstudio = anioInferido;
+      }
+      
+      if (!mat.materiaBase && mat.nombre) {
+        const idx = mat.nombre.indexOf(' - ');
+        if (idx !== -1) {
+          modificar = true;
+          updates.materiaBase = mat.nombre.substring(idx + 3);
+          if (!mat.division) updates.division = mat.nombre.substring(0, idx);
+        }
+      }
+      
+      if (modificar) {
+        planMigracion.materias[d.id] = { ref: d.ref, updates };
+        anomalias.push(`Materia "${mat.nombre}": Se asignará Año = "${updates.planEstudio || mat.planEstudio || '-'}" y Materia Base = "${updates.materiaBase || mat.materiaBase || '-'}"`);
+      }
+    });
+
+    msg.textContent = 'Analizando estudiantes...';
+    const snapEst = await getDocs(collection(db, getPath('estudiantes')));
+    snapEst.forEach(d => {
+      const est = d.data();
+      const rawCurso = est.curso || "";
+      const division = rawCurso.indexOf(' - ') > -1 ? rawCurso.split(' - ')[0] : rawCurso;
+      const anioInferido = inferirAnioDeDivision(division);
+      
+      let modificar = false;
+      const updates = {};
+
+      if (anioInferido && est.planEstudio !== anioInferido) {
+        modificar = true;
+        updates.planEstudio = anioInferido;
+      }
+      if (division && est.curso !== division) {
+        modificar = true;
+        updates.curso = division;
+      }
+      
+      if (modificar) {
+        planMigracion.estudiantes[d.id] = { ref: d.ref, updates };
+        anomalias.push(`Estudiante "${est.apellido}, ${est.nombre}": Se asignará Año = "${updates.planEstudio || est.planEstudio || '-'}" y División = "${updates.curso || est.curso || '-'}"`);
+      }
+    });
+
+    _planEstructura = planMigracion;
+    _renderizarResultadosEstructura(anomalias, Object.keys(planMigracion.materias).length, Object.keys(planMigracion.estudiantes).length);
+
+  } catch(e) {
+    console.error(e);
+    resultados.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Error: ${e.message}</div>`;
+    resultados.classList.remove('hidden');
+  } finally {
+    if (progreso) progreso.classList.add('hidden');
+    if (btn) btn.disabled = false;
+  }
+}
+
+function _renderizarResultadosEstructura(anomalias, countMat, countEst) {
+  const container = document.getElementById('estructuraResultados');
+  container.classList.remove('hidden');
+
+  if (countMat === 0 && countEst === 0) {
+    container.innerHTML = `<div class="p-6 bg-emerald-50 border border-emerald-200 rounded-xl text-center">
+      <i class="ph ph-check-circle text-4xl text-emerald-500 mb-2"></i>
+      <h3 class="text-lg font-bold text-emerald-800">¡Estructura Normalizada!</h3>
+      <p class="text-emerald-600">Todos los estudiantes y materias ya tienen asignado su Año (planEstudio) correspondiente.</p>
+    </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4">
+      <h4 class="font-bold text-indigo-800 flex items-center gap-2"><i class="ph ph-tree-structure text-lg"></i> Se actualizarán ${countMat} materias y ${countEst} estudiantes</h4>
+      <p class="text-sm text-indigo-700 mt-1">El sistema ha deducido las jerarquías relacionales y está listo para guardarlas.</p>
+    </div>
+    
+    <div class="max-h-60 overflow-y-auto border dark:border-slate-700 rounded-lg p-3 bg-white dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-400 font-mono space-y-1">
+      ${anomalias.map(a => `<div>&bull; ${a}</div>`).join('')}
+    </div>
+    
+    <div class="flex justify-end mt-4">
+      <button onclick="app.ejecutarMigracionEstructura()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition flex items-center gap-2">
+        <i class="ph ph-magic-wand text-xl"></i> Normalizar Estructura Ahora
+      </button>
+    </div>
+  `;
+  container.innerHTML = html;
+}
+
+export async function ejecutarMigracionEstructura() {
+  if (!_planEstructura) return;
+
+  const count = Object.keys(_planEstructura.materias).length + Object.keys(_planEstructura.estudiantes).length;
+  if (!await window.app.showConfirm("Confirmación", `¿Estás seguro de estructurar ${count} registros?`)) return;
+
+  const container = document.getElementById('estructuraResultados');
+  container.innerHTML = `<div class="text-center py-8">
+    <i class="ph ph-spinner animate-spin text-4xl text-indigo-500 mb-2 block mx-auto"></i>
+    <p class="text-sm text-slate-500 font-bold">Aplicando WriteBatch atómico...</p>
+  </div>`;
+
+  try {
+    const batch = writeBatch(db);
+    
+    for (const [id, payload] of Object.entries(_planEstructura.materias)) {
+      batch.update(payload.ref, payload.updates);
+    }
+    for (const [id, payload] of Object.entries(_planEstructura.estudiantes)) {
+      batch.update(payload.ref, payload.updates);
+    }
+    
+    await batch.commit();
+    showToast(`✅ ${count} registros estructurados exitosamente.`, 'success');
+    _planEstructura = null;
+    
+    // Refrescar
+    await analizarEstructuraRelacional();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error estructurando: ' + e.message, 'error');
+    container.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded">Error: ${e.message}</div>`;
+  }
+}
+
+let backupSeleccionado = null;
+
+export async function restaurarBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    if (!backup.estudiantes || !backup.asistencias || !backup.evaluaciones) {
+      throw new Error("El archivo no tiene el formato de backup válido.");
+    }
+
+    backupSeleccionado = backup;
+    const resultados = document.getElementById('auditoriaResultados');
+    const progreso = document.getElementById('auditoriaProgreso');
+    
+    progreso.classList.add('hidden');
+    resultados.classList.remove('hidden');
+    
+    // Obtener divisiones únicas del backup
+    const divisiones = new Set();
+    Object.values(backup.estudiantes).forEach(e => {
+      if (e.curso) divisiones.add(e.curso);
+    });
+
+    let opcionesHtml = Array.from(divisiones).sort().map(div => `
+      <label class="flex items-center gap-2 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 cursor-pointer">
+        <input type="checkbox" class="chk-restore-div w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" value="${div}">
+        <span class="text-sm font-bold text-slate-700 dark:text-slate-300">${div}</span>
+      </label>
+    `).join('');
+
+    resultados.innerHTML = `
+      <div class="bg-amber-50 text-amber-800 p-4 rounded-lg font-semibold flex items-center gap-2 border border-amber-200 mb-4">
+        <i class="ph ph-warning text-2xl"></i> Backup cargado: ${new Date(backup.fecha).toLocaleString()}. Seleccioná las divisiones que querés restaurar.
+      </div>
+      
+      <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-2">1. Seleccionar Divisiones afectadas:</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6 max-h-60 overflow-y-auto p-2 bg-white dark:bg-slate-900 border dark:border-slate-700 rounded-lg">
+        ${opcionesHtml}
+      </div>
+
+      <h3 class="font-bold text-slate-700 dark:text-slate-200 mb-2">2. ¿Qué datos querés restaurar de esas divisiones?</h3>
+      <div class="flex flex-col gap-2 mb-6">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="chkRestaurarEstudiantes" checked class="w-4 h-4 text-indigo-600 rounded">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-300"><b>Perfiles de Alumnos</b> (Restaura su división correcta y sus materias, ideal si se arruinó su división).</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="chkRestaurarAsistencias" class="w-4 h-4 text-indigo-600 rounded">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-300"><b>Planillas de Asistencia</b> (Dejalo destildado si querés conservar las migraciones que hiciste recién).</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="chkRestaurarEvaluaciones" class="w-4 h-4 text-indigo-600 rounded">
+          <span class="text-sm font-medium text-slate-700 dark:text-slate-300"><b>Planillas de Evaluaciones</b> (Dejalo destildado si querés conservar las migraciones).</span>
+        </label>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="app.ejecutarRestauracionParcial()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2">
+          <i class="ph ph-check text-lg"></i> Ejecutar Restauración
+        </button>
+        <button onclick="document.getElementById('auditoriaResultados').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-lg transition">
+          Cancelar
+        </button>
+      </div>
+    `;
+    event.target.value = '';
+
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Error leyendo archivo: ' + e.message, 'error');
+  }
+}
+
+export async function ejecutarRestauracionParcial() {
+  const checkboxes = document.querySelectorAll('.chk-restore-div:checked');
+  const divsSeleccionadas = Array.from(checkboxes).map(c => c.value);
+  
+  if (divsSeleccionadas.length === 0) {
+    showToast('Seleccioná al menos una división para restaurar.', 'warning');
+    return;
+  }
+
+  const restEstudiantes = document.getElementById('chkRestaurarEstudiantes').checked;
+  const restAsistencias = document.getElementById('chkRestaurarAsistencias').checked;
+  const restEvaluaciones = document.getElementById('chkRestaurarEvaluaciones').checked;
+
+  if (!restEstudiantes && !restAsistencias && !restEvaluaciones) {
+    showToast('Debés seleccionar al menos un tipo de dato a restaurar.', 'warning');
+    return;
+  }
+
+  const conf = await window.app.showConfirm("Confirmación", `Estás por restaurar:\n- Estudiantes: ${restEstudiantes ? 'SÍ' : 'NO'}\n- Asistencias: ${restAsistencias ? 'SÍ' : 'NO'}\n- Evaluaciones: ${restEvaluaciones ? 'SÍ' : 'NO'}\n\nDe las divisiones:\n${divsSeleccionadas.join(', ')}\n\n¿Continuar?`);
+  if (!conf) return;
+
+  const progresoMsg = document.getElementById('auditoriaProgresoMsg');
+  const progreso = document.getElementById('auditoriaProgreso');
+  const resultados = document.getElementById('auditoriaResultados');
+  
+  resultados.classList.add('hidden');
+  progreso.classList.remove('hidden');
+  
+  try {
+    progresoMsg.textContent = "Analizando estado actual de la BD...";
+    const [snapEst, snapAsist, snapEval] = await Promise.all([
+      getDocs(collection(db, getPath('estudiantes'))),
+      getDocs(collection(db, getPath('asistencias'))),
+      getDocs(collection(db, getPath('evaluaciones')))
+    ]);
+
+    let ops = [];
+
+    const isMatchDiv = (data, divisiones) => {
+      if (!data.curso) return false;
+      // estudiante: data.curso === "4to A"
+      if (divisiones.includes(data.curso)) return true;
+      // asistencia/evaluacion: data.curso === "4to A - MATEMATICA"
+      return divisiones.some(div => data.curso.startsWith(div + ' - ') || data.curso === div);
+    };
+
+    const prepararRestauracion = (coleccionNombre, snapActual, backupObj) => {
+      // 1. Añadir al batch los registros del backup que pertenecen a las divisiones seleccionadas
+      for (const [id, data] of Object.entries(backupObj)) {
+        // En el caso de que el estudiante actualmente tenga una división arruinada (ej: "4to A - Artes"),
+        // isMatchDiv podría no agarrarlo desde el estado actual, PERO el ID es el mismo, y la data del backup
+        // SÍ tiene data.curso === "4to A". Así que acá el backupObj data tiene el curso correcto.
+        if (isMatchDiv(data, divsSeleccionadas)) {
+          ops.push((b) => b.set(doc(db, getPath(coleccionNombre), id), data));
+        }
+      }
+      
+      // 2. Eliminar de la base de datos actual los registros de estas divisiones que NO están en el backup
+      snapActual.forEach(d => {
+        const data = d.data();
+        if (isMatchDiv(data, divsSeleccionadas)) {
+          if (!backupObj[d.id]) {
+            ops.push((b) => b.delete(d.ref));
+          }
+        }
+      });
+    };
+
+    if (restEstudiantes) prepararRestauracion('estudiantes', snapEst, backupSeleccionado.estudiantes);
+    if (restAsistencias) prepararRestauracion('asistencias', snapAsist, backupSeleccionado.asistencias);
+    if (restEvaluaciones) prepararRestauracion('evaluaciones', snapEval, backupSeleccionado.evaluaciones);
+
+    progresoMsg.textContent = `Aplicando ${ops.length} operaciones de restauración...`;
+    
+    const chunkSize = 400;
+    for (let i = 0; i < ops.length; i += chunkSize) {
+      const chunk = ops.slice(i, i + chunkSize);
+      const b = writeBatch(db);
+      chunk.forEach(op => op(b));
+      await b.commit();
+      progresoMsg.textContent = `Guardando... ${Math.min(i + chunkSize, ops.length)} / ${ops.length}`;
+    }
+
+    progreso.classList.add('hidden');
+    backupSeleccionado = null;
+    showToast('✅ Divisiones restauradas con éxito.', 'success');
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Error restaurando: ' + e.message, 'error');
+    progreso.classList.add('hidden');
+  }
+}
+export async function auditarAsistencias() {
+  const progreso = document.getElementById('auditoriaProgreso');
+  const msg = document.getElementById('auditoriaProgresoMsg');
+  const resultados = document.getElementById('auditoriaResultados');
+  
+  progreso.classList.remove('hidden');
+  resultados.classList.add('hidden');
+  msg.textContent = 'Analizando planillas de asistencia...';
+
+  try {
+    const snap = await getDocs(collection(db, getPath("asistencias")));
+    let sinDivision = [];
+    let vacias = [];
+    
+    snap.forEach(d => {
+      const data = d.data();
+      const curso = data.curso || 'Sin Curso';
+      const regs = Object.keys(data.registros || {}).length;
+      
+      if (!curso.includes(' - ')) {
+        sinDivision.push({ id: d.id, curso, fecha: data.fecha, regs });
+      } else if (regs === 0) {
+        vacias.push({ id: d.id, curso, fecha: data.fecha, regs });
+      }
+    });
+
+    sinDivision.sort((a,b) => b.fecha.localeCompare(a.fecha));
+    vacias.sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+    let html = '';
+    
+    if (sinDivision.length === 0 && vacias.length === 0) {
+       html = '<div class="p-4 bg-emerald-50 text-emerald-700 font-bold rounded">No se encontraron planillas sin división ni planillas vacías.</div>';
+    } else {
+       html += '<h3 class="font-bold text-lg text-rose-600 mb-2">Planillas sin división detectadas (Posible error de toma antigua)</h3>';
+       html += '<table class="w-full text-sm mb-6 border"><thead><tr class="bg-slate-100"><th>ID/Curso</th><th>Fecha</th><th>Registros</th></tr></thead><tbody>';
+       sinDivision.forEach(p => {
+         html += `<tr class="border-b"><td>${p.curso}</td><td class="text-center">${p.fecha}</td><td class="text-center">${p.regs}</td></tr>`;
+       });
+       html += '</tbody></table>';
+
+       html += '<h3 class="font-bold text-lg text-amber-600 mb-2">Planillas vacías detectadas (0 registros)</h3>';
+       html += '<table class="w-full text-sm border"><thead><tr class="bg-slate-100"><th>ID/Curso</th><th>Fecha</th><th>Registros</th></tr></thead><tbody>';
+       vacias.forEach(p => {
+         html += `<tr class="border-b"><td>${p.curso}</td><td class="text-center">${p.fecha}</td><td class="text-center">${p.regs}</td></tr>`;
+       });
+       html += '</tbody></table>';
+    }
+
+    resultados.innerHTML = html;
+    resultados.classList.remove('hidden');
+  } catch (e) {
+    console.error(e);
+    resultados.innerHTML = '<p class="text-red-600 font-bold">Error al leer asistencias.</p>';
+    resultados.classList.remove('hidden');
+  } finally {
+    progreso.classList.add('hidden');
   }
 }
