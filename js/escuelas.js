@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.05";
+import { db, getPath } from "./firebase-config.js?v=10.07";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -425,40 +425,71 @@ export async function cargarMateriasParaEscuela(escuelaId) {
 
 export async function migrateDataToSchool(schoolId) {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
-  const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-  const { db } = await import("./firebase-config.js?v=10.05");
   
-  const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
-  
-  console.log("Iniciando migración a " + schoolId);
-  for (const col of collections) {
-    console.log("Migrando " + col + "...");
-    const snap = await getDocs(collection(db, col));
-    let count = 0;
-    for (const d of snap.docs) {
-      await setDoc(doc(db, "instituciones", schoolId, col, d.id), d.data());
-      count++;
-    }
-    console.log("-> " + count + " documentos migrados en " + col);
+  const btn = event?.currentTarget;
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Migrando datos...';
   }
+
+  try {
+    const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
+    const { db } = await import("./firebase-config.js?v=10.07");
+    
+    const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
+    
+    console.log("Iniciando migración a " + schoolId);
+    let totalMigrated = 0;
+    
+    for (const col of collections) {
+      console.log("Migrando " + col + "...");
+      let snap = await getDocs(collection(db, col));
+      
+      // Fallback por si los datos antiguos quedaron en la ruta de artifacts
+      if (snap.empty) {
+        snap = await getDocs(collection(db, `artifacts/mi-app-asistencia/public/data/${col}`));
+      }
+      
+      let count = 0;
+      for (const d of snap.docs) {
+        await setDoc(doc(db, "instituciones", schoolId, col, d.id), d.data());
+        count++;
+        totalMigrated++;
+      }
+      console.log("-> " + count + " documentos migrados en " + col);
+    }
   
-  console.log("Migrando docentes (usuarios)...");
-  const snapUsers = await getDocs(collection(db, 'usuarios'));
-  let userCount = 0;
-  for (const u of snapUsers.docs) {
-    const data = u.data();
-    if (data.rol === 'DOCENTE' || data.rol === 'ADMIN') {
-      const userData = { ...data };
-      if (!userData.escuelas) userData.escuelas = {};
-      userData.escuelas[schoolId] = {
-        rol: data.rol,
-        materias: data.materias || []
-      };
-      await setDoc(doc(db, 'usuarios', u.id), userData, { merge: true });
-      userCount++;
+    console.log("Migrando docentes (usuarios)...");
+    let snapUsers = await getDocs(collection(db, 'usuarios'));
+    if (snapUsers.empty) {
+      snapUsers = await getDocs(collection(db, `artifacts/mi-app-asistencia/public/data/usuarios`));
+    }
+    
+    let userCount = 0;
+    for (const u of snapUsers.docs) {
+      const data = u.data();
+      if (data.rol === 'DOCENTE' || data.rol === 'ADMIN') {
+        const userData = { ...data };
+        if (!userData.escuelas) userData.escuelas = {};
+        userData.escuelas[schoolId] = {
+          rol: data.rol,
+          materias: data.materias || []
+        };
+        await setDoc(doc(db, 'usuarios', u.id), userData, { merge: true });
+        userCount++;
+      }
+    }
+    console.log("-> " + userCount + " usuarios actualizados con acceso a " + schoolId);
+    console.log("Migración completada. Total de entidades: " + totalMigrated);
+    alert(`¡Éxito! Se migraron ${totalMigrated} registros y ${userCount} usuarios a la escuela.`);
+  } catch (err) {
+    console.error("Error durante la migración:", err);
+    alert("Ocurrió un error al migrar los datos. Revisa la consola (F12).");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
     }
   }
-  console.log("-> " + userCount + " usuarios actualizados con acceso a " + schoolId);
-  console.log("Migración completada.");
-  alert("Migración completada. Revisa la consola para más detalles.");
 };
