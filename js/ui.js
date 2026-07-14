@@ -151,6 +151,7 @@ export function switchTab(tabId) {
     performSwitch();
   }
 
+  if (tabId === 'inicioTab')       window.app.renderAgenda?.();
   if (tabId === 'planillaGrilla')  window.app.cargarPlanillaGrilla();
   if (tabId === 'evaluaciones')    window.app.cargarPlanillaEvaluaciones();
   if (tabId === 'gestionAlumnos')  window.app.cargarAlumnosMatricula();
@@ -275,10 +276,28 @@ export async function switchContext(newTenant) {
   if (window.app.setAppTenant) {
     await window.app.setAppTenant(newTenant);
     buildContextSwitcher();
-    const activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) {
-      switchTab(activeTab.dataset.tab);
+    
+    // Encontrar el tab activo buscando el que tenga bg-white/10
+    let currentTabId = 'inicioTab';
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    for (const btn of tabBtns) {
+      // Las clases activas son bg-white/10 en desktop o text-indigo-600 en mobile
+      if (btn.classList.contains('bg-white/10') || btn.classList.contains('text-indigo-600')) {
+        currentTabId = btn.dataset.tab;
+        break;
+      }
     }
+    
+    // Si pasamos de root a una escuela, los tabs de admin global no existen
+    if (newTenant !== 'root' && (currentTabId === 'gestionEscuelas' || currentTabId === 'auditoriaTab')) {
+      currentTabId = 'inicioTab';
+    }
+    // Y viceversa
+    if (newTenant === 'root' && currentTabId !== 'gestionEscuelas' && currentTabId !== 'auditoriaTab' && currentTabId !== 'usuarios') {
+       currentTabId = 'gestionEscuelas';
+    }
+    
+    switchTab(currentTabId);
   } else {
     localStorage.setItem('activeTenant', newTenant);
     window.location.reload();
