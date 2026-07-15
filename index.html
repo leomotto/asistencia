@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.15">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.16">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -176,7 +176,7 @@
       </div>
 
       <!-- Navegación principal -->
-      <div class="flex flex-col gap-1 w-full flex-1">
+      <div class="flex flex-col gap-1 w-full flex-1 overflow-y-auto pr-1 pb-4">
         <button onclick="switchTab('inicioTab')" id="btnInicio" class="flex w-full items-center justify-start gap-3 bg-white/10 px-3 py-2.5 rounded-lg hover:bg-white/20 transition text-sm font-semibold" title="Inicio">
           <i class="ph ph-house text-xl flex-shrink-0"></i>
           <span class="truncate sidebar-text">Inicio</span>
@@ -387,7 +387,7 @@
           <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="evalHeaders">
-                <th class="px-4 py-3 text-left sticky-header-col w-64 z-40">Estudiante</th>
+                <th class="px-2 md:px-4 py-3 text-left sticky-header-col min-w-[120px] md:min-w-0 w-[120px] md:w-64 z-40">Estudiante</th>
                 <th class="px-2 py-3 text-center min-w-[90px]">1er Bim (Val)</th>
                 <th class="px-2 py-3 text-center min-w-[80px]">2do Bim (Num)</th>
                 <th class="px-2 py-3 text-center min-w-[90px]">3er Bim (Val)</th>
@@ -444,7 +444,7 @@
           <table class="w-full text-sm border-collapse bg-white dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="grillaHeader">
-                <th class="px-4 py-3 sticky-header-col w-64 text-left">Estudiante</th>
+                <th class="px-2 md:px-4 py-3 sticky-header-col min-w-[120px] md:min-w-0 w-[120px] md:w-64 text-left">Estudiante</th>
                 <th class="px-4 py-3 text-center text-gray-300 italic min-w-[180px]">Por favor seleccione un curso y período.</th>
               </tr>
             </thead>
@@ -493,17 +493,18 @@
               <!-- Poblado dinámicamente por popularPeriodos() -->
             </select>
 
-            <div id="biFechasManuales" class="hidden flex gap-1 items-center">
-              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
-              <span class="text-xs text-slate-400">a</span>
-              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
+            <div id="biFechasManuales" class="hidden flex flex-wrap sm:flex-nowrap gap-1 items-center w-full md:w-auto">
+              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
+              <span class="text-xs text-slate-400 hidden sm:inline">a</span>
+              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
             </div>
             
-            <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700"><i class="ph ph-arrows-clockwise"></i></button>
-            <button onclick="app.exportarBICSV()" class="p-2 bg-slate-600 text-white rounded hover:bg-slate-700 flex items-center gap-1 text-sm font-semibold" title="Exportar reporte a CSV">
-              <i class="ph ph-file-csv"></i>
-            </button>
-          </div>
+            <div class="flex gap-2 ml-auto">
+              <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700"><i class="ph ph-arrows-clockwise"></i></button>
+              <button onclick="app.exportarBICSV()" class="p-2 bg-slate-600 text-white rounded hover:bg-slate-700 flex items-center gap-1 text-sm font-semibold" title="Exportar reporte a CSV">
+                <i class="ph ph-file-csv"></i>
+              </button>
+            </div>
         </div>
 
         <!-- Tarjetas de KPIs -->
@@ -1229,6 +1230,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.15"></script>
+  <script type="module" src="js/app.js?v=10.16"></script>
 </body>
 </html>
