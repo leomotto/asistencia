@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.31";
+import { db, getPath } from "./firebase-config.js?v=10.32";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.31";
-import { escaparHTML } from "./utils.js?v=10.31";
+import { showToast } from "./ui.js?v=10.32";
+import { escaparHTML } from "./utils.js?v=10.32";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1003,6 +1003,13 @@ function _normStr(s) {
   return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
 }
 
+function _titleCase(s) {
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Faltantes del último run, para usarlos en importarFaltantes()
+let _lastFaltantes = [];
+
 export async function compararMatricula() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
 
@@ -1025,7 +1032,13 @@ export async function compararMatricula() {
     const no = _normStr(item.nombres   || item.nombre  || item.alumno?.persona?.nombre   || '');
     if (!ap || !no) return;
     const key = _normKey(ap, no);
-    if (!refMap.has(key)) refMap.set(key, { ap, no, seccion: item.seccion_completa || item.seccion?.nombreSeccion || '' });
+    if (!refMap.has(key)) refMap.set(key, {
+      ap, no,
+      seccion:      item.seccion_completa || item.seccion?.nombreSeccion || '',
+      dni:          item.dni || item.alumno?.persona?.documento || '',
+      email:        item.email || item.alumno?.persona?.email || '',
+      id_miescuela: item.id_miescuela || item.alumno?.idAlumno || '',
+    });
   });
 
   const container = document.getElementById('matriculaResultados');
@@ -1048,10 +1061,12 @@ export async function compararMatricula() {
 
     const faltanEnDB  = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
     const sobranEnDB  = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
-    const coinciden   = dbMap.size - sobranEnDB.length;
+    const coincidenList = [...dbMap.entries()].filter(([k]) => refMap.has(k)).map(([, v]) => v);
+
+    _lastFaltantes = faltanEnDB;
 
     let html = `
-      <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="grid grid-cols-4 gap-3 mb-6">
         <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-3 text-center">
           <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${dbMap.size}</p>
           <p class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">En Firebase</p>
@@ -1061,36 +1076,81 @@ export async function compararMatricula() {
           <p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase">En Referencia</p>
         </div>
         <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-center">
-          <p class="text-2xl font-black text-slate-700 dark:text-slate-200">${coinciden}</p>
+          <p class="text-2xl font-black text-slate-700 dark:text-slate-200">${coincidenList.length}</p>
           <p class="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase">Coinciden</p>
+        </div>
+        <div class="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-red-600 dark:text-red-400">${faltanEnDB.length}</p>
+          <p class="text-[11px] font-bold text-red-700 dark:text-red-300 uppercase">Faltan en BD</p>
         </div>
       </div>`;
 
     if (faltanEnDB.length > 0) {
-      const rows = faltanEnDB
-        .sort((a, b) => a.ap.localeCompare(b.ap))
-        .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/20">
+      const sorted = [...faltanEnDB].sort((a, b) => a.ap.localeCompare(b.ap));
+      const rows = sorted.map((e, i) => `
+        <tr class="bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/20">
+          <td class="p-2 text-center"><input type="checkbox" class="chk-faltante w-4 h-4 accent-indigo-600" data-idx="${i}" checked></td>
           <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
           <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
-          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.seccion)}</td></tr>`)
-        .join('');
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.seccion)}</td>
+          <td class="p-2 text-xs text-slate-400 font-mono">${escaparHTML(e.dni)}</td>
+        </tr>`).join('');
       html += `
         <div class="mb-6">
-          <h4 class="font-bold text-red-700 dark:text-red-400 flex items-center gap-2 mb-3 text-sm">
-            <i class="ph ph-user-minus text-lg"></i> Faltan en Firebase — ${faltanEnDB.length} estudiante(s)
-            <span class="text-xs font-normal text-slate-400">(en la referencia pero no en la BD)</span>
-          </h4>
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h4 class="font-bold text-red-700 dark:text-red-400 flex items-center gap-2 text-sm">
+              <i class="ph ph-user-minus text-lg"></i> Faltan en Firebase — ${faltanEnDB.length} estudiante(s)
+            </h4>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-slate-500 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="chkTodosFaltantes" checked onchange="document.querySelectorAll('.chk-faltante').forEach(c=>c.checked=this.checked)">
+                Todos
+              </label>
+              <button onclick="app.importarFaltantes()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                <i class="ph ph-upload-simple"></i> Importar seleccionados
+              </button>
+            </div>
+          </div>
           <div class="overflow-x-auto rounded-lg border border-red-100 dark:border-red-900">
             <table class="w-full text-sm">
               <thead class="bg-red-50 dark:bg-red-900/30"><tr>
+                <th class="p-2 w-8"></th>
                 <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Nombre</th>
-                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Sección (ref)</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Sección</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">DNI</th>
               </tr></thead>
               <tbody class="divide-y divide-red-100 dark:divide-red-900">${rows}</tbody>
             </table>
           </div>
         </div>`;
+    }
+
+    if (coincidenList.length > 0) {
+      const rows = coincidenList
+        .sort((a, b) => a.ap.localeCompare(b.ap))
+        .map(e => `<tr class="bg-white dark:bg-slate-900">
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td></tr>`)
+        .join('');
+      html += `
+        <details class="mb-6 group">
+          <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-sm select-none">
+            <i class="ph ph-caret-right text-base group-open:rotate-90 transition-transform"></i>
+            <i class="ph ph-check-circle text-lg"></i> Coinciden — ${coincidenList.length} estudiante(s) — clic para ver lista
+          </summary>
+          <div class="overflow-x-auto rounded-lg border border-emerald-100 dark:border-emerald-900 mt-3">
+            <table class="w-full text-sm">
+              <thead class="bg-emerald-50 dark:bg-emerald-900/30"><tr>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Apellido</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Nombre</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">División en BD</th>
+              </tr></thead>
+              <tbody class="divide-y divide-emerald-100 dark:divide-emerald-900">${rows}</tbody>
+            </table>
+          </div>
+        </details>`;
     }
 
     if (sobranEnDB.length > 0) {
@@ -1130,5 +1190,46 @@ export async function compararMatricula() {
   } catch(e) {
     console.error(e);
     container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error al consultar Firebase: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+export async function importarFaltantes() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const checks = [...document.querySelectorAll('.chk-faltante:checked')];
+  if (!checks.length) { showToast('Seleccioná al menos un estudiante.', 'error'); return; }
+
+  const seleccionados = checks.map(c => _lastFaltantes[+c.dataset.idx]).filter(Boolean);
+
+  const preview = seleccionados.slice(0, 5).map(s => `• ${s.ap}, ${s.no} → ${s.seccion || '(sin sección)'}`).join('\n');
+  const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
+
+  const ok = await window.app.showConfirm(
+    'Importar estudiantes a Firebase',
+    `Se crearán ${seleccionados.length} documento(s) nuevos en "estudiantes".\nEstado: activo | Materias: vacío (asignar luego).\n\n${preview}${extra}\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  try {
+    const batch = writeBatch(db);
+    seleccionados.forEach(s => {
+      const ref = doc(collection(db, getPath('estudiantes')));
+      batch.set(ref, {
+        apellido:     _titleCase(s.ap),
+        nombre:       _titleCase(s.no),
+        curso:        s.seccion || '',
+        dni:          s.dni || '',
+        email:        s.email || '',
+        id_miescuela: s.id_miescuela || '',
+        estado:       'activo',
+        materias:     [],
+      });
+    });
+    await batch.commit();
+    showToast(`${seleccionados.length} estudiante(s) importados. Ejecutá "Integridad" para asignar materias automáticamente.`, 'success');
+    compararMatricula();
+  } catch(e) {
+    console.error(e);
+    showToast('Error al importar: ' + e.message, 'error');
   }
 }
