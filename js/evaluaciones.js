@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.18";
-import { showToast } from "./ui.js?v=10.18";
-import { escaparHTML } from "./utils.js?v=10.18";
+import { db, getPath } from "./firebase-config.js?v=10.20";
+import { showToast } from "./ui.js?v=10.20";
+import { escaparHTML } from "./utils.js?v=10.20";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -724,8 +724,8 @@ export async function cargarPlanillaEvaluaciones() {
     const PERIODOS_CON_RESUMEN = ['b4', 'po_dic', 'po_feb'];
     const mostrarResumen = PERIODOS_CON_RESUMEN.includes(periodo);
 
+    headerRow.className = "bg-slate-800 text-white text-[10px] md:text-[11px] uppercase font-semibold";
     let headersHtml = `
-      <tr class="bg-slate-800 text-white text-[10px] md:text-[11px] uppercase font-semibold">
         <th class="px-2 py-2 md:px-4 md:py-3 text-left w-32 sm:w-64 max-w-[200px] sm:max-w-[250px] sticky left-0 z-20 bg-slate-900 border-r border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Estudiante</th>
 `;
       cols.forEach(col => {
