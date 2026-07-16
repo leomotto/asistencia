@@ -1,6 +1,6 @@
 import { doc, setDoc, collection, getDocs, query, where, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.16";
-import { showToast } from "./ui.js?v=10.16";
+import { db, getPath } from "./firebase-config.js?v=10.18";
+import { showToast } from "./ui.js?v=10.18";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {
@@ -66,8 +66,8 @@ export async function cargarListaUsuarios() {
     });
 
     const filtrados = usuarios
-      .filter(u => u.email && u.email !== 'dev@localhost')
-      .sort((a, b) => (a.nombre || a.email).localeCompare(b.nombre || b.email));
+      .filter(u => u.email !== 'dev@localhost')
+      .sort((a, b) => (a.nombre || a.email || '').localeCompare(b.nombre || b.email || ''));
 
     if (filtrados.length === 0) {
       contenedor.innerHTML = '<p class="text-center text-slate-400 py-8">No hay docentes registrados en esta escuela.</p>';
@@ -150,7 +150,7 @@ export async function cargarListaUsuarios() {
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5 pb-4 border-b dark:border-slate-700">
           <div>
             <p class="font-bold text-slate-800 dark:text-slate-100 text-lg">${u.nombre || '(sin nombre)'}</p>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">${u.email}</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5">${u.email || '(sin email)'}</p>
           </div>
           <div class="flex flex-wrap items-center gap-3 flex-shrink-0">
             <span class="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase shadow-sm ${rolBadgeClass}">${rolEnTenant}</span>

@@ -23,7 +23,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isAuthed() && (
-        (request.auth.token.email == 'leomotto@gmail.com') ||
+        (request.auth.token.email in ['leomotto@gmail.com', 'leopoldo.motto@bue.edu.ar']) ||
         (hasUserRecord() && (getUserData().rol == 'SUPERADMIN' || getUserData().superadmin == true))
       );
     }
@@ -63,12 +63,12 @@ service cloud.firestore {
     match /usuarios/{userId} {
       allow read: if isAuthed();
       allow create: if isAuthed() && request.auth.uid == userId && (
-                      (request.auth.token.email == 'leomotto@gmail.com') ||
+                      (request.auth.token.email in ['leomotto@gmail.com', 'leopoldo.motto@bue.edu.ar']) ||
                       (request.resource.data.keys().hasAll(['email', 'rol']) && request.resource.data.rol == 'PENDIENTE')
                     );
       allow update: if isAuthed() && (
         isSuperAdmin() || isAdmin(null) ||
-        (request.auth.uid == userId && request.auth.token.email == 'leomotto@gmail.com') ||
+        (request.auth.uid == userId && request.auth.token.email in ['leomotto@gmail.com', 'leopoldo.motto@bue.edu.ar']) ||
         (
           request.auth.uid == userId &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nombre', 'escuelas'])
