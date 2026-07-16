@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.35";
-import { showToast } from "./ui.js?v=10.35";
-import { escaparHTML } from "./utils.js?v=10.35";
+import { db, getPath } from "./firebase-config.js?v=10.36";
+import { showToast } from "./ui.js?v=10.36";
+import { escaparHTML } from "./utils.js?v=10.36";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -560,6 +560,10 @@ export function calcularNotaFinalYCondicion(b1, b2, b3, b4, poDic, poFeb) {
 }
 
 export function registrarCambioEvaluacion(alumnoId, campo, valor) {
+  if (planillaBloqueadaCurso) {
+    showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
+    return;
+  }
   if (!cambiosPendientesEvaluaciones[alumnoId]) {
     const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
     cambiosPendientesEvaluaciones[alumnoId] = {
@@ -582,6 +586,10 @@ export function registrarCambioEvaluacion(alumnoId, campo, valor) {
 }
 
 export function registrarCambioAdicionalEvaluacion(alumnoId, periodo, campoKey, valor) {
+  if (planillaBloqueadaCurso) {
+    showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
+    return;
+  }
   if (!cambiosPendientesEvaluaciones[alumnoId]) {
     const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
     cambiosPendientesEvaluaciones[alumnoId] = {
@@ -742,7 +750,9 @@ export async function cargarPlanillaEvaluaciones() {
 
 
     const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
-    const isPeriodoHabilitado = esAdmin || (!planillaBloqueadaCurso && !!configHabilitacionEvaluaciones[periodo]);
+    // El bloqueo aplica a TODOS los roles (el admin puede desbloquear con el botón si necesita editar).
+    // La habilitación de periodo solo restringe a docentes.
+    const isPeriodoHabilitado = !planillaBloqueadaCurso && (esAdmin || !!configHabilitacionEvaluaciones[periodo]);
     const disabledAttr = isPeriodoHabilitado ? '' : 'disabled';
 
     tablaBody.innerHTML = '';
@@ -884,6 +894,13 @@ export async function guardarCambiosEvaluaciones() {
   btn.innerHTML = '<i class="ph ph-spinner animate-spin text-lg"></i> Guardando Calificaciones...';
 
   try {
+    // Re-verificar el bloqueo contra Firestore (pudo cambiar desde que se cargó la planilla)
+    await cargarBloqueoCurso(curso);
+    if (planillaBloqueadaCurso) {
+      showToast("🔒 La planilla fue bloqueada. No se guardaron los cambios.", "error");
+      return;  // finally restaura el botón
+    }
+
     const batch = writeBatch(db);
 
     uids.forEach(uid => {
