@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.41";
+import { db, getPath, appId } from "./firebase-config.js?v=10.42";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.41";
-import { escaparHTML } from "./utils.js?v=10.41";
+import { showToast } from "./ui.js?v=10.42";
+import { escaparHTML } from "./utils.js?v=10.42";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1757,11 +1757,31 @@ export async function migrarRootAEscuela() {
   if (!tenant) { showToast('Elegí la escuela destino.', 'error'); return; }
 
   const { estudiantes, evaluaciones, asistencias, locks } = _rootMigracionData;
-  const total = estudiantes.length + evaluaciones.length + asistencias.length + locks.length;
+
+  // Red anti-duplicación: contar qué ya existe en el destino.
+  const [destEst, destEval, destAsist] = await Promise.all([
+    getDocs(collection(db, _tenantColPath(tenant, 'estudiantes'))),
+    getDocs(collection(db, _tenantColPath(tenant, 'evaluaciones'))),
+    getDocs(collection(db, _tenantColPath(tenant, 'asistencias'))),
+  ]);
+  const destTotal = destEst.size + destEval.size + destAsist.size;
+
+  // IDs de root que ya existen igual en destino → merge (no duplican). Los que difieren sí sumarían.
+  const destEstIds = new Set(destEst.docs.map(d => d.id));
+  const estNuevos = estudiantes.filter(x => !destEstIds.has(x.id)).length;
+
+  let aviso = '';
+  if (destTotal > 0) {
+    aviso = `\n⚠️ La escuela "${tenant}" YA tiene datos: ${destEst.size} estudiantes, ${destEval.size} calificaciones, ${destAsist.size} asistencias.\n` +
+            `De los ${estudiantes.length} estudiantes de root, ${estNuevos} tienen ID nuevo (se agregarían) y ${estudiantes.length - estNuevos} ya existen (merge, no duplican).\n` +
+            `Si esos "${estNuevos}" son en realidad los mismos alumnos con otro ID, se DUPLICARÍAN. Revisá antes de continuar.\n`;
+  } else {
+    aviso = `\n✅ La escuela "${tenant}" está vacía: dup imposible (IDs preservados, merge).\n`;
+  }
 
   const ok = await window.app.showConfirm(
     'Migrar datos de root a la escuela',
-    `Se copiarán a "${tenant}":\n- ${estudiantes.length} estudiantes\n- ${evaluaciones.length} calificaciones\n- ${asistencias.length} planillas de asistencia\n- ${locks.length} bloqueos\n\nNo se borra nada de root. No se pisan documentos ya existentes en la escuela.\n\n¿Confirmar?`
+    `Se copiarán a "${tenant}":\n- ${estudiantes.length} estudiantes\n- ${evaluaciones.length} calificaciones\n- ${asistencias.length} planillas de asistencia\n- ${locks.length} bloqueos\n${aviso}\nNo se borra nada de root.\n\n¿Confirmar?`
   );
   if (!ok) return;
 
