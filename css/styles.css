@@ -1,6 +1,16 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Safe area inset para iPhone con home indicator */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Touch targets mínimos en móvil */
+@media (max-width: 767px) {
+  select, input[type="text"], input[type="date"], input[type="number"], input[type="search"] {
+    min-height: 44px;
+  }
+}
+
 .hidden { display: none !important; }
 
 /* Columna sticky de nombre en la grilla — bg heredado del tr vía JS */

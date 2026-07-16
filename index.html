@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Capturador de errores global para debugging -->
   <script>
     window._appStartErrors = [];
@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.26">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.27">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -82,27 +82,27 @@
     <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white dark:bg-slate-800 border-t dark:border-slate-700 z-40 pb-safe flex justify-around items-center px-2 py-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
             <button id="btnMobileInicio" onclick="switchTab('inicioTab')" class="flex flex-col items-center justify-center p-2 text-indigo-600 dark:text-indigo-400 transition-colors w-16">
         <i class="ph ph-house text-2xl mb-1"></i>
-        <span class="text-[10px] font-bold">Inicio</span>
+        <span class="text-[11px] font-bold">Inicio</span>
       </button>
       <button id="btnMobileToma" onclick="switchTab('tomaDiaria')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
         <i class="ph ph-calendar-check text-2xl mb-1"></i>
-        <span class="text-[10px] font-semibold leading-none">Toma</span>
+        <span class="text-[11px] font-semibold leading-none">Toma</span>
       </button>
       <button id="btnMobileGrilla" onclick="switchTab('planillaGrilla')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
         <i class="ph ph-table text-2xl mb-1"></i>
-        <span class="text-[10px] font-semibold leading-none">Asistencia</span>
+        <span class="text-[11px] font-semibold leading-none">Asistencia</span>
       </button>
       <button id="btnMobileEval" onclick="switchTab('evaluaciones')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
         <i class="ph ph-exam text-2xl mb-1"></i>
-        <span class="text-[10px] font-semibold leading-none">Notas</span>
+        <span class="text-[11px] font-semibold leading-none">Notas</span>
       </button>
       <button id="btnMobileGestion" onclick="switchTab('gestionAlumnos')" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
         <i class="ph ph-users text-2xl mb-1"></i>
-        <span class="text-[10px] font-semibold leading-none">Alumnos</span>
+        <span class="text-[11px] font-semibold leading-none">Alumnos</span>
       </button>
       <button onclick="app.toggleMenuMobile()" class="flex flex-col items-center justify-center p-2 text-slate-500 dark:text-slate-400 transition-colors w-16">
         <i class="ph ph-list text-2xl mb-1"></i>
-        <span class="text-[10px] font-semibold leading-none">Más</span>
+        <span class="text-[11px] font-semibold leading-none">Más</span>
       </button>
     </nav>
 
@@ -354,13 +354,13 @@
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="app.abrirModalConfigEval()" id="btnConfigEvalAdmin" class="hidden bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border dark:border-slate-700 px-2 md:px-3 py-1.5 md:py-2 rounded font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5" title="Configurar Planillas">
+            <button onclick="app.abrirModalConfigEval()" id="btnConfigEvalAdmin" class="hidden bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border dark:border-slate-700 px-2 md:px-3 py-2 rounded font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5" title="Configurar Planillas">
               <i class="ph ph-gear-six text-lg"></i> <span class="hidden sm:inline">Config</span>
             </button>
-            <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-2 md:px-3 py-1.5 md:py-2 rounded font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla">
+            <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-2 md:px-3 py-2 rounded font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla">
               <i class="ph ph-lock-key text-lg"></i> <span class="hidden sm:inline">Bloquear</span>
             </button>
-            <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-3 md:px-4 py-1.5 md:py-2 rounded font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-3 md:px-4 py-2 rounded font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar</span>
             </button>
           </div>
@@ -466,7 +466,7 @@
                 <th class="px-4 py-3 text-center text-gray-300 italic min-w-[180px]">Por favor seleccione un curso y período.</th>
               </tr>
             </thead>
-            <tbody id="grillaBody" class="divide-y divide-gray-200">
+            <tbody id="grillaBody" class="divide-y divide-gray-200 dark:divide-slate-700">
               <!-- Renderizado dinámico -->
             </tbody>
           </table>
@@ -497,8 +497,8 @@
               <i class="ph ph-chart-pie-slice text-emerald-500"></i> Dashboard de Gestión (Panel BI)
             </h2>
             <div class="inline-flex bg-slate-200 dark:bg-slate-700 p-1 rounded-lg mt-2">
-              <button onclick="app.setBiView('asistencia')" id="btnBiViewAsist" class="px-3 py-1.5 rounded-md text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow transition-all">Asistencia</button>
-              <button onclick="app.setBiView('calificaciones')" id="btnBiViewEval" class="px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all">Calificaciones</button>
+              <button onclick="app.setBiView('asistencia')" id="btnBiViewAsist" class="px-3 py-2 rounded-md text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 shadow transition-all">Asistencia</button>
+              <button onclick="app.setBiView('calificaciones')" id="btnBiViewEval" class="px-3 py-2 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all">Calificaciones</button>
             </div>
           </div>
           <div class="flex gap-2">
@@ -571,7 +571,7 @@
                   <th class="px-4 py-3 w-32">Semáforo</th>
                 </tr>
               </thead>
-              <tbody id="tablaBI" class="divide-y divide-gray-200">
+              <tbody id="tablaBI" class="divide-y divide-gray-200 dark:divide-slate-700">
                 <tr>
                   <td colspan="9" class="px-4 py-8 text-center text-slate-400 italic">Configure el curso y fechas en los filtros superiores para generar la planilla de control de gestión.</td>
                 </tr>
@@ -615,7 +615,7 @@
                   <input type="text" id="mBuscadorAlumno" oninput="app.cargarAlumnosMatricula()" placeholder="Ej: Perez, Juan..." class="w-full pl-9 p-2 border dark:border-slate-700 rounded-md outline-none bg-white dark:bg-slate-800 font-medium focus:ring-2 focus:ring-indigo-500 transition-shadow">
                 </div>
               </div>
-              <button id="btnFusion" onclick="app.abrirModalFusion()" class="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-orange-600 transition flex items-center justify-center gap-1.5 text-sm whitespace-nowrap w-full sm:w-auto h-[38px]" title="Fusionar Duplicados">
+              <button id="btnFusion" onclick="app.abrirModalFusion()" class="bg-orange-500 text-white font-bold py-2.5 px-4 rounded-lg shadow hover:bg-orange-600 transition flex items-center justify-center gap-1.5 text-sm whitespace-nowrap w-full sm:w-auto" title="Fusionar Duplicados">
                 <i class="ph ph-git-merge text-lg"></i> Fusionar
               </button>
             </div>
@@ -726,7 +726,7 @@
             </button>
           </div>
           <div id="listaDocentes" class="space-y-4">
-            <p class="text-center text-slate-400 py-8">Seleccioná el tab para cargar los usuarios.</p>
+            <p class="text-center text-slate-400 py-8"><i class="ph ph-spinner animate-spin"></i> Cargando usuarios...</p>
           </div>
         </div>
       </div>
@@ -797,7 +797,7 @@
             </p>
           </div>
           
-          <div class="flex gap-2 mb-4">
+          <div class="flex flex-wrap gap-2 mb-4">
             <button onclick="app.analizarIntegridadEstudiantes()" id="btnAnalizarIntegridad" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
               <i class="ph ph-magnifying-glass text-lg"></i> Analizar Estudiantes
             </button>
@@ -915,7 +915,7 @@
           <div>
             <div class="flex justify-between items-end mb-2">
               <label class="block text-xs font-bold text-slate-500 dark:text-slate-400">DÍAS Y HORARIOS DE CURSADA</label>
-              <button onclick="app.agregarDiaMateria()" class="text-[10px] bg-slate-100 dark:bg-slate-900 hover:bg-gray-200 text-slate-700 dark:text-slate-200 px-2 py-1 rounded font-bold transition flex items-center gap-1">
+              <button onclick="app.agregarDiaMateria()" class="text-xs bg-slate-100 dark:bg-slate-900 hover:bg-gray-200 text-slate-700 dark:text-slate-200 px-3 py-2 rounded font-bold transition flex items-center gap-1">
                 <i class="ph ph-plus"></i> Añadir día
               </button>
             </div>
@@ -956,19 +956,19 @@
         <!-- KPIs -->
         <div class="grid grid-cols-4 gap-2 mb-5">
           <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-3 text-center">
-            <p class="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">Presentes</p>
+            <p class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">Presentes</p>
             <p id="perfilKpiP" class="text-2xl font-black text-emerald-600 dark:text-emerald-400">—</p>
           </div>
           <div class="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 text-center">
-            <p class="text-[9px] font-bold text-red-700 dark:text-red-300 uppercase tracking-wider mb-1">Ausentes</p>
+            <p class="text-[11px] font-bold text-red-700 dark:text-red-300 uppercase tracking-wider mb-1">Ausentes</p>
             <p id="perfilKpiA" class="text-2xl font-black text-red-600 dark:text-red-400">—</p>
           </div>
           <div class="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-3 text-center">
-            <p class="text-[9px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-1">Justif.</p>
+            <p class="text-[11px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider mb-1">Justif.</p>
             <p id="perfilKpiACP" class="text-2xl font-black text-amber-500">—</p>
           </div>
           <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-center">
-            <p class="text-[9px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">% Asist.</p>
+            <p class="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">% Asist.</p>
             <p id="perfilKpiPct" class="text-2xl font-black text-slate-700 dark:text-slate-200">—</p>
           </div>
         </div>
@@ -979,7 +979,7 @@
           <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-5 overflow-hidden shadow-inner">
             <div id="perfilBarra" class="h-full rounded-full bg-slate-300 transition-all duration-700 ease-out" style="width:0%"></div>
           </div>
-          <div class="flex justify-between text-[9px] text-slate-400 mt-1.5 px-0.5">
+          <div class="flex justify-between text-[10px] text-slate-400 mt-1.5 px-0.5">
             <span>0%</span>
             <span class="text-amber-500 font-bold">60%</span>
             <span class="text-emerald-500 font-bold">80%</span>
@@ -1256,6 +1256,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.26"></script>
+  <script type="module" src="js/app.js?v=10.27"></script>
 </body>
 </html>
