@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.21";
-import { showToast } from "./ui.js?v=10.21";
-import { escaparHTML } from "./utils.js?v=10.21";
+import { db, getPath } from "./firebase-config.js?v=10.23";
+import { showToast } from "./ui.js?v=10.23";
+import { escaparHTML } from "./utils.js?v=10.23";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -120,7 +120,7 @@ export async function toggleBloqueoCurso() {
   const curso = document.getElementById('evalCurso').value;
   if (!curso) return;
 
-  const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
+  const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
   if (!esAdmin && planillaBloqueadaCurso) {
     showToast("⚠️ Solo un Administrador puede desbloquear la planilla.", "error");
     return;
@@ -154,7 +154,7 @@ function _actualizarBotonBloqueo() {
   const badge = document.getElementById('badgeEvalBloqueada');
   if (!btn) return;
 
-  const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
+  const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
 
   if (planillaBloqueadaCurso) {
     btn.innerHTML = `<i class="ph ph-lock-key-open"></i> <span class="hidden sm:inline">Desbloquear</span>`;
@@ -323,7 +323,7 @@ export async function guardarEstructuraColumnas() {
 
 function _renderizarControlesAdmin() {
   const user = window.app.currentUser;
-  const esAdmin = user && (user.rolActivo === 'ADMIN' || user.rolActivo === 'SUPERADMIN' || user.rol === 'SUPERADMIN');
+  const esAdmin = user && (user.rolActivo === 'ADMIN' || user.rolActivo === 'SUPERADMIN');
   const btnConfig = document.getElementById('btnConfigEvalAdmin');
   if (btnConfig) {
     if (esAdmin) btnConfig.classList.remove('hidden');
@@ -741,7 +741,7 @@ export async function cargarPlanillaEvaluaciones() {
       headerRow.innerHTML = headersHtml;
 
 
-    const esAdmin = window.app.currentUser?.rol === 'ADMIN' || window.app.currentUser?.rol === 'SUPERADMIN';
+    const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
     const isPeriodoHabilitado = esAdmin || (!planillaBloqueadaCurso && !!configHabilitacionEvaluaciones[periodo]);
     const disabledAttr = isPeriodoHabilitado ? '' : 'disabled';
 

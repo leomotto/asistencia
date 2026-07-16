@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.21";
-import { showToast } from "./ui.js?v=10.21";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=10.21";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.21";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.21";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=10.21";
+import { db, getPath } from "./firebase-config.js?v=10.23";
+import { showToast } from "./ui.js?v=10.23";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=10.23";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.23";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.23";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=10.23";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -714,7 +714,7 @@ function _renderizarTablaBI(tabla, alumnos, asistenciasValidas, curso) {
     header.innerHTML = `
       <tr class="bg-slate-800 text-white text-xs uppercase font-semibold">
         <th class="px-4 py-3 w-10 text-center">N°</th>
-        <th class="px-4 py-3">Alumno</th>
+        <th class="px-4 py-3">Estudiante</th>
         <th class="px-4 py-3">Grupo</th>
         <th class="px-4 py-3 text-center">Presentes (P)</th>
         <th class="px-4 py-3 text-center">Ausentes (A)</th>
@@ -795,7 +795,7 @@ function _renderizarTablaBICalificaciones(tabla, alumnos, notasMap) {
     header.innerHTML = `
       <tr class="bg-slate-800 text-white text-xs uppercase font-semibold">
         <th class="px-4 py-3 w-10 text-center">N°</th>
-        <th class="px-4 py-3">Alumno</th>
+        <th class="px-4 py-3">Estudiante</th>
         <th class="px-2 py-3 text-center">1er B</th>
         <th class="px-2 py-3 text-center">2do B</th>
         <th class="px-2 py-3 text-center">3er B</th>
@@ -1014,7 +1014,7 @@ export function exportarGrillaCSV() {
   }
   const { curso, periodo, alumnos, asistencias } = data;
 
-  const cols = ['Alumno', 'Estado', ...asistencias.map(a => a.fecha)];
+  const cols = ['Estudiante', 'Estado', ...asistencias.map(a => a.fecha)];
   const rows = [cols.map(escaparCSV).join(',')];
 
   alumnos.forEach(al => {

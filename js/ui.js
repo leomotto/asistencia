@@ -159,6 +159,21 @@ export function switchTab(tabId) {
   if (tabId === 'gestionDocentes') window.app.cargarListaUsuarios();
   if (tabId === 'gestionEscuelas') window.app.cargarListaEscuelas();
 
+  // Auto-focus en desktop: dirige la atención al primer campo a completar
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    const dualFocusId = { tomaDiaria: 'tomaCurso', evaluaciones: 'evalCurso', planillaGrilla: 'grillaCurso', panelBI: 'biCurso' }[tabId];
+    if (dualFocusId) {
+      setTimeout(() => {
+        const orig = document.getElementById(dualFocusId);
+        const dual = orig && orig.nextElementSibling;
+        const target = (dual && dual.classList.contains('dual-select-container')) ? dual.querySelector('.select-div') : orig;
+        target?.focus();
+      }, 80);
+    } else if (tabId === 'gestionAlumnos') {
+      setTimeout(() => document.getElementById('mBuscadorAlumno')?.focus(), 80);
+    }
+  }
+
   // Cerrar menú lateral al navegar en móvil
   const nav = document.getElementById('sideNav');
   if (nav && !nav.classList.contains('-translate-x-full')) toggleMenuMobile();
@@ -239,7 +254,7 @@ export async function buildContextSwitcher() {
     
     try {
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const { db, getPath } = await import("./firebase-config.js?v=10.21");
+      const { db, getPath } = await import("./firebase-config.js?v=10.23");
       
       const qSnap = await getDocs(collection(db, getPath("escuelas")));
       let html = `<option value="root" ${window.app.currentTenant === 'root' ? 'selected' : ''}>[SUPERADMIN] ROOT</option>`;
