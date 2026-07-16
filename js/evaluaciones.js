@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.39";
-import { showToast } from "./ui.js?v=10.39";
-import { escaparHTML } from "./utils.js?v=10.39";
+import { db, getPath } from "./firebase-config.js?v=10.40";
+import { showToast } from "./ui.js?v=10.40";
+import { escaparHTML } from "./utils.js?v=10.40";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -665,6 +665,14 @@ export async function cargarPlanillaEvaluaciones() {
   const tablaBody = document.getElementById('evalBody');
   const btnGuardar = document.getElementById('btnGuardarEvaluaciones');
 
+  // Las calificaciones SIEMPRE pertenecen a un establecimiento. En contexto root
+  // (SUPERADMIN sin escuela activa) getPath escribe fuera de la escuela → registro huérfano.
+  if ((window.app.currentTenant || 'root') === 'root') {
+    tablaBody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-amber-600 font-bold">⚠️ Seleccioná una escuela en el menú de contexto (arriba) antes de cargar calificaciones. En "ROOT / Sin escuela activa" las notas no se asocian a ningún establecimiento.</td></tr>';
+    if (btnGuardar) btnGuardar.disabled = true;
+    return;
+  }
+
   await cargarBloqueoCurso(curso);
   _renderizarControlesAdmin();
 
@@ -888,6 +896,12 @@ export async function guardarCambiosEvaluaciones() {
   const uids  = Object.keys(cambiosPendientesEvaluaciones);
 
   if (!curso || uids.length === 0) return;
+
+  // Guard: nunca guardar calificaciones fuera de una escuela (contexto root)
+  if ((window.app.currentTenant || 'root') === 'root') {
+    showToast("⚠️ Seleccioná una escuela en el menú de contexto antes de guardar calificaciones.", "error");
+    return;
+  }
 
   btn.disabled = true;
   const origHtml = btn.innerHTML;
