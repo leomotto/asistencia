@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.30";
+import { db, getPath } from "./firebase-config.js?v=10.31";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.30";
-import { escaparHTML } from "./utils.js?v=10.30";
+import { showToast } from "./ui.js?v=10.31";
+import { escaparHTML } from "./utils.js?v=10.31";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1039,7 +1039,7 @@ export async function compararMatricula() {
       const ap = _normStr(data.apellido || '');
       const no = _normStr(data.nombre || '');
       if (!ap || !no) return;
-      dbMap.set(_normKey(ap, no), { ap, no, id: d.id, materias: data.materias || [], estado: data.estado || '' });
+      dbMap.set(_normKey(ap, no), { ap, no, id: d.id, curso: data.curso || '', estado: data.estado || '' });
     });
 
     // Debug: muestra primeras claves de cada lado en consola
@@ -1099,7 +1099,7 @@ export async function compararMatricula() {
         .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
           <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
           <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
-          <td class="p-2 text-xs text-slate-400">${escaparHTML((e.materias || []).join(', '))}</td></tr>`)
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td></tr>`)
         .join('');
       html += `
         <div>
@@ -1112,7 +1112,7 @@ export async function compararMatricula() {
               <thead class="bg-amber-50 dark:bg-amber-900/30"><tr>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Nombre</th>
-                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Materias en BD</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">División en BD</th>
               </tr></thead>
               <tbody class="divide-y divide-amber-100 dark:divide-amber-900">${rows}</tbody>
             </table>
