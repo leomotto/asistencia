@@ -56,6 +56,13 @@ service cloud.firestore {
       );
     }
 
+    // La planilla de un curso está bloqueada si existe su doc de lock con locked == true.
+    // Aplica a TODOS los roles: un admin debe desbloquear primero para poder editar.
+    function planillaBloqueada(tenantId, curso) {
+      return exists(/databases/$(database)/documents/instituciones/$(tenantId)/evaluaciones_locks/$(curso)) &&
+             get(/databases/$(database)/documents/instituciones/$(tenantId)/evaluaciones_locks/$(curso)).data.locked == true;
+    }
+
     // ==========================================
     // REGLAS GLOBALES (Root Collections)
     // ==========================================
@@ -141,7 +148,10 @@ service cloud.firestore {
 
     match /instituciones/{tenantId}/evaluaciones_locks/{docId} {
       allow read:  if isAuthed();
-      allow write: if isAdmin(tenantId) || (isDocente(tenantId) && docenteTieneCurso(tenantId, docId));
+      // Docente puede BLOQUEAR su curso, pero solo un Admin puede desbloquear o borrar el lock.
+      allow create, update: if isAdmin(tenantId) ||
+                               (isDocente(tenantId) && docenteTieneCurso(tenantId, docId) && request.resource.data.locked == true);
+      allow delete: if isAdmin(tenantId);
     }
 
     match /instituciones/{tenantId}/estudiantes/{docId} {
@@ -166,19 +176,26 @@ service cloud.firestore {
     }
 
     match /instituciones/{tenantId}/evaluaciones/{docId} {
-      allow read, write: if isAdmin(tenantId);
+      allow read: if isAdmin(tenantId);
       allow read: if isDocente(tenantId) &&
                      resource != null &&
                      docenteTieneCurso(tenantId, resource.data.materia);
-      allow create: if isDocente(tenantId) &&
-                       docenteTieneCurso(tenantId, request.resource.data.materia);
-      allow update: if isDocente(tenantId) &&
-                       resource != null &&
-                       docenteTieneCurso(tenantId, resource.data.materia) &&
-                       docenteTieneCurso(tenantId, request.resource.data.materia);
-      allow delete: if isDocente(tenantId) &&
-                       resource != null &&
-                       docenteTieneCurso(tenantId, resource.data.materia);
+      // Escrituras bloqueadas para todos (incluido admin) si la planilla del curso está bloqueada.
+      allow create: if !planillaBloqueada(tenantId, request.resource.data.materia) && (
+                       isAdmin(tenantId) ||
+                       (isDocente(tenantId) && docenteTieneCurso(tenantId, request.resource.data.materia))
+                    );
+      allow update: if !planillaBloqueada(tenantId, resource.data.materia) &&
+                       !planillaBloqueada(tenantId, request.resource.data.materia) && (
+                       isAdmin(tenantId) ||
+                       (isDocente(tenantId) &&
+                        docenteTieneCurso(tenantId, resource.data.materia) &&
+                        docenteTieneCurso(tenantId, request.resource.data.materia))
+                    );
+      allow delete: if !planillaBloqueada(tenantId, resource.data.materia) && (
+                       isAdmin(tenantId) ||
+                       (isDocente(tenantId) && docenteTieneCurso(tenantId, resource.data.materia))
+                    );
     }
   }
 }
