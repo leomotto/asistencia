@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.32";
+import { db, getPath } from "./firebase-config.js?v=10.33";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.32";
-import { escaparHTML } from "./utils.js?v=10.32";
+import { showToast } from "./ui.js?v=10.33";
+import { escaparHTML } from "./utils.js?v=10.33";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -992,23 +992,21 @@ export async function auditarAsistencias() {
 // COMPARADOR DE MATRÍCULA (vs. fuente externa)
 // ==========================================
 
-// Quita tildes, pasa a mayúsculas y devuelve palabras ordenadas como clave única.
-// Así "García Perez" + "Juan Carlos" == "Juan Carlos Garcia Perez" sin importar el split.
+// Quita tildes y pasa a mayúsculas — solo para generar la clave de matching, nunca para guardar.
 function _normKey(a, b) {
   const txt = ((a || '') + ' ' + (b || '')).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
   return txt.split(/\s+/).filter(Boolean).sort().join(' ');
 }
-
 function _normStr(s) {
   return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
 }
-
 function _titleCase(s) {
-  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  // Preserva ñ, acentos, etc. Solo capitaliza primer letra de cada palabra.
+  return (s || '').toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
 }
 
-// Faltantes del último run, para usarlos en importarFaltantes()
-let _lastFaltantes = [];
+let _lastFaltantes   = [];
+let _lastCoincidentes = [];
 
 export async function compararMatricula() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
@@ -1025,15 +1023,17 @@ export async function compararMatricula() {
     return;
   }
 
-  // Acepta formato procesado {apellidos, nombres} o raw MiEscuela {alumno.persona.*}
+  // Acepta formato procesado {apellidos,nombres} o raw MiEscuela {alumno.persona.*}
+  // apOrig/noOrig: valor ORIGINAL del JSON (con ñ, acentos) — se usa al escribir en Firebase.
+  // ap/no: normalizado sin tildes — solo para la clave de comparación.
   const refMap = new Map();
   refList.forEach(item => {
-    const ap = _normStr(item.apellidos || item.apellido || item.alumno?.persona?.apellido || '');
-    const no = _normStr(item.nombres   || item.nombre  || item.alumno?.persona?.nombre   || '');
-    if (!ap || !no) return;
-    const key = _normKey(ap, no);
+    const apOrig = (item.apellidos || item.apellido || item.alumno?.persona?.apellido || '').trim();
+    const noOrig = (item.nombres   || item.nombre  || item.alumno?.persona?.nombre   || '').trim();
+    if (!apOrig || !noOrig) return;
+    const key = _normKey(_normStr(apOrig), _normStr(noOrig));
     if (!refMap.has(key)) refMap.set(key, {
-      ap, no,
+      apOrig, noOrig,
       seccion:      item.seccion_completa || item.seccion?.nombreSeccion || '',
       dni:          item.dni || item.alumno?.persona?.documento || '',
       email:        item.email || item.alumno?.persona?.email || '',
@@ -1045,25 +1045,49 @@ export async function compararMatricula() {
   container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Consultando Firebase...</p></div>`;
 
   try {
-    const snap = await getDocs(collection(db, getPath('estudiantes')));
+    // Carga paralela: estudiantes + materias (para obtener divisiones SIDEAC)
+    const [snap, snapMat] = await Promise.all([
+      getDocs(collection(db, getPath('estudiantes'))),
+      getDocs(collection(db, getPath('materias'))),
+    ]);
+
+    // Divisiones registradas en SIDEAC (de la colección materias)
+    const sideacDivisiones = [...new Set(
+      snapMat.docs.map(d => d.data().division).filter(Boolean)
+    )].sort();
+
     const dbMap = new Map();
     snap.forEach(d => {
       const data = d.data();
-      const ap = _normStr(data.apellido || '');
-      const no = _normStr(data.nombre || '');
-      if (!ap || !no) return;
-      dbMap.set(_normKey(ap, no), { ap, no, id: d.id, curso: data.curso || '', estado: data.estado || '' });
+      const apOrig = data.apellido || '';
+      const noOrig = data.nombre   || '';
+      if (!apOrig || !noOrig) return;
+      dbMap.set(_normKey(_normStr(apOrig), _normStr(noOrig)), {
+        apOrig, noOrig,
+        id:    d.id,
+        curso: data.curso || '',
+        dni:   data.dni   || '',
+        email: data.email || '',
+        estado: data.estado || '',
+      });
     });
 
-    // Debug: muestra primeras claves de cada lado en consola
     console.log('[Comparador] Firebase keys (primeras 5):', [...dbMap.keys()].slice(0, 5));
     console.log('[Comparador] Referencia keys (primeras 5):', [...refMap.keys()].slice(0, 5));
 
-    const faltanEnDB  = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
-    const sobranEnDB  = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
-    const coincidenList = [...dbMap.entries()].filter(([k]) => refMap.has(k)).map(([, v]) => v);
+    const faltanEnDB    = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
+    const sobranEnDB    = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
+    const coincidenList = [...dbMap.entries()]
+      .filter(([k]) => refMap.has(k))
+      .map(([k, dbV]) => ({ ...dbV, ref: refMap.get(k) }));
 
-    _lastFaltantes = faltanEnDB;
+    _lastFaltantes    = [...faltanEnDB].sort((a, b) => a.apOrig.localeCompare(b.apOrig));
+    _lastCoincidentes = coincidenList;
+
+    // Opciones de divisiones SIDEAC para el select de importación
+    const opcionesDivisiones = sideacDivisiones.length
+      ? sideacDivisiones.map(d => `<option value="${escaparHTML(d)}">${escaparHTML(d)}</option>`).join('')
+      : '<option value="">— sin divisiones registradas —</option>';
 
     let html = `
       <div class="grid grid-cols-4 gap-3 mb-6">
@@ -1085,21 +1109,34 @@ export async function compararMatricula() {
         </div>
       </div>`;
 
-    if (faltanEnDB.length > 0) {
-      const sorted = [...faltanEnDB].sort((a, b) => a.ap.localeCompare(b.ap));
-      const rows = sorted.map((e, i) => `
+    // ── FALTAN EN FIREBASE ──
+    if (_lastFaltantes.length > 0) {
+      const rows = _lastFaltantes.map((e, i) => {
+        // Pre-seleccionar la división SIDEAC que más se parece a la sección del JSON
+        const secNorm = _normStr(e.seccion);
+        const presel  = sideacDivisiones.find(d => _normStr(d) === secNorm) || '';
+        const opts = sideacDivisiones.map(d =>
+          `<option value="${escaparHTML(d)}"${d === presel ? ' selected' : ''}>${escaparHTML(d)}</option>`
+        ).join('');
+        return `
         <tr class="bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/20">
           <td class="p-2 text-center"><input type="checkbox" class="chk-faltante w-4 h-4 accent-indigo-600" data-idx="${i}" checked></td>
-          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
-          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(_titleCase(e.apOrig))}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(_titleCase(e.noOrig))}</td>
           <td class="p-2 text-xs text-slate-400">${escaparHTML(e.seccion)}</td>
-          <td class="p-2 text-xs text-slate-400 font-mono">${escaparHTML(e.dni)}</td>
-        </tr>`).join('');
+          <td class="p-2 text-xs font-mono text-slate-500">${escaparHTML(e.dni)}</td>
+          <td class="p-2">
+            <select class="sel-division-faltante text-xs border border-slate-300 dark:border-slate-600 rounded px-1 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 min-w-[90px]" data-idx="${i}">
+              <option value="">— elegir —</option>${opts}
+            </select>
+          </td>
+        </tr>`;
+      }).join('');
       html += `
         <div class="mb-6">
           <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h4 class="font-bold text-red-700 dark:text-red-400 flex items-center gap-2 text-sm">
-              <i class="ph ph-user-minus text-lg"></i> Faltan en Firebase — ${faltanEnDB.length} estudiante(s)
+              <i class="ph ph-user-minus text-lg"></i> Faltan en Firebase — ${_lastFaltantes.length} estudiante(s)
             </h4>
             <div class="flex items-center gap-2">
               <label class="text-xs text-slate-500 flex items-center gap-1 cursor-pointer">
@@ -1117,8 +1154,9 @@ export async function compararMatricula() {
                 <th class="p-2 w-8"></th>
                 <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Nombre</th>
-                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Sección</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Sección JSON</th>
                 <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">DNI</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">División SIDEAC</th>
               </tr></thead>
               <tbody class="divide-y divide-red-100 dark:divide-red-900">${rows}</tbody>
             </table>
@@ -1126,39 +1164,107 @@ export async function compararMatricula() {
         </div>`;
     }
 
+    // ── COINCIDENTES (con opción de actualizar datos del JSON) ──
     if (coincidenList.length > 0) {
-      const rows = coincidenList
-        .sort((a, b) => a.ap.localeCompare(b.ap))
+      // Solo mostramos en la tabla de actualización los que tienen diferencias
+      const conDif = coincidenList.filter(e => {
+        const dniDif   = e.ref.dni && e.ref.dni !== e.dni;
+        const dniVacio = !e.dni && e.ref.dni;
+        const apDif    = _normStr(e.ref.apOrig) !== _normStr(e.apOrig);
+        const noDif    = _normStr(e.ref.noOrig) !== _normStr(e.noOrig);
+        return dniDif || dniVacio || apDif || noDif;
+      });
+
+      const rowsAll = coincidenList
+        .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
         .map(e => `<tr class="bg-white dark:bg-slate-900">
-          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
-          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
-          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td></tr>`)
-        .join('');
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.apOrig)}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.noOrig)}</td>
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td>
+          <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.dni)}</td>
+        </tr>`).join('');
+
+      let updateBlock = '';
+      if (conDif.length > 0) {
+        const rowsDif = conDif
+          .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
+          .map((e, i) => {
+            const dniTag  = e.ref.dni && e.ref.dni !== e.dni
+              ? `<span class="text-amber-600 font-bold">${escaparHTML(e.ref.dni)}</span>`
+              : (e.ref.dni && !e.dni ? `<span class="text-red-600 font-bold">${escaparHTML(e.ref.dni)}</span>` : `<span class="text-slate-400">${escaparHTML(e.ref.dni||'—')}</span>`);
+            const apTag   = _normStr(e.ref.apOrig) !== _normStr(e.apOrig)
+              ? `<span class="text-amber-600">${escaparHTML(_titleCase(e.ref.apOrig))}</span>` : '—';
+            const noTag   = _normStr(e.ref.noOrig) !== _normStr(e.noOrig)
+              ? `<span class="text-amber-600">${escaparHTML(_titleCase(e.ref.noOrig))}</span>` : '—';
+            return `
+            <tr class="bg-white dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/20">
+              <td class="p-2 text-center"><input type="checkbox" class="chk-actualizar w-4 h-4 accent-blue-600" data-idx="${i}" checked></td>
+              <td class="p-2 font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(e.apOrig)}, ${escaparHTML(e.noOrig)}</td>
+              <td class="p-2 text-xs">${dniTag}</td>
+              <td class="p-2 text-xs">${apTag}</td>
+              <td class="p-2 text-xs">${noTag}</td>
+            </tr>`;
+          }).join('');
+        updateBlock = `
+          <div class="mt-4 border-t border-emerald-200 dark:border-emerald-800 pt-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <p class="text-sm font-bold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                <i class="ph ph-arrows-clockwise text-base"></i> ${conDif.length} con diferencias de datos (DNI / nombre)
+              </p>
+              <div class="flex items-center gap-2">
+                <label class="text-xs text-slate-500 flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" id="chkTodosActualizar" checked onchange="document.querySelectorAll('.chk-actualizar').forEach(c=>c.checked=this.checked)">
+                  Todos
+                </label>
+                <button onclick="app.actualizarCoincidentes()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                  <i class="ph ph-pencil-simple"></i> Actualizar seleccionados
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-blue-100 dark:border-blue-900">
+              <table class="w-full text-sm">
+                <thead class="bg-blue-50 dark:bg-blue-900/30"><tr>
+                  <th class="p-2 w-8"></th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Alumno en BD</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">DNI del JSON</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Apellido del JSON</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Nombre del JSON</th>
+                </tr></thead>
+                <tbody class="divide-y divide-blue-100 dark:divide-blue-900">${rowsDif}</tbody>
+              </table>
+            </div>
+            <p class="text-xs text-slate-400 mt-2">Naranja = valor distinto al actual. Solo se actualiza lo que tenga valor nuevo en el JSON.</p>
+          </div>`;
+      }
+
       html += `
         <details class="mb-6 group">
           <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-sm select-none">
             <i class="ph ph-caret-right text-base group-open:rotate-90 transition-transform"></i>
-            <i class="ph ph-check-circle text-lg"></i> Coinciden — ${coincidenList.length} estudiante(s) — clic para ver lista
+            <i class="ph ph-check-circle text-lg"></i> Coinciden — ${coincidenList.length} estudiante(s)${conDif.length ? ` · <span class="text-blue-600">${conDif.length} con diferencias</span>` : ''} — clic para ver
           </summary>
           <div class="overflow-x-auto rounded-lg border border-emerald-100 dark:border-emerald-900 mt-3">
             <table class="w-full text-sm">
               <thead class="bg-emerald-50 dark:bg-emerald-900/30"><tr>
                 <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Nombre</th>
-                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">División en BD</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">División</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">DNI en BD</th>
               </tr></thead>
-              <tbody class="divide-y divide-emerald-100 dark:divide-emerald-900">${rows}</tbody>
+              <tbody class="divide-y divide-emerald-100 dark:divide-emerald-900">${rowsAll}</tbody>
             </table>
           </div>
+          ${updateBlock}
         </details>`;
     }
 
+    // ── SOBRAN EN FIREBASE ──
     if (sobranEnDB.length > 0) {
       const rows = sobranEnDB
-        .sort((a, b) => a.ap.localeCompare(b.ap))
+        .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
         .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
-          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
-          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.apOrig)}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.noOrig)}</td>
           <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td></tr>`)
         .join('');
       html += `
@@ -1199,14 +1305,25 @@ export async function importarFaltantes() {
   const checks = [...document.querySelectorAll('.chk-faltante:checked')];
   if (!checks.length) { showToast('Seleccioná al menos un estudiante.', 'error'); return; }
 
-  const seleccionados = checks.map(c => _lastFaltantes[+c.dataset.idx]).filter(Boolean);
+  const seleccionados = checks.map(c => {
+    const idx = +c.dataset.idx;
+    const faltante = _lastFaltantes[idx];
+    const divSel = document.querySelector(`.sel-division-faltante[data-idx="${idx}"]`)?.value || '';
+    return { ...faltante, divisionSideac: divSel };
+  }).filter(Boolean);
 
-  const preview = seleccionados.slice(0, 5).map(s => `• ${s.ap}, ${s.no} → ${s.seccion || '(sin sección)'}`).join('\n');
-  const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
+  const sinDiv = seleccionados.filter(s => !s.divisionSideac);
+  if (sinDiv.length) {
+    showToast(`${sinDiv.length} alumno(s) sin división SIDEAC asignada. Elegí la división antes de importar.`, 'error');
+    return;
+  }
+
+  const preview = seleccionados.slice(0, 5).map(s => `• ${_titleCase(s.apOrig)}, ${_titleCase(s.noOrig)} → ${s.divisionSideac}`).join('\n');
+  const extra   = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
 
   const ok = await window.app.showConfirm(
     'Importar estudiantes a Firebase',
-    `Se crearán ${seleccionados.length} documento(s) nuevos en "estudiantes".\nEstado: activo | Materias: vacío (asignar luego).\n\n${preview}${extra}\n\n¿Confirmar?`
+    `Se crearán ${seleccionados.length} documento(s) nuevos.\nEstado: activo | Materias: vacío (usar "Integridad" luego).\n\n${preview}${extra}\n\n¿Confirmar?`
   );
   if (!ok) return;
 
@@ -1215,21 +1332,74 @@ export async function importarFaltantes() {
     seleccionados.forEach(s => {
       const ref = doc(collection(db, getPath('estudiantes')));
       batch.set(ref, {
-        apellido:     _titleCase(s.ap),
-        nombre:       _titleCase(s.no),
-        curso:        s.seccion || '',
-        dni:          s.dni || '',
-        email:        s.email || '',
+        apellido:     _titleCase(s.apOrig),
+        nombre:       _titleCase(s.noOrig),
+        curso:        s.divisionSideac,
+        dni:          s.dni          || '',
+        email:        s.email        || '',
         id_miescuela: s.id_miescuela || '',
         estado:       'activo',
         materias:     [],
       });
     });
     await batch.commit();
-    showToast(`${seleccionados.length} estudiante(s) importados. Ejecutá "Integridad" para asignar materias automáticamente.`, 'success');
+    showToast(`${seleccionados.length} estudiante(s) importados. Ejecutá "Integridad" para asignar materias.`, 'success');
     compararMatricula();
   } catch(e) {
     console.error(e);
     showToast('Error al importar: ' + e.message, 'error');
+  }
+}
+
+export async function actualizarCoincidentes() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const checks = [...document.querySelectorAll('.chk-actualizar:checked')];
+  if (!checks.length) { showToast('Seleccioná al menos un estudiante.', 'error'); return; }
+
+  // conDif es el subset con diferencias — misma lógica que en compararMatricula
+  const conDif = _lastCoincidentes.filter(e => {
+    const dniDif   = e.ref.dni && e.ref.dni !== e.dni;
+    const dniVacio = !e.dni && e.ref.dni;
+    const apDif    = _normStr(e.ref.apOrig) !== _normStr(e.apOrig);
+    const noDif    = _normStr(e.ref.noOrig) !== _normStr(e.noOrig);
+    return dniDif || dniVacio || apDif || noDif;
+  }).sort((a, b) => a.apOrig.localeCompare(b.apOrig));
+
+  const seleccionados = checks.map(c => conDif[+c.dataset.idx]).filter(Boolean);
+
+  const preview = seleccionados.slice(0, 5).map(s => {
+    const parts = [];
+    if (s.ref.dni) parts.push(`DNI: ${s.ref.dni}`);
+    if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig)) parts.push(`Ap: ${_titleCase(s.ref.apOrig)}`);
+    if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig)) parts.push(`No: ${_titleCase(s.ref.noOrig)}`);
+    return `• ${s.apOrig}, ${s.noOrig} → ${parts.join(', ')}`;
+  }).join('\n');
+  const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
+
+  const ok = await window.app.showConfirm(
+    'Actualizar datos desde JSON',
+    `Se actualizarán ${seleccionados.length} estudiante(s) con los datos del JSON de referencia.\n\n${preview}${extra}\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  try {
+    const batch = writeBatch(db);
+    seleccionados.forEach(s => {
+      const ref = doc(db, getPath('estudiantes'), s.id);
+      const upd = {};
+      if (s.ref.dni)                                          upd.dni      = s.ref.dni;
+      if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig))     upd.apellido = _titleCase(s.ref.apOrig);
+      if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig))     upd.nombre   = _titleCase(s.ref.noOrig);
+      if (s.ref.email && !s.email)                            upd.email    = s.ref.email;
+      if (s.ref.id_miescuela && !s.id_miescuela)              upd.id_miescuela = s.ref.id_miescuela;
+      if (Object.keys(upd).length) batch.update(ref, upd);
+    });
+    await batch.commit();
+    showToast(`${seleccionados.length} estudiante(s) actualizados.`, 'success');
+    compararMatricula();
+  } catch(e) {
+    console.error(e);
+    showToast('Error al actualizar: ' + e.message, 'error');
   }
 }
