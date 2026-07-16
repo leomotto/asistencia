@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.37";
+import { db, getPath } from "./firebase-config.js?v=10.38";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.37";
-import { escaparHTML } from "./utils.js?v=10.37";
+import { showToast } from "./ui.js?v=10.38";
+import { escaparHTML } from "./utils.js?v=10.38";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1591,6 +1591,10 @@ export async function detectarDuplicadosEstudiantes() {
     });
     porKey.forEach(lista => {
       if (lista.length > 1) {
+        // Si todos tienen DNI y son distintos entre sí, son homónimos reales, no duplicados
+        const dnis = lista.map(a => a.dni).filter(Boolean);
+        const todosDniDistintos = dnis.length === lista.length && new Set(dnis).size === lista.length;
+        if (todosDniDistintos) return;
         grupos.push({ motivo: 'Nombre idéntico (mismas palabras)', alumnos: lista });
         lista.forEach(a => yaAgrupados.add(a.id));
       }
@@ -1602,6 +1606,8 @@ export async function detectarDuplicadosEstudiantes() {
       for (let j = i + 1; j < restantes.length; j++) {
         const a = restantes[i], b = restantes[j];
         if (yaAgrupados.has(a.id) || yaAgrupados.has(b.id)) continue;
+        // DNIs distintos = personas distintas, no comparar nombres
+        if (a.dni && b.dni && a.dni !== b.dni) continue;
         const wa = a.key.split(' '), wb = b.key.split(' ');
         const setA = new Set(wa);
         const comunes = wb.filter(w => setA.has(w)).length;
