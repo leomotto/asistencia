@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.29";
+import { db, getPath } from "./firebase-config.js?v=10.30";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.29";
-import { escaparHTML } from "./utils.js?v=10.29";
+import { showToast } from "./ui.js?v=10.30";
+import { escaparHTML } from "./utils.js?v=10.30";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -992,7 +992,14 @@ export async function auditarAsistencias() {
 // COMPARADOR DE MATRÍCULA (vs. fuente externa)
 // ==========================================
 
-function _normNombre(s) {
+// Quita tildes, pasa a mayúsculas y devuelve palabras ordenadas como clave única.
+// Así "García Perez" + "Juan Carlos" == "Juan Carlos Garcia Perez" sin importar el split.
+function _normKey(a, b) {
+  const txt = ((a || '') + ' ' + (b || '')).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  return txt.split(/\s+/).filter(Boolean).sort().join(' ');
+}
+
+function _normStr(s) {
   return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
 }
 
@@ -1014,10 +1021,10 @@ export async function compararMatricula() {
   // Acepta formato procesado {apellidos, nombres} o raw MiEscuela {alumno.persona.*}
   const refMap = new Map();
   refList.forEach(item => {
-    const ap = _normNombre(item.apellidos || item.apellido || item.alumno?.persona?.apellido || '');
-    const no = _normNombre(item.nombres || item.nombre || item.alumno?.persona?.nombre || '');
+    const ap = _normStr(item.apellidos || item.apellido || item.alumno?.persona?.apellido || '');
+    const no = _normStr(item.nombres   || item.nombre  || item.alumno?.persona?.nombre   || '');
     if (!ap || !no) return;
-    const key = ap + '|' + no;
+    const key = _normKey(ap, no);
     if (!refMap.has(key)) refMap.set(key, { ap, no, seccion: item.seccion_completa || item.seccion?.nombreSeccion || '' });
   });
 
@@ -1029,11 +1036,15 @@ export async function compararMatricula() {
     const dbMap = new Map();
     snap.forEach(d => {
       const data = d.data();
-      const ap = _normNombre(data.apellido || '');
-      const no = _normNombre(data.nombre || '');
+      const ap = _normStr(data.apellido || '');
+      const no = _normStr(data.nombre || '');
       if (!ap || !no) return;
-      dbMap.set(ap + '|' + no, { ap, no, id: d.id, materias: data.materias || [], estado: data.estado || '' });
+      dbMap.set(_normKey(ap, no), { ap, no, id: d.id, materias: data.materias || [], estado: data.estado || '' });
     });
+
+    // Debug: muestra primeras claves de cada lado en consola
+    console.log('[Comparador] Firebase keys (primeras 5):', [...dbMap.keys()].slice(0, 5));
+    console.log('[Comparador] Referencia keys (primeras 5):', [...refMap.keys()].slice(0, 5));
 
     const faltanEnDB  = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
     const sobranEnDB  = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
