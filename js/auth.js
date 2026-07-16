@@ -2,9 +2,9 @@
 
 import { doc, setDoc, getDoc, getDocs, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=10.36";
-import { showToast } from "./ui.js?v=10.36";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=10.36";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=10.37";
+import { showToast } from "./ui.js?v=10.37";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=10.37";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 
@@ -166,8 +166,6 @@ export function setupAuthListener() {
       const displayName  = esDevLocal ? 'Dev Admin' : (user.displayName || user.email);
       const displayEmail = esDevLocal ? 'localhost'  : user.email;
       
-      let tenantBadge = window.app.currentTenant !== 'root' ? `<span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded uppercase font-bold ml-2 shadow-sm border border-indigo-200"><i class="ph ph-buildings"></i> ${window.app.currentTenant}</span>` : '';
-
       status.innerHTML = `
         <div class="flex flex-col gap-1 items-start w-full">
           <span class="flex items-center gap-1 ${esDevLocal ? 'text-amber-400' : 'text-emerald-400'} font-medium flex-wrap">
@@ -179,11 +177,6 @@ export function setupAuthListener() {
         </div>
       `;
 
-      const userNameDisplay = document.getElementById('userNameDisplay');
-      if (userNameDisplay) {
-        userNameDisplay.innerHTML = `${user.displayName || user.email} ${rolBadge} ${tenantBadge}`;
-      }
-      
       if (typeof window.app.buildContextSwitcher === 'function') {
         window.app.buildContextSwitcher();
       }

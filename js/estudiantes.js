@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.36";
-import { showToast } from "./ui.js?v=10.36";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.36";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.36";
+import { db, getPath } from "./firebase-config.js?v=10.37";
+import { showToast } from "./ui.js?v=10.37";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.37";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.37";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -139,20 +139,6 @@ export function toggleInscripcionDetails(checkbox) {
   } else {
     details.classList.add('hidden');
   }
-}
-
-// Checkbox maestro: marca/desmarca todas las materias de su bloque
-export function toggleDivisionMaestra(masterCb) {
-  const block = masterCb.closest('.division-block');
-  if (!block) return;
-  block.querySelectorAll('.cb-materia').forEach(cb => {
-    if (cb.checked !== masterCb.checked) {
-      cb.checked = masterCb.checked;
-      toggleInscripcionDetails(cb);
-    }
-  });
-  // El maestro ya está en el estado correcto; asegurar que indeterminate = false
-  masterCb.indeterminate = false;
 }
 
 // Extrae división y materia base de un nombre como "1ro A - Matemática"
@@ -812,8 +798,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.36")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.36");
+      const fbdb = (await import("./firebase-config.js?v=10.37")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.37");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -850,8 +836,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.36")).db;
-    const { appId } = await import("./firebase-config.js?v=10.36");
+    const fbdb = (await import("./firebase-config.js?v=10.37")).db;
+    const { appId } = await import("./firebase-config.js?v=10.37");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 

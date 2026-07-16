@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.36">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.37">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -870,6 +870,26 @@
             <div id="matriculaResultados"></div>
           </div>
 
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+
+          <!-- DETECTOR DE DUPLICADOS — Solo SUPERADMIN -->
+          <div id="seccionDuplicados">
+            <div class="mb-4">
+              <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i class="ph ph-users-three text-amber-500"></i> Detector de Estudiantes Duplicados
+              </h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Busca estudiantes presumiblemente repetidos en la base: mismo DNI, nombre idéntico o nombres muy similares. Solo lectura — para fusionar usá la herramienta de Fusión en Matrícula.
+              </p>
+            </div>
+            <div class="flex gap-2 mb-6">
+              <button onclick="app.detectarDuplicadosEstudiantes()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+                <i class="ph ph-magnifying-glass text-lg"></i> Buscar duplicados
+              </button>
+            </div>
+            <div id="duplicadosResultados"></div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -1286,6 +1306,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.36"></script>
+  <script type="module" src="js/app.js?v=10.37"></script>
 </body>
 </html>

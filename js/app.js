@@ -1,23 +1,22 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext, enterContextAndGoTo } from "./ui.js?v=10.36";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth, setAppTenant, actualizarBadgePendientes } from "./auth.js?v=10.36";
-import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=10.36";
-import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=10.36";
+import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext, enterContextAndGoTo } from "./ui.js?v=10.37";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth, setAppTenant, actualizarBadgePendientes } from "./auth.js?v=10.37";
+import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=10.37";
+import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=10.37";
 import { 
   cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, 
   _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, 
   cerrarModalAlumno, guardarAlumnoMatricula, exportarBackup, abrirModalFusion, cerrarModalFusion, 
   buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, 
   cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, 
-  abrirPerfilAlumno, cerrarPerfilAlumno, emitirPase, cerrarModalPase, confirmarEmitirPase, 
-  toggleDivisionMaestra 
-} from "./estudiantes.js?v=10.36";
-import { cargarListaUsuarios, guardarAsignacionDocente, eliminarDocente, agregarMateriaChip } from "./usuarios.js?v=10.36";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=10.36";
-import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion, abrirModalConfigEval } from "./evaluaciones.js?v=10.36";
-import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad, analizarEstructuraRelacional, ejecutarMigracionEstructura, restaurarBackup, ejecutarRestauracionParcial, auditarAsistencias, compararMatricula, importarFaltantes, confirmarParciales, actualizarCoincidentes } from "./auditoria.js?v=10.36";
-import { cargarListaEscuelas, abrirModalEscuela, cerrarModalEscuela, guardarEscuela, eliminarEscuela, abrirModalUnirseEscuela, solicitarUnirseOtraEscuela, cargarMateriasParaEscuela } from "./escuelas.js?v=10.36";
+  abrirPerfilAlumno, cerrarPerfilAlumno, emitirPase, cerrarModalPase, confirmarEmitirPase
+} from "./estudiantes.js?v=10.37";
+import { cargarListaUsuarios, guardarAsignacionDocente, eliminarDocente, agregarMateriaChip } from "./usuarios.js?v=10.37";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=10.37";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion, abrirModalConfigEval } from "./evaluaciones.js?v=10.37";
+import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad, analizarEstructuraRelacional, ejecutarMigracionEstructura, restaurarBackup, ejecutarRestauracionParcial, auditarAsistencias, compararMatricula, importarFaltantes, confirmarParciales, actualizarCoincidentes, detectarDuplicadosEstudiantes } from "./auditoria.js?v=10.37";
+import { cargarListaEscuelas, abrirModalEscuela, cerrarModalEscuela, guardarEscuela, eliminarEscuela, abrirModalUnirseEscuela, solicitarUnirseOtraEscuela, cargarMateriasParaEscuela } from "./escuelas.js?v=10.37";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
@@ -47,6 +46,8 @@ window.app.iniciarSesionGoogle  = iniciarSesionGoogle;
 window.app.cerrarSesion         = cerrarSesion;
 window.app.entrarModoDesarrollo = entrarModoDesarrollo;
 window.app.solicitarUnirseEscuela = solicitarUnirseEscuela;
+window.app.cargarOnboardingEscuelas = cargarOnboardingEscuelas;
+window.app.onboardingEscuelaCambiada = onboardingEscuelaCambiada;
 window.app.setAppTenant = setAppTenant;
 window.app.actualizarBadgePendientes = actualizarBadgePendientes;
 
@@ -114,7 +115,6 @@ window.app.cerrarPerfilAlumno        = cerrarPerfilAlumno;
 window.app.emitirPase                = emitirPase;
 window.app.cerrarModalPase           = cerrarModalPase;
 window.app.confirmarEmitirPase       = confirmarEmitirPase;
-window.app._toggleDivisionMaestra    = toggleDivisionMaestra;
 
 // asistencias.js
 window.app.verificarDiaSemana              = verificarDiaSemana;
@@ -164,6 +164,7 @@ window.app.compararMatricula               = compararMatricula;
 window.app.importarFaltantes               = importarFaltantes;
 window.app.confirmarParciales              = confirmarParciales;
 window.app.actualizarCoincidentes          = actualizarCoincidentes;
+window.app.detectarDuplicadosEstudiantes   = detectarDuplicadosEstudiantes;
 
 // escuelas.js
 window.app.cargarListaEscuelas = cargarListaEscuelas;

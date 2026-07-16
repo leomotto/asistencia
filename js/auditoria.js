@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.36";
+import { db, getPath } from "./firebase-config.js?v=10.37";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.36";
-import { escaparHTML } from "./utils.js?v=10.36";
+import { showToast } from "./ui.js?v=10.37";
+import { escaparHTML } from "./utils.js?v=10.37";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1248,11 +1248,12 @@ export async function compararMatricula() {
 
     // ── COINCIDENTES EXACTOS (con opción de actualizar campos) ──
     if (coincidenList.length > 0) {
+      // Comparación EXACTA contra _titleCase(JSON): detecta también diferencias de
+      // mayúsculas/minúsculas — el JSON de MiEscuela es la fuente de verdad de los nombres.
       const _hasDif = e => {
         return (e.ref.dni && e.ref.dni !== e.dni) ||
-               (!e.dni && e.ref.dni) ||
-               (_normStr(e.ref.apOrig) !== _normStr(e.apOrig)) ||
-               (_normStr(e.ref.noOrig) !== _normStr(e.noOrig)) ||
+               (e.ref.apOrig && _titleCase(e.ref.apOrig) !== e.apOrig) ||
+               (e.ref.noOrig && _titleCase(e.ref.noOrig) !== e.noOrig) ||
                (e.ref.email && !e.email) ||
                (e.ref.id_miescuela && !e.id_miescuela) ||
                (e.ref.fecha_nacimiento && !e.fecha_nacimiento);
@@ -1274,8 +1275,10 @@ export async function compararMatricula() {
         const rowsDif = conDif.map((e, i) => {
           const tag = (valJSON, valDB, isName) => {
             if (!valJSON) return '<span class="text-slate-300">—</span>';
-            if (!valDB)   return `<span class="text-red-600 font-bold">${escaparHTML(isName ? _titleCase(valJSON) : valJSON)}</span>`;
-            if (_normStr(valJSON) !== _normStr(valDB)) return `<span class="text-amber-600 font-bold">${escaparHTML(isName ? _titleCase(valJSON) : valJSON)}</span>`;
+            const nuevoValor = isName ? _titleCase(valJSON) : valJSON;
+            if (!valDB)   return `<span class="text-red-600 font-bold">${escaparHTML(nuevoValor)}</span>`;
+            const distinto = isName ? nuevoValor !== valDB : _normStr(valJSON) !== _normStr(valDB);
+            if (distinto) return `<span class="text-amber-600 font-bold">${escaparHTML(nuevoValor)}</span>`;
             return '<span class="text-slate-300">igual</span>';
           };
           return `
@@ -1493,9 +1496,8 @@ export async function actualizarCoincidentes() {
 
   const _hasDif = e =>
     (e.ref.dni && e.ref.dni !== e.dni) ||
-    (!e.dni && e.ref.dni) ||
-    (_normStr(e.ref.apOrig) !== _normStr(e.apOrig)) ||
-    (_normStr(e.ref.noOrig) !== _normStr(e.noOrig)) ||
+    (e.ref.apOrig && _titleCase(e.ref.apOrig) !== e.apOrig) ||
+    (e.ref.noOrig && _titleCase(e.ref.noOrig) !== e.noOrig) ||
     (e.ref.email && !e.email) ||
     (e.ref.id_miescuela && !e.id_miescuela) ||
     (e.ref.fecha_nacimiento && !e.fecha_nacimiento);
@@ -1517,12 +1519,12 @@ export async function actualizarCoincidentes() {
     seleccionados.forEach(s => {
       const ref = doc(db, getPath('estudiantes'), s.id);
       const upd = {};
-      if (s.ref.dni)                                              upd.dni              = s.ref.dni;
-      if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig))         upd.apellido         = _titleCase(s.ref.apOrig);
-      if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig))         upd.nombre           = _titleCase(s.ref.noOrig);
-      if (s.ref.email            && !s.email)                     upd.email            = s.ref.email;
-      if (s.ref.id_miescuela     && !s.id_miescuela)              upd.id_miescuela     = s.ref.id_miescuela;
-      if (s.ref.fecha_nacimiento && !s.fecha_nacimiento)          upd.fecha_nacimiento = s.ref.fecha_nacimiento;
+      if (s.ref.dni && s.ref.dni !== s.dni)                             upd.dni              = s.ref.dni;
+      if (s.ref.apOrig && _titleCase(s.ref.apOrig) !== s.apOrig)        upd.apellido         = _titleCase(s.ref.apOrig);
+      if (s.ref.noOrig && _titleCase(s.ref.noOrig) !== s.noOrig)        upd.nombre           = _titleCase(s.ref.noOrig);
+      if (s.ref.email            && !s.email)                            upd.email            = s.ref.email;
+      if (s.ref.id_miescuela     && !s.id_miescuela)                     upd.id_miescuela     = s.ref.id_miescuela;
+      if (s.ref.fecha_nacimiento && !s.fecha_nacimiento)                 upd.fecha_nacimiento = s.ref.fecha_nacimiento;
       if (Object.keys(upd).length) batch.update(ref, upd);
     });
     await batch.commit();
@@ -1531,5 +1533,129 @@ export async function actualizarCoincidentes() {
   } catch(e) {
     console.error(e);
     showToast('Error al actualizar: ' + e.message, 'error');
+  }
+}
+
+// ==========================================
+// DETECTOR DE ESTUDIANTES DUPLICADOS
+// ==========================================
+// Agrupa estudiantes de la BD presumiblemente repetidos por tres criterios:
+// 1. Mismo DNI (no vacío)  2. Misma clave de nombre (palabras ordenadas)
+// 3. Nombres parcialmente similares (≥2 palabras comunes y ≥60% del más corto)
+// Solo lectura: la resolución se hace con la herramienta de Fusión en Matrícula.
+export async function detectarDuplicadosEstudiantes() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const container = document.getElementById('duplicadosResultados');
+  container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Analizando estudiantes...</p></div>`;
+
+  try {
+    const snap = await getDocs(collection(db, getPath('estudiantes')));
+    const alumnos = [];
+    snap.forEach(d => {
+      const data = d.data();
+      alumnos.push({
+        id: d.id,
+        apellido: data.apellido || '',
+        nombre:   data.nombre   || '',
+        curso:    data.curso    || '',
+        dni:      (data.dni || '').toString().trim(),
+        estado:   data.estado   || '',
+        key:      _normKey(_normStr(data.apellido || ''), _normStr(data.nombre || '')),
+      });
+    });
+
+    const grupos = [];       // { motivo, alumnos: [...] }
+    const yaAgrupados = new Set();
+
+    // 1. Mismo DNI
+    const porDni = new Map();
+    alumnos.forEach(a => {
+      if (!a.dni) return;
+      if (!porDni.has(a.dni)) porDni.set(a.dni, []);
+      porDni.get(a.dni).push(a);
+    });
+    porDni.forEach((lista, dni) => {
+      if (lista.length > 1) {
+        grupos.push({ motivo: `DNI repetido: ${dni}`, alumnos: lista });
+        lista.forEach(a => yaAgrupados.add(a.id));
+      }
+    });
+
+    // 2. Misma clave de nombre exacta
+    const porKey = new Map();
+    alumnos.forEach(a => {
+      if (!a.key || yaAgrupados.has(a.id)) return;
+      if (!porKey.has(a.key)) porKey.set(a.key, []);
+      porKey.get(a.key).push(a);
+    });
+    porKey.forEach(lista => {
+      if (lista.length > 1) {
+        grupos.push({ motivo: 'Nombre idéntico (mismas palabras)', alumnos: lista });
+        lista.forEach(a => yaAgrupados.add(a.id));
+      }
+    });
+
+    // 3. Similitud parcial entre pares restantes
+    const restantes = alumnos.filter(a => a.key && !yaAgrupados.has(a.id));
+    for (let i = 0; i < restantes.length; i++) {
+      for (let j = i + 1; j < restantes.length; j++) {
+        const a = restantes[i], b = restantes[j];
+        if (yaAgrupados.has(a.id) || yaAgrupados.has(b.id)) continue;
+        const wa = a.key.split(' '), wb = b.key.split(' ');
+        const setA = new Set(wa);
+        const comunes = wb.filter(w => setA.has(w)).length;
+        const minLen = Math.min(wa.length, wb.length);
+        if (comunes >= 2 && comunes / minLen >= 0.6) {
+          grupos.push({ motivo: 'Nombres muy similares (posible duplicado)', alumnos: [a, b] });
+          yaAgrupados.add(a.id); yaAgrupados.add(b.id);
+        }
+      }
+    }
+
+    if (grupos.length === 0) {
+      container.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
+        <i class="ph ph-check-circle text-2xl"></i> No se detectaron estudiantes duplicados (${alumnos.length} analizados).
+      </div>`;
+      return;
+    }
+
+    let html = `
+      <div class="bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 p-4 rounded-lg font-semibold flex items-center gap-2 border border-amber-200 dark:border-amber-800 mb-4">
+        <i class="ph ph-users-three text-2xl"></i> ${grupos.length} grupo(s) de posibles duplicados sobre ${alumnos.length} estudiantes.
+        <span class="text-xs font-normal">Para fusionar: Matrícula → botón Fusionar.</span>
+      </div>`;
+
+    grupos.forEach(g => {
+      const rows = g.alumnos.map(a => `
+        <tr class="bg-white dark:bg-slate-900">
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</td>
+          <td class="p-2 text-xs text-slate-500">${escaparHTML(a.curso)}</td>
+          <td class="p-2 text-xs font-mono text-slate-500">${escaparHTML(a.dni || '—')}</td>
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(a.estado)}</td>
+          <td class="p-2 text-xs font-mono text-slate-300">${escaparHTML(a.id.substring(0, 8))}…</td>
+        </tr>`).join('');
+      html += `
+        <div class="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
+          <p class="bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300">${escaparHTML(g.motivo)}</p>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 dark:bg-slate-800 text-[11px] uppercase text-slate-500"><tr>
+                <th class="p-2 text-left">Estudiante</th>
+                <th class="p-2 text-left">División</th>
+                <th class="p-2 text-left">DNI</th>
+                <th class="p-2 text-left">Estado</th>
+                <th class="p-2 text-left">ID</th>
+              </tr></thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
   }
 }
