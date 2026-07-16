@@ -2,9 +2,9 @@
 
 import { doc, setDoc, getDoc, getDocs, collection, query, where, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=10.25";
-import { showToast } from "./ui.js?v=10.25";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=10.25";
+import { db, auth, getPath, initAuth as fbInitAuth, loginWithGoogle, loginAnonymously, logout } from "./firebase-config.js?v=10.26";
+import { showToast } from "./ui.js?v=10.26";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=10.26";
 
 const DEV_HOSTNAMES = ['localhost', '127.0.0.1', ''];
 
@@ -304,17 +304,10 @@ export async function setAppTenant(newTenant) {
   if (userData.superadmin) {
      userData.rolActivo = 'SUPERADMIN';
      if (newTenant !== 'root') {
-       try {
-         const tenantDoc = await getDoc(doc(db, "escuelas", newTenant));
-         if (tenantDoc.exists()) {
-           userData.materiasActivas = tenantDoc.data().materias || [];
-         } else {
-           userData.materiasActivas = [];
-         }
-       } catch(err) {
-         console.error("Error al cargar materias de la escuela para SUPERADMIN:", err);
-         userData.materiasActivas = [];
-       }
+       // Usar materias del usuario en esta escuela si las tiene, si no sus materias globales
+       userData.materiasActivas = userData.escuelas?.[newTenant]?.materias?.length
+         ? userData.escuelas[newTenant].materias
+         : (userData.materias || []);
      } else {
        userData.materiasActivas = userData.materias || [];
      }
