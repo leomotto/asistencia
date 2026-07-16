@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.34";
+import { db, getPath } from "./firebase-config.js?v=10.35";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.34";
-import { escaparHTML } from "./utils.js?v=10.34";
+import { showToast } from "./ui.js?v=10.35";
+import { escaparHTML } from "./utils.js?v=10.35";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1095,25 +1095,24 @@ export async function compararMatricula() {
     const usedDbId   = new Set();
     const candidates = [];
     faltanEnDB.forEach((ref, ri) => {
-      sobranEnDB.forEach(db => {
-        const intersect = _intersectCount(ref._key, db._key);
-        const minLen    = Math.min(ref._key.split(' ').length, db._key.split(' ').length);
+      sobranEnDB.forEach(dbe => {
+        const intersect = _intersectCount(ref._key, dbe._key);
+        const minLen    = Math.min(ref._key.split(' ').length, dbe._key.split(' ').length);
         if (intersect >= 2 && intersect / minLen >= 0.6) {
-          candidates.push({ ref, db, ri, intersect, score: intersect / minLen });
+          candidates.push({ ref, dbe, ri, intersect, score: intersect / minLen });
         }
       });
     });
     candidates.sort((a, b) => b.score - a.score || b.intersect - a.intersect);
     const parciales = [];
     for (const c of candidates) {
-      if (usedRefIdx.has(c.ri) || usedDbId.has(c.db.id)) continue;
+      if (usedRefIdx.has(c.ri) || usedDbId.has(c.dbe.id)) continue;
       parciales.push(c);
       usedRefIdx.add(c.ri);
-      usedDbId.add(c.db.id);
+      usedDbId.add(c.dbe.id);
     }
 
-    // Remover parciales de las listas de faltantes y sobran
-    const parcialDbIds = new Set(parciales.map(p => p.db.id));
+    const parcialDbIds = new Set(parciales.map(p => p.dbe.id));
     const faltantesDisplay = faltanEnDB.filter((_, i) => !usedRefIdx.has(i));
     const sobranDisplay    = sobranEnDB.filter(e => !parcialDbIds.has(e.id));
 
@@ -1146,7 +1145,7 @@ export async function compararMatricula() {
     // ── PARCIALES ──
     if (parciales.length > 0) {
       const rowsParciales = parciales.map((p, i) => {
-        const commonWords = p.ref._key.split(' ').filter(w => new Set(p.db._key.split(' ')).has(w));
+        const commonWords = p.ref._key.split(' ').filter(w => new Set(p.dbe._key.split(' ')).has(w));
         return `
         <tr class="bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-orange-900/20">
           <td class="p-2 text-center"><input type="checkbox" class="chk-parcial w-4 h-4 accent-orange-600" data-idx="${i}" checked></td>
@@ -1155,8 +1154,8 @@ export async function compararMatricula() {
             <div class="text-xs text-slate-400">${escaparHTML(p.ref.seccion)} · DNI: ${escaparHTML(p.ref.dni||'—')}</div>
           </td>
           <td class="p-2">
-            <div class="font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(p.db.apOrig)}, ${escaparHTML(p.db.noOrig)}</div>
-            <div class="text-xs text-slate-400">${escaparHTML(p.db.curso)} · DNI BD: ${escaparHTML(p.db.dni||'—')}</div>
+            <div class="font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(p.dbe.apOrig)}, ${escaparHTML(p.dbe.noOrig)}</div>
+            <div class="text-xs text-slate-400">${escaparHTML(p.dbe.curso)} · DNI BD: ${escaparHTML(p.dbe.dni||'—')}</div>
           </td>
           <td class="p-2 text-xs text-orange-600 font-mono">${commonWords.join(', ')}</td>
         </tr>`;
@@ -1465,8 +1464,8 @@ export async function confirmarParciales() {
 
   try {
     const batch = writeBatch(db);
-    seleccionados.forEach(({ ref, db: dbEntry }) => {
-      const docRef = doc(db, getPath('estudiantes'), dbEntry.id);
+    seleccionados.forEach(({ ref, dbe }) => {
+      const docRef = doc(db, getPath('estudiantes'), dbe.id);
       const upd = {
         apellido: _titleCase(ref.apOrig),
         nombre:   _titleCase(ref.noOrig),
