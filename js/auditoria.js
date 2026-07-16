@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.40";
+import { db, getPath, appId } from "./firebase-config.js?v=10.41";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.40";
-import { escaparHTML } from "./utils.js?v=10.40";
+import { showToast } from "./ui.js?v=10.41";
+import { escaparHTML } from "./utils.js?v=10.41";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1663,5 +1663,138 @@ export async function detectarDuplicadosEstudiantes() {
   } catch(e) {
     console.error(e);
     container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+// ==========================================
+// MIGRADOR: DATOS DE ROOT → ESCUELA (TENANT)
+// ==========================================
+// Las calificaciones/asistencias cargadas en contexto "root" quedan fuera de toda
+// escuela. Esta herramienta las copia al path de la escuela elegida, junto con los
+// estudiantes root, preservando docIds (así se mantienen los vínculos alumnoId+materia
+// de evaluaciones y curso+registros de asistencias). No borra root ni pisa lo existente.
+
+// Construye el path de una colección para un tenant explícito, replicando getPath().
+function _tenantColPath(tenant, col) {
+  return (typeof __app_id !== 'undefined')
+    ? `artifacts/${appId}/public/data/instituciones/${tenant}/${col}`
+    : `instituciones/${tenant}/${col}`;
+}
+
+// Path de una colección en ROOT (contexto sin escuela).
+function _rootColPath(col) {
+  return (typeof __app_id !== 'undefined')
+    ? `artifacts/${appId}/public/data/${col}`
+    : col;
+}
+
+let _rootMigracionData = null;
+
+export async function analizarDatosRoot() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const cont = document.getElementById('migracionRootResultados');
+  cont.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Leyendo datos en root...</p></div>`;
+
+  try {
+    const [snapEst, snapEval, snapAsist, snapLocks, snapEsc] = await Promise.all([
+      getDocs(collection(db, _rootColPath('estudiantes'))),
+      getDocs(collection(db, _rootColPath('evaluaciones'))),
+      getDocs(collection(db, _rootColPath('asistencias'))),
+      getDocs(collection(db, _rootColPath('evaluaciones_locks'))),
+      getDocs(collection(db, getPath('escuelas'))),
+    ]);
+
+    _rootMigracionData = {
+      estudiantes: snapEst.docs.map(d => ({ id: d.id, data: d.data() })),
+      evaluaciones: snapEval.docs.map(d => ({ id: d.id, data: d.data() })),
+      asistencias: snapAsist.docs.map(d => ({ id: d.id, data: d.data() })),
+      locks: snapLocks.docs.map(d => ({ id: d.id, data: d.data() })),
+    };
+
+    const escuelasOpts = snapEsc.docs
+      .map(d => `<option value="${escaparHTML(d.id)}">${escaparHTML(d.data().nombre || d.id)}</option>`)
+      .join('');
+
+    const total = _rootMigracionData.estudiantes.length + _rootMigracionData.evaluaciones.length +
+                  _rootMigracionData.asistencias.length + _rootMigracionData.locks.length;
+
+    if (total === 0) {
+      cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
+        <i class="ph ph-check-circle text-2xl"></i> No hay datos en root para migrar. Todo está bajo alguna escuela.
+      </div>`;
+      return;
+    }
+
+    cont.innerHTML = `
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.estudiantes.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Estudiantes</p></div>
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.evaluaciones.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Calificaciones</p></div>
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.asistencias.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Asistencias</p></div>
+        <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.locks.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Bloqueos</p></div>
+      </div>
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-lg">
+        <label class="text-sm font-bold text-indigo-800 dark:text-indigo-300 whitespace-nowrap">Migrar a escuela:</label>
+        <select id="migracionEscuelaDestino" class="flex-1 p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">— Seleccionar escuela destino —</option>${escuelasOpts}
+        </select>
+        <button onclick="app.migrarRootAEscuela()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+          <i class="ph ph-arrow-right"></i> Migrar
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">Copia los datos a la escuela elegida sin borrar los de root y sin pisar lo que ya exista allí (merge). Preserva los IDs para no romper vínculos.</p>`;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+export async function migrarRootAEscuela() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  if (!_rootMigracionData) { showToast('Primero analizá los datos de root.', 'error'); return; }
+
+  const tenant = document.getElementById('migracionEscuelaDestino')?.value;
+  if (!tenant) { showToast('Elegí la escuela destino.', 'error'); return; }
+
+  const { estudiantes, evaluaciones, asistencias, locks } = _rootMigracionData;
+  const total = estudiantes.length + evaluaciones.length + asistencias.length + locks.length;
+
+  const ok = await window.app.showConfirm(
+    'Migrar datos de root a la escuela',
+    `Se copiarán a "${tenant}":\n- ${estudiantes.length} estudiantes\n- ${evaluaciones.length} calificaciones\n- ${asistencias.length} planillas de asistencia\n- ${locks.length} bloqueos\n\nNo se borra nada de root. No se pisan documentos ya existentes en la escuela.\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  const cont = document.getElementById('migracionRootResultados');
+  try {
+    // Documentos a escribir: [{ path, id, data }]
+    const items = [];
+    estudiantes.forEach(x => items.push({ col: 'estudiantes', id: x.id, data: x.data }));
+    evaluaciones.forEach(x => items.push({ col: 'evaluaciones', id: x.id, data: x.data }));
+    asistencias.forEach(x => items.push({ col: 'asistencias', id: x.id, data: x.data }));
+    locks.forEach(x => items.push({ col: 'evaluaciones_locks', id: x.id, data: x.data }));
+
+    // Chunks de 450 (límite Firestore 500)
+    let escritos = 0;
+    for (let i = 0; i < items.length; i += 450) {
+      const chunk = items.slice(i, i + 450);
+      const batch = writeBatch(db);
+      chunk.forEach(it => {
+        const ref = doc(db, _tenantColPath(tenant, it.col), it.id);
+        batch.set(ref, it.data, { merge: true });
+      });
+      await batch.commit();
+      escritos += chunk.length;
+    }
+
+    showToast(`✅ ${escritos} documento(s) migrados a "${tenant}". Los originales en root siguen intactos.`, 'success');
+    cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
+      <i class="ph ph-check-circle text-2xl"></i> Migración completa: ${escritos} documento(s) copiados a "${escaparHTML(tenant)}". Entrá al contexto de esa escuela para verlos. Verificá y, si todo está OK, podés limpiar root manualmente.
+    </div>`;
+    _rootMigracionData = null;
+  } catch(e) {
+    console.error(e);
+    showToast('Error al migrar: ' + e.message, 'error');
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error al migrar: ${escaparHTML(e.message)}. Algunos documentos pueden haberse copiado; es seguro reintentar (merge).</div>`;
   }
 }

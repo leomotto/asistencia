@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.40">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.41">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -843,6 +843,26 @@
 
           <hr class="my-8 border-slate-200 dark:border-slate-700">
 
+          <!-- MIGRADOR ROOT → ESCUELA — Solo SUPERADMIN -->
+          <div id="seccionMigracionRoot">
+            <div class="mb-4">
+              <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i class="ph ph-arrows-down-up text-rose-500"></i> Migrar datos de ROOT a una escuela
+              </h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Calificaciones, asistencias y estudiantes cargados sin escuela activa quedan en "root" y no los ve ninguna escuela. Acá los movés al establecimiento correcto (preserva IDs, no borra root, no pisa lo existente).
+              </p>
+            </div>
+            <div class="flex gap-2 mb-4">
+              <button onclick="app.analizarDatosRoot()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+                <i class="ph ph-magnifying-glass text-lg"></i> Analizar datos en root
+              </button>
+            </div>
+            <div id="migracionRootResultados"></div>
+          </div>
+
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+
           <!-- COMPARADOR DE MATRÍCULA — Solo SUPERADMIN -->
           <div id="seccionComparadorMatricula">
             <div class="mb-4">
@@ -1306,6 +1326,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.40"></script>
+  <script type="module" src="js/app.js?v=10.41"></script>
 </body>
 </html>
