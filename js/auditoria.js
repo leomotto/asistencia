@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.38";
+import { db, getPath } from "./firebase-config.js?v=10.39";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.38";
-import { escaparHTML } from "./utils.js?v=10.38";
+import { showToast } from "./ui.js?v=10.39";
+import { escaparHTML } from "./utils.js?v=10.39";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1455,13 +1455,13 @@ export async function confirmarParciales() {
   const seleccionados = checks.map(c => _lastParciales[+c.dataset.idx]).filter(Boolean);
 
   const preview = seleccionados.slice(0, 5).map(p =>
-    `• JSON: "${_titleCase(p.ref.apOrig)}, ${_titleCase(p.ref.noOrig)}" = BD: "${p.db.apOrig}, ${p.db.noOrig}"`
+    `• JSON: "${_titleCase(p.ref.apOrig)}, ${_titleCase(p.ref.noOrig)}" = BD: "${p.dbe.apOrig}, ${p.dbe.noOrig}"`
   ).join('\n');
   const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
 
   const ok = await window.app.showConfirm(
     'Confirmar coincidencias parciales',
-    `Se actualizará el nombre en BD con el del JSON y se completarán DNI, email, fecha de nacimiento e ID MiEscuela.\n\n${preview}${extra}\n\n¿Confirmar?`
+    `Se corregirá el nombre en BD con el del JSON y se completarán DNI, email, fecha de nacimiento e ID MiEscuela.\n\nSe CONSERVA de la base: división, materias, estado, inscripciones y asistencias (mismo legajo).\n\n${preview}${extra}\n\n¿Confirmar?`
   );
   if (!ok) return;
 
@@ -1510,7 +1510,7 @@ export async function actualizarCoincidentes() {
 
   const ok = await window.app.showConfirm(
     'Actualizar datos desde JSON',
-    `Se actualizarán ${seleccionados.length} estudiante(s) con los datos del JSON.\n\n${preview}${extra}\n\n¿Confirmar?`
+    `Se enriquecerán ${seleccionados.length} estudiante(s) con datos del JSON (DNI, email, fecha nac., ID MiEscuela y normalización de nombre).\n\nSe CONSERVA de la base: división, materias, estado, inscripciones y asistencias (mismo legajo, no se pierde historial).\n\n${preview}${extra}\n\n¿Confirmar?`
   );
   if (!ok) return;
 
