@@ -1,7 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.33";
+import { db, getPath } from "./firebase-config.js?v=10.34";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.33";
-import { escaparHTML } from "./utils.js?v=10.33";
+import { showToast } from "./ui.js?v=10.34";
+import { escaparHTML } from "./utils.js?v=10.34";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1005,8 +1005,15 @@ function _titleCase(s) {
   return (s || '').toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
 }
 
-let _lastFaltantes   = [];
+let _lastFaltantes    = [];
 let _lastCoincidentes = [];
+let _lastParciales    = [];
+
+// Devuelve número de palabras en común entre dos claves word-sorted.
+function _intersectCount(keyA, keyB) {
+  const wa = new Set(keyA.split(' '));
+  return keyB.split(' ').filter(w => wa.has(w)).length;
+}
 
 export async function compararMatricula() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
@@ -1023,9 +1030,7 @@ export async function compararMatricula() {
     return;
   }
 
-  // Acepta formato procesado {apellidos,nombres} o raw MiEscuela {alumno.persona.*}
-  // apOrig/noOrig: valor ORIGINAL del JSON (con ñ, acentos) — se usa al escribir en Firebase.
-  // ap/no: normalizado sin tildes — solo para la clave de comparación.
+  // apOrig/noOrig: string ORIGINAL del JSON (preserva ñ, acentos) — nunca normalizado.
   const refMap = new Map();
   refList.forEach(item => {
     const apOrig = (item.apellidos || item.apellido || item.alumno?.persona?.apellido || '').trim();
@@ -1034,10 +1039,11 @@ export async function compararMatricula() {
     const key = _normKey(_normStr(apOrig), _normStr(noOrig));
     if (!refMap.has(key)) refMap.set(key, {
       apOrig, noOrig,
-      seccion:      item.seccion_completa || item.seccion?.nombreSeccion || '',
-      dni:          item.dni || item.alumno?.persona?.documento || '',
-      email:        item.email || item.alumno?.persona?.email || '',
-      id_miescuela: item.id_miescuela || item.alumno?.idAlumno || '',
+      seccion:          item.seccion_completa || item.seccion?.nombreSeccion || '',
+      dni:              item.dni || item.alumno?.persona?.documento || '',
+      email:            item.email || item.alumno?.persona?.email || '',
+      id_miescuela:     item.id_miescuela || item.alumno?.idAlumno || '',
+      fecha_nacimiento: item.fecha_nacimiento || item.alumno?.persona?.fechaNacimiento || '',
     });
   });
 
@@ -1045,13 +1051,11 @@ export async function compararMatricula() {
   container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Consultando Firebase...</p></div>`;
 
   try {
-    // Carga paralela: estudiantes + materias (para obtener divisiones SIDEAC)
     const [snap, snapMat] = await Promise.all([
       getDocs(collection(db, getPath('estudiantes'))),
       getDocs(collection(db, getPath('materias'))),
     ]);
 
-    // Divisiones registradas en SIDEAC (de la colección materias)
     const sideacDivisiones = [...new Set(
       snapMat.docs.map(d => d.data().division).filter(Boolean)
     )].sort();
@@ -1064,55 +1068,134 @@ export async function compararMatricula() {
       if (!apOrig || !noOrig) return;
       dbMap.set(_normKey(_normStr(apOrig), _normStr(noOrig)), {
         apOrig, noOrig,
-        id:    d.id,
-        curso: data.curso || '',
-        dni:   data.dni   || '',
-        email: data.email || '',
-        estado: data.estado || '',
+        id:               d.id,
+        curso:            data.curso            || '',
+        dni:              data.dni              || '',
+        email:            data.email            || '',
+        id_miescuela:     data.id_miescuela     || '',
+        fecha_nacimiento: data.fecha_nacimiento || '',
+        estado:           data.estado           || '',
       });
     });
 
-    console.log('[Comparador] Firebase keys (primeras 5):', [...dbMap.keys()].slice(0, 5));
-    console.log('[Comparador] Referencia keys (primeras 5):', [...refMap.keys()].slice(0, 5));
+    console.log('[Comparador] Firebase keys (5):', [...dbMap.keys()].slice(0, 5));
+    console.log('[Comparador] Referencia keys (5):', [...refMap.keys()].slice(0, 5));
 
-    const faltanEnDB    = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
-    const sobranEnDB    = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
+    // ── Coincidencias exactas ──
+    const faltanEnDB    = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([k, v]) => ({ ...v, _key: k }));
+    const sobranEnDB    = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([k, v]) => ({ ...v, _key: k }));
     const coincidenList = [...dbMap.entries()]
       .filter(([k]) => refMap.has(k))
       .map(([k, dbV]) => ({ ...dbV, ref: refMap.get(k) }));
 
-    _lastFaltantes    = [...faltanEnDB].sort((a, b) => a.apOrig.localeCompare(b.apOrig));
+    // ── Coincidencias parciales (nombre incompleto en BD o en JSON) ──
+    // Para cada faltante del JSON, busca el mejor candidato en sobranEnDB por intersección de palabras.
+    // Threshold: ≥2 palabras en común Y ≥60% del nombre más corto.
+    const usedRefIdx = new Set();
+    const usedDbId   = new Set();
+    const candidates = [];
+    faltanEnDB.forEach((ref, ri) => {
+      sobranEnDB.forEach(db => {
+        const intersect = _intersectCount(ref._key, db._key);
+        const minLen    = Math.min(ref._key.split(' ').length, db._key.split(' ').length);
+        if (intersect >= 2 && intersect / minLen >= 0.6) {
+          candidates.push({ ref, db, ri, intersect, score: intersect / minLen });
+        }
+      });
+    });
+    candidates.sort((a, b) => b.score - a.score || b.intersect - a.intersect);
+    const parciales = [];
+    for (const c of candidates) {
+      if (usedRefIdx.has(c.ri) || usedDbId.has(c.db.id)) continue;
+      parciales.push(c);
+      usedRefIdx.add(c.ri);
+      usedDbId.add(c.db.id);
+    }
+
+    // Remover parciales de las listas de faltantes y sobran
+    const parcialDbIds = new Set(parciales.map(p => p.db.id));
+    const faltantesDisplay = faltanEnDB.filter((_, i) => !usedRefIdx.has(i));
+    const sobranDisplay    = sobranEnDB.filter(e => !parcialDbIds.has(e.id));
+
+    _lastFaltantes    = [...faltantesDisplay].sort((a, b) => a.apOrig.localeCompare(b.apOrig));
     _lastCoincidentes = coincidenList;
+    _lastParciales    = parciales;
 
-    // Opciones de divisiones SIDEAC para el select de importación
-    const opcionesDivisiones = sideacDivisiones.length
-      ? sideacDivisiones.map(d => `<option value="${escaparHTML(d)}">${escaparHTML(d)}</option>`).join('')
-      : '<option value="">— sin divisiones registradas —</option>';
-
+    // ── HTML ──
     let html = `
-      <div class="grid grid-cols-4 gap-3 mb-6">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-3 text-center">
-          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${dbMap.size}</p>
-          <p class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">En Firebase</p>
+          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${coincidenList.length}</p>
+          <p class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">Exactos</p>
         </div>
-        <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-3 text-center">
-          <p class="text-2xl font-black text-blue-600 dark:text-blue-400">${refMap.size}</p>
-          <p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase">En Referencia</p>
-        </div>
-        <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-center">
-          <p class="text-2xl font-black text-slate-700 dark:text-slate-200">${coincidenList.length}</p>
-          <p class="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase">Coinciden</p>
+        <div class="bg-orange-50 dark:bg-orange-900/30 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-orange-600 dark:text-orange-400">${parciales.length}</p>
+          <p class="text-[11px] font-bold text-orange-700 dark:text-orange-300 uppercase">Parciales</p>
         </div>
         <div class="bg-red-50 dark:bg-red-900/30 rounded-xl p-3 text-center">
-          <p class="text-2xl font-black text-red-600 dark:text-red-400">${faltanEnDB.length}</p>
+          <p class="text-2xl font-black text-red-600 dark:text-red-400">${faltantesDisplay.length}</p>
           <p class="text-[11px] font-bold text-red-700 dark:text-red-300 uppercase">Faltan en BD</p>
         </div>
-      </div>`;
+        <div class="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-amber-600 dark:text-amber-400">${sobranDisplay.length}</p>
+          <p class="text-[11px] font-bold text-amber-700 dark:text-amber-300 uppercase">Solo en BD</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-400 mb-5">Firebase: ${dbMap.size} · Referencia JSON: ${refMap.size}</p>`;
 
-    // ── FALTAN EN FIREBASE ──
+    // ── PARCIALES ──
+    if (parciales.length > 0) {
+      const rowsParciales = parciales.map((p, i) => {
+        const commonWords = p.ref._key.split(' ').filter(w => new Set(p.db._key.split(' ')).has(w));
+        return `
+        <tr class="bg-white dark:bg-slate-900 hover:bg-orange-50 dark:hover:bg-orange-900/20">
+          <td class="p-2 text-center"><input type="checkbox" class="chk-parcial w-4 h-4 accent-orange-600" data-idx="${i}" checked></td>
+          <td class="p-2">
+            <div class="font-semibold text-slate-800 dark:text-slate-100">${escaparHTML(_titleCase(p.ref.apOrig))}, ${escaparHTML(_titleCase(p.ref.noOrig))}</div>
+            <div class="text-xs text-slate-400">${escaparHTML(p.ref.seccion)} · DNI: ${escaparHTML(p.ref.dni||'—')}</div>
+          </td>
+          <td class="p-2">
+            <div class="font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(p.db.apOrig)}, ${escaparHTML(p.db.noOrig)}</div>
+            <div class="text-xs text-slate-400">${escaparHTML(p.db.curso)} · DNI BD: ${escaparHTML(p.db.dni||'—')}</div>
+          </td>
+          <td class="p-2 text-xs text-orange-600 font-mono">${commonWords.join(', ')}</td>
+        </tr>`;
+      }).join('');
+      html += `
+        <div class="mb-6 border border-orange-200 dark:border-orange-800 rounded-xl overflow-hidden">
+          <div class="bg-orange-50 dark:bg-orange-900/30 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+            <h4 class="font-bold text-orange-700 dark:text-orange-300 flex items-center gap-2 text-sm">
+              <i class="ph ph-link text-lg"></i> Coincidencias parciales — ${parciales.length} probable(s) par(es)
+              <span class="text-xs font-normal text-slate-400">nombre incompleto o diferente en uno de los sistemas</span>
+            </h4>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-slate-500 flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="chkTodosParciales" checked onchange="document.querySelectorAll('.chk-parcial').forEach(c=>c.checked=this.checked)">
+                Todos
+              </label>
+              <button onclick="app.confirmarParciales()" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                <i class="ph ph-check-fat"></i> Confirmar y completar datos
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-orange-50/50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-900"><tr>
+                <th class="p-2 w-8"></th>
+                <th class="p-2 text-left font-bold text-orange-800 dark:text-orange-300">En JSON (referencia)</th>
+                <th class="p-2 text-left font-bold text-orange-800 dark:text-orange-300">En Firebase (BD)</th>
+                <th class="p-2 text-left font-bold text-orange-800 dark:text-orange-300">Palabras comunes</th>
+              </tr></thead>
+              <tbody class="divide-y divide-orange-100 dark:divide-orange-900">${rowsParciales}</tbody>
+            </table>
+          </div>
+          <p class="text-xs text-slate-400 px-4 py-2">Al confirmar: se actualiza el nombre en BD con el del JSON + se completan DNI, email, fecha de nac., ID MiEscuela.</p>
+        </div>`;
+    }
+
+    // ── FALTAN EN FIREBASE (estrictos, sin parciales) ──
     if (_lastFaltantes.length > 0) {
       const rows = _lastFaltantes.map((e, i) => {
-        // Pre-seleccionar la división SIDEAC que más se parece a la sección del JSON
         const secNorm = _normStr(e.seccion);
         const presel  = sideacDivisiones.find(d => _normStr(d) === secNorm) || '';
         const opts = sideacDivisiones.map(d =>
@@ -1164,16 +1247,18 @@ export async function compararMatricula() {
         </div>`;
     }
 
-    // ── COINCIDENTES (con opción de actualizar datos del JSON) ──
+    // ── COINCIDENTES EXACTOS (con opción de actualizar campos) ──
     if (coincidenList.length > 0) {
-      // Solo mostramos en la tabla de actualización los que tienen diferencias
-      const conDif = coincidenList.filter(e => {
-        const dniDif   = e.ref.dni && e.ref.dni !== e.dni;
-        const dniVacio = !e.dni && e.ref.dni;
-        const apDif    = _normStr(e.ref.apOrig) !== _normStr(e.apOrig);
-        const noDif    = _normStr(e.ref.noOrig) !== _normStr(e.noOrig);
-        return dniDif || dniVacio || apDif || noDif;
-      });
+      const _hasDif = e => {
+        return (e.ref.dni && e.ref.dni !== e.dni) ||
+               (!e.dni && e.ref.dni) ||
+               (_normStr(e.ref.apOrig) !== _normStr(e.apOrig)) ||
+               (_normStr(e.ref.noOrig) !== _normStr(e.noOrig)) ||
+               (e.ref.email && !e.email) ||
+               (e.ref.id_miescuela && !e.id_miescuela) ||
+               (e.ref.fecha_nacimiento && !e.fecha_nacimiento);
+      };
+      const conDif = coincidenList.filter(_hasDif).sort((a, b) => a.apOrig.localeCompare(b.apOrig));
 
       const rowsAll = coincidenList
         .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
@@ -1182,34 +1267,35 @@ export async function compararMatricula() {
           <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.noOrig)}</td>
           <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td>
           <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.dni)}</td>
+          <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.id_miescuela)}</td>
         </tr>`).join('');
 
       let updateBlock = '';
       if (conDif.length > 0) {
-        const rowsDif = conDif
-          .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
-          .map((e, i) => {
-            const dniTag  = e.ref.dni && e.ref.dni !== e.dni
-              ? `<span class="text-amber-600 font-bold">${escaparHTML(e.ref.dni)}</span>`
-              : (e.ref.dni && !e.dni ? `<span class="text-red-600 font-bold">${escaparHTML(e.ref.dni)}</span>` : `<span class="text-slate-400">${escaparHTML(e.ref.dni||'—')}</span>`);
-            const apTag   = _normStr(e.ref.apOrig) !== _normStr(e.apOrig)
-              ? `<span class="text-amber-600">${escaparHTML(_titleCase(e.ref.apOrig))}</span>` : '—';
-            const noTag   = _normStr(e.ref.noOrig) !== _normStr(e.noOrig)
-              ? `<span class="text-amber-600">${escaparHTML(_titleCase(e.ref.noOrig))}</span>` : '—';
-            return `
+        const rowsDif = conDif.map((e, i) => {
+          const tag = (valJSON, valDB, isName) => {
+            if (!valJSON) return '<span class="text-slate-300">—</span>';
+            if (!valDB)   return `<span class="text-red-600 font-bold">${escaparHTML(isName ? _titleCase(valJSON) : valJSON)}</span>`;
+            if (_normStr(valJSON) !== _normStr(valDB)) return `<span class="text-amber-600 font-bold">${escaparHTML(isName ? _titleCase(valJSON) : valJSON)}</span>`;
+            return '<span class="text-slate-300">igual</span>';
+          };
+          return `
             <tr class="bg-white dark:bg-slate-900 hover:bg-blue-50 dark:hover:bg-blue-900/20">
               <td class="p-2 text-center"><input type="checkbox" class="chk-actualizar w-4 h-4 accent-blue-600" data-idx="${i}" checked></td>
-              <td class="p-2 font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(e.apOrig)}, ${escaparHTML(e.noOrig)}</td>
-              <td class="p-2 text-xs">${dniTag}</td>
-              <td class="p-2 text-xs">${apTag}</td>
-              <td class="p-2 text-xs">${noTag}</td>
+              <td class="p-2 text-xs font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(e.apOrig)}, ${escaparHTML(e.noOrig)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.dni, e.dni, false)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.apOrig, e.apOrig, true)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.noOrig, e.noOrig, true)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.email, e.email, false)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.id_miescuela, e.id_miescuela, false)}</td>
+              <td class="p-2 text-xs">${tag(e.ref.fecha_nacimiento, e.fecha_nacimiento, false)}</td>
             </tr>`;
-          }).join('');
+        }).join('');
         updateBlock = `
           <div class="mt-4 border-t border-emerald-200 dark:border-emerald-800 pt-4">
             <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
               <p class="text-sm font-bold text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                <i class="ph ph-arrows-clockwise text-base"></i> ${conDif.length} con diferencias de datos (DNI / nombre)
+                <i class="ph ph-arrows-clockwise text-base"></i> ${conDif.length} con datos a completar/actualizar desde JSON
               </p>
               <div class="flex items-center gap-2">
                 <label class="text-xs text-slate-500 flex items-center gap-1 cursor-pointer">
@@ -1225,15 +1311,18 @@ export async function compararMatricula() {
               <table class="w-full text-sm">
                 <thead class="bg-blue-50 dark:bg-blue-900/30"><tr>
                   <th class="p-2 w-8"></th>
-                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Alumno en BD</th>
-                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">DNI del JSON</th>
-                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Apellido del JSON</th>
-                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300">Nombre del JSON</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">Alumno en BD</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">DNI</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">Apellido</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">Nombre</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">Email</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">ID MiEsc.</th>
+                  <th class="p-2 text-left font-bold text-blue-800 dark:text-blue-300 text-xs">Fec. Nac.</th>
                 </tr></thead>
                 <tbody class="divide-y divide-blue-100 dark:divide-blue-900">${rowsDif}</tbody>
               </table>
             </div>
-            <p class="text-xs text-slate-400 mt-2">Naranja = valor distinto al actual. Solo se actualiza lo que tenga valor nuevo en el JSON.</p>
+            <p class="text-xs text-slate-400 mt-2">Rojo = vacío en BD, naranja = distinto. Solo se escriben campos con valor en JSON.</p>
           </div>`;
       }
 
@@ -1241,7 +1330,7 @@ export async function compararMatricula() {
         <details class="mb-6 group">
           <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-emerald-700 dark:text-emerald-400 text-sm select-none">
             <i class="ph ph-caret-right text-base group-open:rotate-90 transition-transform"></i>
-            <i class="ph ph-check-circle text-lg"></i> Coinciden — ${coincidenList.length} estudiante(s)${conDif.length ? ` · <span class="text-blue-600">${conDif.length} con diferencias</span>` : ''} — clic para ver
+            <i class="ph ph-check-circle text-lg"></i> Coincidencias exactas — ${coincidenList.length}${conDif.length ? ` · <span class="text-blue-600">${conDif.length} con datos a completar</span>` : ''} — clic para ver
           </summary>
           <div class="overflow-x-auto rounded-lg border border-emerald-100 dark:border-emerald-900 mt-3">
             <table class="w-full text-sm">
@@ -1249,7 +1338,8 @@ export async function compararMatricula() {
                 <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">Nombre</th>
                 <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">División</th>
-                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">DNI en BD</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">DNI</th>
+                <th class="p-2 text-left font-bold text-emerald-800 dark:text-emerald-300">ID MiEsc.</th>
               </tr></thead>
               <tbody class="divide-y divide-emerald-100 dark:divide-emerald-900">${rowsAll}</tbody>
             </table>
@@ -1258,35 +1348,37 @@ export async function compararMatricula() {
         </details>`;
     }
 
-    // ── SOBRAN EN FIREBASE ──
-    if (sobranEnDB.length > 0) {
-      const rows = sobranEnDB
+    // ── SOLO EN FIREBASE (sin coincidencia ni parcial) ──
+    if (sobranDisplay.length > 0) {
+      const rows = sobranDisplay
         .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
         .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
           <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.apOrig)}</td>
           <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.noOrig)}</td>
-          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td></tr>`)
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td>
+          <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.dni)}</td></tr>`)
         .join('');
       html += `
-        <div>
-          <h4 class="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2 mb-3 text-sm">
-            <i class="ph ph-user-plus text-lg"></i> Sobran en Firebase — ${sobranEnDB.length} estudiante(s)
-            <span class="text-xs font-normal text-slate-400">(en la BD pero no en la referencia)</span>
-          </h4>
+        <details class="group">
+          <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400 text-sm select-none mb-3">
+            <i class="ph ph-caret-right text-base group-open:rotate-90 transition-transform"></i>
+            <i class="ph ph-user-plus text-lg"></i> Solo en Firebase — ${sobranDisplay.length} estudiante(s) sin correspondencia en el JSON
+          </summary>
           <div class="overflow-x-auto rounded-lg border border-amber-100 dark:border-amber-900">
             <table class="w-full text-sm">
               <thead class="bg-amber-50 dark:bg-amber-900/30"><tr>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Apellido</th>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Nombre</th>
-                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">División en BD</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">División</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">DNI</th>
               </tr></thead>
               <tbody class="divide-y divide-amber-100 dark:divide-amber-900">${rows}</tbody>
             </table>
           </div>
-        </div>`;
+        </details>`;
     }
 
-    if (faltanEnDB.length === 0 && sobranEnDB.length === 0) {
+    if (faltantesDisplay.length === 0 && sobranDisplay.length === 0 && parciales.length === 0) {
       html += `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
         <i class="ph ph-check-circle text-2xl"></i> ¡La matrícula coincide exactamente con la referencia!
       </div>`;
@@ -1314,7 +1406,7 @@ export async function importarFaltantes() {
 
   const sinDiv = seleccionados.filter(s => !s.divisionSideac);
   if (sinDiv.length) {
-    showToast(`${sinDiv.length} alumno(s) sin división SIDEAC asignada. Elegí la división antes de importar.`, 'error');
+    showToast(`${sinDiv.length} alumno(s) sin división SIDEAC. Elegí la división antes de importar.`, 'error');
     return;
   }
 
@@ -1332,14 +1424,15 @@ export async function importarFaltantes() {
     seleccionados.forEach(s => {
       const ref = doc(collection(db, getPath('estudiantes')));
       batch.set(ref, {
-        apellido:     _titleCase(s.apOrig),
-        nombre:       _titleCase(s.noOrig),
-        curso:        s.divisionSideac,
-        dni:          s.dni          || '',
-        email:        s.email        || '',
-        id_miescuela: s.id_miescuela || '',
-        estado:       'activo',
-        materias:     [],
+        apellido:         _titleCase(s.apOrig),
+        nombre:           _titleCase(s.noOrig),
+        curso:            s.divisionSideac,
+        dni:              s.dni              || '',
+        email:            s.email            || '',
+        id_miescuela:     s.id_miescuela     || '',
+        fecha_nacimiento: s.fecha_nacimiento || '',
+        estado:           'activo',
+        materias:         [],
       });
     });
     await batch.commit();
@@ -1351,35 +1444,72 @@ export async function importarFaltantes() {
   }
 }
 
+export async function confirmarParciales() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const checks = [...document.querySelectorAll('.chk-parcial:checked')];
+  if (!checks.length) { showToast('Seleccioná al menos un par.', 'error'); return; }
+
+  const seleccionados = checks.map(c => _lastParciales[+c.dataset.idx]).filter(Boolean);
+
+  const preview = seleccionados.slice(0, 5).map(p =>
+    `• JSON: "${_titleCase(p.ref.apOrig)}, ${_titleCase(p.ref.noOrig)}" = BD: "${p.db.apOrig}, ${p.db.noOrig}"`
+  ).join('\n');
+  const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
+
+  const ok = await window.app.showConfirm(
+    'Confirmar coincidencias parciales',
+    `Se actualizará el nombre en BD con el del JSON y se completarán DNI, email, fecha de nacimiento e ID MiEscuela.\n\n${preview}${extra}\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  try {
+    const batch = writeBatch(db);
+    seleccionados.forEach(({ ref, db: dbEntry }) => {
+      const docRef = doc(db, getPath('estudiantes'), dbEntry.id);
+      const upd = {
+        apellido: _titleCase(ref.apOrig),
+        nombre:   _titleCase(ref.noOrig),
+      };
+      if (ref.dni)              upd.dni              = ref.dni;
+      if (ref.email)            upd.email            = ref.email;
+      if (ref.id_miescuela)     upd.id_miescuela     = ref.id_miescuela;
+      if (ref.fecha_nacimiento) upd.fecha_nacimiento = ref.fecha_nacimiento;
+      batch.update(docRef, upd);
+    });
+    await batch.commit();
+    showToast(`${seleccionados.length} par(es) confirmados y actualizados.`, 'success');
+    compararMatricula();
+  } catch(e) {
+    console.error(e);
+    showToast('Error al confirmar: ' + e.message, 'error');
+  }
+}
+
 export async function actualizarCoincidentes() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
 
   const checks = [...document.querySelectorAll('.chk-actualizar:checked')];
   if (!checks.length) { showToast('Seleccioná al menos un estudiante.', 'error'); return; }
 
-  // conDif es el subset con diferencias — misma lógica que en compararMatricula
-  const conDif = _lastCoincidentes.filter(e => {
-    const dniDif   = e.ref.dni && e.ref.dni !== e.dni;
-    const dniVacio = !e.dni && e.ref.dni;
-    const apDif    = _normStr(e.ref.apOrig) !== _normStr(e.apOrig);
-    const noDif    = _normStr(e.ref.noOrig) !== _normStr(e.noOrig);
-    return dniDif || dniVacio || apDif || noDif;
-  }).sort((a, b) => a.apOrig.localeCompare(b.apOrig));
+  const _hasDif = e =>
+    (e.ref.dni && e.ref.dni !== e.dni) ||
+    (!e.dni && e.ref.dni) ||
+    (_normStr(e.ref.apOrig) !== _normStr(e.apOrig)) ||
+    (_normStr(e.ref.noOrig) !== _normStr(e.noOrig)) ||
+    (e.ref.email && !e.email) ||
+    (e.ref.id_miescuela && !e.id_miescuela) ||
+    (e.ref.fecha_nacimiento && !e.fecha_nacimiento);
 
+  const conDif = _lastCoincidentes.filter(_hasDif).sort((a, b) => a.apOrig.localeCompare(b.apOrig));
   const seleccionados = checks.map(c => conDif[+c.dataset.idx]).filter(Boolean);
 
-  const preview = seleccionados.slice(0, 5).map(s => {
-    const parts = [];
-    if (s.ref.dni) parts.push(`DNI: ${s.ref.dni}`);
-    if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig)) parts.push(`Ap: ${_titleCase(s.ref.apOrig)}`);
-    if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig)) parts.push(`No: ${_titleCase(s.ref.noOrig)}`);
-    return `• ${s.apOrig}, ${s.noOrig} → ${parts.join(', ')}`;
-  }).join('\n');
-  const extra = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
+  const preview = seleccionados.slice(0, 5).map(s => `• ${s.apOrig}, ${s.noOrig}`).join('\n');
+  const extra   = seleccionados.length > 5 ? `\n... y ${seleccionados.length - 5} más` : '';
 
   const ok = await window.app.showConfirm(
     'Actualizar datos desde JSON',
-    `Se actualizarán ${seleccionados.length} estudiante(s) con los datos del JSON de referencia.\n\n${preview}${extra}\n\n¿Confirmar?`
+    `Se actualizarán ${seleccionados.length} estudiante(s) con los datos del JSON.\n\n${preview}${extra}\n\n¿Confirmar?`
   );
   if (!ok) return;
 
@@ -1388,11 +1518,12 @@ export async function actualizarCoincidentes() {
     seleccionados.forEach(s => {
       const ref = doc(db, getPath('estudiantes'), s.id);
       const upd = {};
-      if (s.ref.dni)                                          upd.dni      = s.ref.dni;
-      if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig))     upd.apellido = _titleCase(s.ref.apOrig);
-      if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig))     upd.nombre   = _titleCase(s.ref.noOrig);
-      if (s.ref.email && !s.email)                            upd.email    = s.ref.email;
-      if (s.ref.id_miescuela && !s.id_miescuela)              upd.id_miescuela = s.ref.id_miescuela;
+      if (s.ref.dni)                                              upd.dni              = s.ref.dni;
+      if (_normStr(s.ref.apOrig) !== _normStr(s.apOrig))         upd.apellido         = _titleCase(s.ref.apOrig);
+      if (_normStr(s.ref.noOrig) !== _normStr(s.noOrig))         upd.nombre           = _titleCase(s.ref.noOrig);
+      if (s.ref.email            && !s.email)                     upd.email            = s.ref.email;
+      if (s.ref.id_miescuela     && !s.id_miescuela)              upd.id_miescuela     = s.ref.id_miescuela;
+      if (s.ref.fecha_nacimiento && !s.fecha_nacimiento)          upd.fecha_nacimiento = s.ref.fecha_nacimiento;
       if (Object.keys(upd).length) batch.update(ref, upd);
     });
     await batch.commit();
