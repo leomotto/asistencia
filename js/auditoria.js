@@ -1,6 +1,7 @@
-import { db, getPath } from "./firebase-config.js?v=10.28";
+import { db, getPath } from "./firebase-config.js?v=10.29";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.28";
+import { showToast } from "./ui.js?v=10.29";
+import { escaparHTML } from "./utils.js?v=10.29";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -984,5 +985,139 @@ export async function auditarAsistencias() {
     resultados.classList.remove('hidden');
   } finally {
     progreso.classList.add('hidden');
+  }
+}
+
+// ==========================================
+// COMPARADOR DE MATRÍCULA (vs. fuente externa)
+// ==========================================
+
+function _normNombre(s) {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+}
+
+export async function compararMatricula() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const texto = document.getElementById('matriculaRefJson').value.trim();
+  if (!texto) { showToast('Pegá el JSON de referencia primero.', 'error'); return; }
+
+  let refList;
+  try {
+    refList = JSON.parse(texto);
+    if (!Array.isArray(refList)) throw new Error('debe ser un array');
+  } catch(e) {
+    showToast('JSON inválido: ' + e.message, 'error');
+    return;
+  }
+
+  // Acepta formato procesado {apellidos, nombres} o raw MiEscuela {alumno.persona.*}
+  const refMap = new Map();
+  refList.forEach(item => {
+    const ap = _normNombre(item.apellidos || item.apellido || item.alumno?.persona?.apellido || '');
+    const no = _normNombre(item.nombres || item.nombre || item.alumno?.persona?.nombre || '');
+    if (!ap || !no) return;
+    const key = ap + '|' + no;
+    if (!refMap.has(key)) refMap.set(key, { ap, no, seccion: item.seccion_completa || item.seccion?.nombreSeccion || '' });
+  });
+
+  const container = document.getElementById('matriculaResultados');
+  container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Consultando Firebase...</p></div>`;
+
+  try {
+    const snap = await getDocs(collection(db, getPath('estudiantes')));
+    const dbMap = new Map();
+    snap.forEach(d => {
+      const data = d.data();
+      const ap = _normNombre(data.apellido || '');
+      const no = _normNombre(data.nombre || '');
+      if (!ap || !no) return;
+      dbMap.set(ap + '|' + no, { ap, no, id: d.id, materias: data.materias || [], estado: data.estado || '' });
+    });
+
+    const faltanEnDB  = [...refMap.entries()].filter(([k]) => !dbMap.has(k)).map(([, v]) => v);
+    const sobranEnDB  = [...dbMap.entries()].filter(([k]) => !refMap.has(k)).map(([, v]) => v);
+    const coinciden   = dbMap.size - sobranEnDB.length;
+
+    let html = `
+      <div class="grid grid-cols-3 gap-3 mb-6">
+        <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-emerald-600 dark:text-emerald-400">${dbMap.size}</p>
+          <p class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 uppercase">En Firebase</p>
+        </div>
+        <div class="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-blue-600 dark:text-blue-400">${refMap.size}</p>
+          <p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase">En Referencia</p>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-700 rounded-xl p-3 text-center">
+          <p class="text-2xl font-black text-slate-700 dark:text-slate-200">${coinciden}</p>
+          <p class="text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase">Coinciden</p>
+        </div>
+      </div>`;
+
+    if (faltanEnDB.length > 0) {
+      const rows = faltanEnDB
+        .sort((a, b) => a.ap.localeCompare(b.ap))
+        .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-red-50 dark:hover:bg-red-900/20">
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
+          <td class="p-2 text-xs text-slate-400">${escaparHTML(e.seccion)}</td></tr>`)
+        .join('');
+      html += `
+        <div class="mb-6">
+          <h4 class="font-bold text-red-700 dark:text-red-400 flex items-center gap-2 mb-3 text-sm">
+            <i class="ph ph-user-minus text-lg"></i> Faltan en Firebase — ${faltanEnDB.length} estudiante(s)
+            <span class="text-xs font-normal text-slate-400">(en la referencia pero no en la BD)</span>
+          </h4>
+          <div class="overflow-x-auto rounded-lg border border-red-100 dark:border-red-900">
+            <table class="w-full text-sm">
+              <thead class="bg-red-50 dark:bg-red-900/30"><tr>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Apellido</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Nombre</th>
+                <th class="p-2 text-left font-bold text-red-800 dark:text-red-300">Sección (ref)</th>
+              </tr></thead>
+              <tbody class="divide-y divide-red-100 dark:divide-red-900">${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    if (sobranEnDB.length > 0) {
+      const rows = sobranEnDB
+        .sort((a, b) => a.ap.localeCompare(b.ap))
+        .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.ap)}</td>
+          <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.no)}</td>
+          <td class="p-2 text-xs text-slate-400">${escaparHTML((e.materias || []).join(', '))}</td></tr>`)
+        .join('');
+      html += `
+        <div>
+          <h4 class="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-2 mb-3 text-sm">
+            <i class="ph ph-user-plus text-lg"></i> Sobran en Firebase — ${sobranEnDB.length} estudiante(s)
+            <span class="text-xs font-normal text-slate-400">(en la BD pero no en la referencia)</span>
+          </h4>
+          <div class="overflow-x-auto rounded-lg border border-amber-100 dark:border-amber-900">
+            <table class="w-full text-sm">
+              <thead class="bg-amber-50 dark:bg-amber-900/30"><tr>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Apellido</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Nombre</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Materias en BD</th>
+              </tr></thead>
+              <tbody class="divide-y divide-amber-100 dark:divide-amber-900">${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    if (faltanEnDB.length === 0 && sobranEnDB.length === 0) {
+      html += `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
+        <i class="ph ph-check-circle text-2xl"></i> ¡La matrícula coincide exactamente con la referencia!
+      </div>`;
+    }
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error al consultar Firebase: ${escaparHTML(e.message)}</div>`;
   }
 }

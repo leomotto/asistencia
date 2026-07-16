@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.28">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.29">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -840,6 +840,36 @@
           <div id="estructuraResultados" class="space-y-6 hidden">
              <!-- Dinamico -->
           </div>
+
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+
+          <!-- COMPARADOR DE MATRÍCULA — Solo SUPERADMIN -->
+          <div id="seccionComparadorMatricula">
+            <div class="mb-4">
+              <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i class="ph ph-arrows-left-right text-purple-500"></i> Comparador de Matrícula
+              </h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Pegá el JSON exportado de MiEscuela (formato procesado o raw) para comparar contra los estudiantes en Firebase. Compara por nombre y apellido.
+              </p>
+            </div>
+
+            <div class="mb-3">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">JSON DE REFERENCIA (MiEscuela u otro)</label>
+              <textarea id="matriculaRefJson" rows="6" placeholder='[{"apellidos":"GARCIA","nombres":"JUAN",...}, ...]' class="w-full p-3 border dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm font-mono outline-none focus:ring-2 focus:ring-purple-500 resize-y"></textarea>
+            </div>
+            <div class="flex gap-2 mb-6">
+              <button onclick="app.compararMatricula()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+                <i class="ph ph-arrows-left-right text-lg"></i> Comparar
+              </button>
+              <button onclick="document.getElementById('matriculaRefJson').value=''; document.getElementById('matriculaResultados').innerHTML='';" class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-2 px-4 rounded-lg transition text-sm flex items-center gap-1">
+                <i class="ph ph-x"></i> Limpiar
+              </button>
+            </div>
+
+            <div id="matriculaResultados"></div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -1256,6 +1286,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.28"></script>
+  <script type="module" src="js/app.js?v=10.29"></script>
 </body>
 </html>
