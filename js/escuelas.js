@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.24";
+import { db, getPath } from "./firebase-config.js?v=10.25";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -31,52 +31,47 @@ export async function cargarListaEscuelas() {
     qSnapshot.forEach(docSnap => {
       const e = docSnap.data();
       const isCurrent = window.app.currentTenant === docSnap.id;
+      const accentBorder = isCurrent ? 'border-purple-500 ring-1 ring-purple-500' : 'border-slate-200 dark:border-slate-700';
+      const iconBg = isCurrent ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600';
       html += `
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border ${isCurrent ? 'border-purple-500 ring-1 ring-purple-500' : 'border-slate-200 dark:border-slate-700'} shadow-sm relative group transition-all hover:shadow-md">
+        <div class="bg-white dark:bg-slate-800 rounded-xl p-4 border ${accentBorder} shadow-sm relative transition-all hover:shadow-md flex flex-col gap-3">
           ${isCurrent ? `<span class="absolute -top-2 -right-2 bg-purple-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">ACTIVA</span>` : ''}
-          <div class="flex justify-between items-start mb-2">
-            <div>
-              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg leading-tight">${e.nombre}</h3>
-              <p class="text-xs text-slate-400 font-mono mt-0.5">${docSnap.id}</p>
-            </div>
-          </div>
-              <div class="flex items-center gap-3 mb-2">
-                <div class="w-10 h-10 rounded-full ${isCurrent ? 'bg-purple-100 dark:bg-purple-900/50 text-purple-600' : 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600'} flex items-center justify-center">
-                  <i class="ph ph-buildings text-xl"></i>
-                </div>
-                <div>
-                  <h3 class="font-bold text-slate-800 dark:text-white text-lg">${e.nombre}</h3>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 inline-block px-2 py-0.5 rounded-full">ID: ${docSnap.id}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div class="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'inicioTab')" class="flex-1 md:flex-none px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 font-medium transition-colors text-sm shadow-sm border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-center gap-2">
-                <i class="ph ph-sign-in"></i> ENTRAR
-              </button>
-              
-              <div class="hidden md:block w-px h-8 bg-slate-200 dark:bg-slate-700 mx-1"></div>
-              
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionMaterias')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
-                <i class="ph ph-books"></i> MATERIAS
-              </button>
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionDocentes')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
-                <i class="ph ph-users"></i> DOCENTES
-              </button>
-              <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionAlumnos')" class="px-3 py-2 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 font-medium transition-colors text-sm shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-1">
-                <i class="ph ph-student"></i> ALUMNOS
-              </button>
-              
-              <button onclick="app.migrateDataToSchool('${docSnap.id}')" class="px-3 py-2 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/50 font-medium transition-colors text-sm shadow-sm border border-amber-100 dark:border-amber-800/50 flex items-center justify-center gap-1" title="Migrar datos globales a esta escuela">
-                <i class="ph ph-database"></i> MIGRAR
-              </button>
 
-              <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 ml-2">
-                <i class="ph ph-pencil-simple"></i> Editar
-              </button>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0">
+              <i class="ph ph-buildings text-xl"></i>
+            </div>
+            <div class="min-w-0">
+              <h3 class="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight truncate">${e.nombre}</h3>
+              <span class="text-[10px] text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">${docSnap.id}</span>
             </div>
           </div>
+
+          <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'inicioTab')" class="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition shadow-sm">
+            <i class="ph ph-sign-in"></i> ENTRAR A ESTA ESCUELA
+          </button>
+
+          <div class="flex gap-2">
+            <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionMaterias')" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 text-xs font-semibold transition flex items-center justify-center gap-1">
+              <i class="ph ph-books"></i> Materias
+            </button>
+            <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionDocentes')" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 text-xs font-semibold transition flex items-center justify-center gap-1">
+              <i class="ph ph-users"></i> Docentes
+            </button>
+            <button onclick="app.enterContextAndGoTo('${docSnap.id}', 'gestionAlumnos')" class="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 text-xs font-semibold transition flex items-center justify-center gap-1">
+              <i class="ph ph-student"></i> Alumnos
+            </button>
+          </div>
+
+          <div class="flex justify-between items-center pt-2 border-t dark:border-slate-700">
+            <button onclick="app.migrateDataToSchool('${docSnap.id}')" class="px-2 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded hover:bg-amber-100 text-xs font-semibold flex items-center gap-1 transition" title="Migrar datos globales a esta escuela">
+              <i class="ph ph-database"></i> Migrar datos
+            </button>
+            <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition">
+              <i class="ph ph-pencil-simple"></i> Editar
+            </button>
+          </div>
+        </div>
       `;
     });
     html += `</div>`;
@@ -435,7 +430,7 @@ export async function migrateDataToSchool(schoolId) {
 
   try {
     const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const { db } = await import("./firebase-config.js?v=10.24");
+    const { db } = await import("./firebase-config.js?v=10.25");
     
     const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
     
