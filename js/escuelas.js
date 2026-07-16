@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.27";
+import { db, getPath } from "./firebase-config.js?v=10.28";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
@@ -63,10 +63,7 @@ export async function cargarListaEscuelas() {
             </button>
           </div>
 
-          <div class="flex justify-between items-center pt-2 border-t dark:border-slate-700">
-            <button onclick="app.migrateDataToSchool('${docSnap.id}')" class="px-2 py-1 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded hover:bg-amber-100 text-xs font-semibold flex items-center gap-1 transition" title="Migrar datos globales a esta escuela">
-              <i class="ph ph-database"></i> Migrar datos
-            </button>
+          <div class="flex justify-end items-center pt-2 border-t dark:border-slate-700">
             <button onclick="app.abrirModalEscuela('${docSnap.id}', '${e.nombre.replace(/'/g, "\\'")}')" class="text-xs text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 transition">
               <i class="ph ph-pencil-simple"></i> Editar
             </button>
@@ -415,76 +412,3 @@ export async function cargarMateriasParaEscuela(escuelaId) {
     container.innerHTML = '<p class="text-[10px] text-red-500">Error al cargar materias.</p>';
   }
 }
-
-
-
-export async function migrateDataToSchool(schoolId) {
-  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
-  
-  const btn = event?.currentTarget;
-  const originalText = btn ? btn.innerHTML : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ph ph-spinner animate-spin"></i> Migrando datos...';
-  }
-
-  try {
-    const { collection, getDocs, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const { db } = await import("./firebase-config.js?v=10.27");
-    
-    const collections = ['materias', 'estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'horarios'];
-    
-    console.log("Iniciando migración a " + schoolId);
-    let totalMigrated = 0;
-    
-    for (const col of collections) {
-      console.log("Migrando " + col + "...");
-      let snap = await getDocs(collection(db, col));
-      
-      // Fallback por si los datos antiguos quedaron en la ruta de artifacts
-      if (snap.empty) {
-        snap = await getDocs(collection(db, `artifacts/mi-app-asistencia/public/data/${col}`));
-      }
-      
-      let count = 0;
-      for (const d of snap.docs) {
-        await setDoc(doc(db, "instituciones", schoolId, col, d.id), d.data());
-        count++;
-        totalMigrated++;
-      }
-      console.log("-> " + count + " documentos migrados en " + col);
-    }
-  
-    console.log("Migrando docentes (usuarios)...");
-    let snapUsers = await getDocs(collection(db, 'usuarios'));
-    if (snapUsers.empty) {
-      snapUsers = await getDocs(collection(db, `artifacts/mi-app-asistencia/public/data/usuarios`));
-    }
-    
-    let userCount = 0;
-    for (const u of snapUsers.docs) {
-      const data = u.data();
-      if (data.rol === 'DOCENTE' || data.rol === 'ADMIN') {
-        const userData = { ...data };
-        if (!userData.escuelas) userData.escuelas = {};
-        userData.escuelas[schoolId] = {
-          rol: data.rol,
-          materias: data.materias || []
-        };
-        await setDoc(doc(db, 'usuarios', u.id), userData, { merge: true });
-        userCount++;
-      }
-    }
-    console.log("-> " + userCount + " usuarios actualizados con acceso a " + schoolId);
-    console.log("Migración completada. Total de entidades: " + totalMigrated);
-    alert(`¡Éxito! Se migraron ${totalMigrated} registros y ${userCount} usuarios a la escuela.`);
-  } catch (err) {
-    console.error("Error durante la migración:", err);
-    alert("Ocurrió un error al migrar los datos. Revisa la consola (F12).");
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = originalText;
-    }
-  }
-};

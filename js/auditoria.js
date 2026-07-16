@@ -1,6 +1,6 @@
-import { db, getPath } from "./firebase-config.js?v=10.27";
+import { db, getPath } from "./firebase-config.js?v=10.28";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.27";
+import { showToast } from "./ui.js?v=10.28";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -189,9 +189,9 @@ export function simularMigracionAuditoria() {
     showToast('No seleccionaste ningún reemplazo.', 'error');
     return;
   }
-  
-  alert(`SIMULACIÓN:\n\nSe han definido ${cambios} reglas de reemplazo.\n\nFase 2 Completada. \n\n(La ejecución real de Base de Datos se implementará en el siguiente paso del Roadmap, luego de que valides que estas son las inconsistencias reales a arreglar).`);
-  console.log("Mapa de migración generado:", mapa);
+
+  showToast(`${cambios} reemplazo(s) definidos. Revisá la consola y luego ejecutá la migración.`, 'info');
+  console.log("Mapa de migración (simulación):", mapa);
 }
 
 export async function ejecutarMigracionAuditoria() {
