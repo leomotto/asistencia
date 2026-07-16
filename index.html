@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.23">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.24">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -343,8 +343,9 @@
     <section id="evaluaciones" class="flex-1 w-full h-full min-w-0 overflow-hidden p-2 md:p-8 hidden flex flex-col">
       <div class="max-w-full w-full min-w-0 mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-2 md:p-6 flex flex-col flex-1 min-h-0">
         
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 md:gap-3 border-b dark:border-slate-700 pb-2 md:pb-4 mb-2 md:mb-4">
-          <div class="min-w-0 flex items-center gap-2 flex-wrap">
+        <!-- Encabezado: título + acciones -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b dark:border-slate-700 pb-2 md:pb-4 mb-2 md:mb-4">
+          <div class="flex items-center gap-2 flex-wrap">
             <h2 class="text-lg md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
               <i class="ph ph-exam text-emerald-500"></i> Calificaciones
             </h2>
@@ -352,22 +353,7 @@
               <i class="ph ph-lock-key"></i> BLOQUEADA
             </span>
           </div>
-
-          <div class="flex flex-wrap gap-1 md:gap-2 w-full md:w-auto text-sm">
-            <select id="evalCurso" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[140px] p-1.5 md:p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
-              <option value="">División...</option>
-              <!-- Dinámico -->
-            </select>
-            <select id="evalPeriodo" onchange="app.cargarPlanillaEvaluaciones()" class="flex-1 min-w-[140px] p-1.5 md:p-2 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium">
-              <option value="">Periodo...</option>
-              <option value="b1">1er Bimestre (Valorativo)</option>
-              <option value="b2">2do Bimestre (Numérico)</option>
-              <option value="b3">3er Bimestre (Valorativo)</option>
-              <option value="b4">4to Bimestre (Numérico)</option>
-              <option value="po_dic">PO Diciembre (Numérico)</option>
-              <option value="po_feb">PO Febrero (Numérico)</option>
-            </select>
-            <div class="flex items-center justify-end w-full md:w-auto gap-2">
+          <div class="flex items-center gap-2">
             <button onclick="app.abrirModalConfigEval()" id="btnConfigEvalAdmin" class="hidden bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border dark:border-slate-700 px-2 md:px-3 py-1.5 md:py-2 rounded font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition flex items-center gap-1.5" title="Configurar Planillas">
               <i class="ph ph-gear-six text-lg"></i> <span class="hidden sm:inline">Config</span>
             </button>
@@ -380,10 +366,32 @@
           </div>
         </div>
 
-        <!-- CONFIGURACIÓN ADMIN (Habilitaciones y Columnas) AHORA EN MODAL (Ver final del archivo o app.js render) -->
+        <!-- Filtros: curso y período -->
+        <div class="bg-slate-50 dark:bg-slate-900 p-3 md:p-4 rounded-lg border dark:border-slate-700 mb-2 md:mb-4">
+          <div class="flex flex-wrap gap-3">
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CURSO / DIVISIÓN</label>
+              <select id="evalCurso" onchange="app.cargarPlanillaEvaluaciones()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium select-curso-global">
+                <option value="">Seleccione...</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERÍODO</label>
+              <select id="evalPeriodo" onchange="app.cargarPlanillaEvaluaciones()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium">
+                <option value="">Seleccione...</option>
+                <option value="b1">1er Bimestre (Valorativo)</option>
+                <option value="b2">2do Bimestre (Numérico)</option>
+                <option value="b3">3er Bimestre (Valorativo)</option>
+                <option value="b4">4to Bimestre (Numérico)</option>
+                <option value="po_dic">PO Diciembre (Numérico)</option>
+                <option value="po_feb">PO Febrero (Numérico)</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         <!-- Tabla Planilla de Calificaciones -->
-        <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto w-full custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900 ">
+        <div class="flex-1 min-h-0 overflow-x-auto overflow-y-auto w-full custom-scrollbar md:border md:dark:border-slate-700 md:rounded-lg bg-slate-50 dark:bg-slate-900">
           <table class="w-full text-sm border-collapse bg-transparent md:bg-white md:dark:bg-slate-800">
             <thead class="bg-slate-800 text-white uppercase text-xs tracking-wider sticky top-0 z-30">
               <tr id="evalHeaders">
@@ -401,7 +409,7 @@
             </thead>
             <tbody id="evalBody" class="divide-y divide-slate-200 dark:divide-slate-700">
               <tr>
-                <td colspan="10" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td>
+                <td colspan="10" class="px-4 py-8 text-center text-slate-400">Seleccione curso y período en el filtro superior.</td>
               </tr>
             </tbody>
           </table>
@@ -414,28 +422,38 @@
     <section id="planillaGrilla" class="flex-1 w-full h-full min-w-0 overflow-hidden p-2 md:p-8 hidden flex flex-col">
       <div class="max-w-full w-full min-w-0 mx-auto bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-3 md:p-6 flex flex-col flex-1 min-h-0">
 
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b dark:border-slate-700 pb-4 mb-4">
+        <!-- Encabezado: título + acciones -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b dark:border-slate-700 pb-3 md:pb-4 mb-3 md:mb-4">
           <div class="min-w-0">
             <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <i class="ph ph-table text-emerald-500"></i> Registro Masivo
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Editá directamente las celdas como en Sheets y guardá los cambios masivamente.</p>
           </div>
-
-          <div class="flex flex-wrap gap-2 w-full md:w-auto">
-            <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
-              <option value="">Seleccione división...</option>
-            </select>
-            <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="flex-1 min-w-0 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global">
-              <!-- Poblado dinámicamente por popularPeriodos() -->
-            </select>
-
+          <div class="flex gap-2">
             <button onclick="app.abrirModalNuevaColumna()" class="bg-indigo-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-1">
               <i class="ph ph-plus-circle text-lg"></i> <span class="hidden sm:inline">Nueva Clase</span>
             </button>
             <button onclick="app.exportarGrillaCSV()" class="bg-slate-600 text-white px-3 py-2 rounded text-sm font-semibold hover:bg-slate-700 transition flex items-center gap-1" title="Exportar planilla a CSV">
               <i class="ph ph-file-csv text-lg"></i> <span class="hidden sm:inline">CSV</span>
             </button>
+          </div>
+        </div>
+
+        <!-- Filtros: curso y período -->
+        <div class="bg-slate-50 dark:bg-slate-900 p-3 md:p-4 rounded-lg border dark:border-slate-700 mb-3 md:mb-4">
+          <div class="flex flex-wrap gap-3">
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CURSO / DIVISIÓN</label>
+              <select id="grillaCurso" onchange="app.cargarPlanillaGrilla()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium select-curso-global">
+                <option value="">Seleccione...</option>
+              </select>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERÍODO</label>
+              <select id="grillaPeriodo" onchange="app.cambiarPeriodoGrilla()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium select-periodo-global">
+              </select>
+            </div>
           </div>
         </div>
 
@@ -472,7 +490,8 @@
     <section id="panelBI" class="flex-1 w-full h-full min-h-0 overflow-y-auto p-4 md:p-8 hidden">
       <div class="max-w-full mx-auto space-y-6">
         
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <!-- Encabezado: título + toggle de vista + acciones -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <i class="ph ph-chart-pie-slice text-emerald-500"></i> Dashboard de Gestión (Panel BI)
@@ -482,29 +501,37 @@
               <button onclick="app.setBiView('calificaciones')" id="btnBiViewEval" class="px-3 py-1.5 rounded-md text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-all">Calificaciones</button>
             </div>
           </div>
-          
-          <!-- Filtros BI -->
-          <div class="flex flex-wrap gap-2 bg-white dark:bg-slate-800 p-3 rounded-lg shadow-sm border dark:border-slate-700 w-full md:w-auto">
-            <select id="biCurso" onchange="app.cargarPanelBI()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-curso-global">
-              <option value="">Curso...</option>
-            </select>
-            
-            <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none font-medium select-periodo-global" data-fecha-manual="true">
-              <!-- Poblado dinámicamente por popularPeriodos() -->
-            </select>
+          <div class="flex gap-2">
+            <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700" title="Actualizar"><i class="ph ph-arrows-clockwise"></i></button>
+            <button onclick="app.exportarBICSV()" class="p-2 bg-slate-600 text-white rounded hover:bg-slate-700 flex items-center gap-1 text-sm font-semibold" title="Exportar reporte a CSV">
+              <i class="ph ph-file-csv"></i>
+            </button>
+          </div>
+        </div>
 
-            <div id="biFechasManuales" class="hidden flex flex-wrap sm:flex-nowrap gap-1 items-center w-full md:w-auto">
-              <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Desde">
-              <span class="text-xs text-slate-400 hidden sm:inline">a</span>
-              <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-base md:text-sm border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900 outline-none" title="Fecha Hasta">
+        <!-- Filtros BI -->
+        <div class="bg-slate-50 dark:bg-slate-900 p-3 md:p-4 rounded-lg border dark:border-slate-700">
+          <div class="flex flex-wrap gap-3 items-end">
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">CURSO / DIVISIÓN</label>
+              <select id="biCurso" onchange="app.cargarPanelBI()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium select-curso-global">
+                <option value="">Seleccione...</option>
+              </select>
             </div>
-            
-            <div class="flex gap-2 ml-auto">
-              <button onclick="app.cargarPanelBI()" class="p-2 bg-slate-800 text-white rounded hover:bg-slate-700"><i class="ph ph-arrows-clockwise"></i></button>
-              <button onclick="app.exportarBICSV()" class="p-2 bg-slate-600 text-white rounded hover:bg-slate-700 flex items-center gap-1 text-sm font-semibold" title="Exportar reporte a CSV">
-                <i class="ph ph-file-csv"></i>
-              </button>
+            <div class="flex-1 min-w-[140px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERÍODO</label>
+              <select id="biPeriodo" onchange="app.seleccionarPeriodo()" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none font-medium select-periodo-global" data-fecha-manual="true">
+              </select>
             </div>
+            <div id="biFechasManuales" class="hidden flex-1 min-w-[200px]">
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">RANGO DE FECHAS</label>
+              <div class="flex gap-1 items-center">
+                <input type="date" id="biFechaDesde" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-sm border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none">
+                <span class="text-xs text-slate-400">a</span>
+                <input type="date" id="biFechaHasta" onchange="app.cargarPanelBI()" class="flex-1 p-2 text-sm border dark:border-slate-700 rounded bg-white dark:bg-slate-800 outline-none">
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Tarjetas de KPIs -->
@@ -1230,6 +1257,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.23"></script>
+  <script type="module" src="js/app.js?v=10.24"></script>
 </body>
 </html>
