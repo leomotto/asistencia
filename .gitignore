@@ -1,2 +1,32 @@
+# Dependencias / entornos (regenerables, nunca al repo)
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Config local del asistente
 .claude/
 firebase-debug.log
+
+# Extensión interna (herramienta propia, no pública)
+Sideac_Extension/
+
+# Scripts sueltos de desarrollo / parches / volcados de datos (uso local)
+create_school.js
+dump_users.js
+fix.py
+fix_user.js
+patch_auth.py
+patch_inicio.py
+patch_inicio_ui.py
+patch_migrate.js
+patch_padding.py
+patch_rules.js
+patch_ui_inicio.py
+query_4to.js
+query_asistencias.js
+test_db.js
+test.js
+test_migrate.js
+test_responsiveness.py
+reporte_permisos.txt
