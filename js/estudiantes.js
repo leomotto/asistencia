@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.50";
-import { showToast } from "./ui.js?v=10.50";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.50";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.50";
+import { db, getPath } from "./firebase-config.js?v=10.51";
+import { showToast } from "./ui.js?v=10.51";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.51";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.51";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -646,14 +646,27 @@ export async function ejecutarFusion() {
       operationCount++;
     };
 
+    const _marcaReal = v => v !== undefined && v !== null && v !== '' && v !== '-';
+
     const snapAsistencias = await getDocs(collection(db, getPath('asistencias')));
     let reescriturasAsistencias = 0;
+    const conflictosAsistencia = [];   // mismo día/clase con marca distinta en ambos nombres
 
     snapAsistencias.forEach(docSnap => {
       const data = docSnap.data();
       if (data.registros && data.registros[secundario.id] !== undefined) {
         const nuevosRegistros = { ...data.registros };
-        if (!nuevosRegistros[primario.id]) nuevosRegistros[primario.id] = nuevosRegistros[secundario.id];
+        const marcaP = nuevosRegistros[primario.id];
+        const marcaS = nuevosRegistros[secundario.id];
+
+        if (!_marcaReal(marcaP) && _marcaReal(marcaS)) {
+          // Primario sin marca ese día → toma la del secundario
+          nuevosRegistros[primario.id] = marcaS;
+        } else if (_marcaReal(marcaP) && _marcaReal(marcaS) && marcaP !== marcaS) {
+          // Conflicto: ambos con marca distinta el mismo día/clase → conserva primario, registra el choque
+          conflictosAsistencia.push(`${data.curso || '?'} ${data.fecha || '?'}: primario "${marcaP}" vs secundario "${marcaS}"`);
+        }
+        // Si primario ya tiene marca (igual o ganadora), se conserva. En todos los casos se borra el secundario.
         delete nuevosRegistros[secundario.id];
         addOperation('update', docSnap.ref, { registros: nuevosRegistros });
         reescriturasAsistencias++;
@@ -724,6 +737,10 @@ export async function ejecutarFusion() {
 
     window.app.invalidarCacheBI?.();
     showToast(`✅ Fusión completada. Asistencias: ${reescriturasAsistencias} | Evaluaciones: ${reescriturasEvaluaciones}`);
+    if (conflictosAsistencia.length > 0) {
+      console.warn('[Fusión] Conflictos de asistencia (se conservó la marca del primario):', conflictosAsistencia);
+      showToast(`⚠️ ${conflictosAsistencia.length} día(s) con marca distinta en ambos nombres: se conservó la del primario. Detalle en consola (F12).`, 'error');
+    }
     cerrarModalFusion();
     await cargarAlumnosMatricula();
   } catch(e) {
@@ -829,8 +846,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.50")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.50");
+      const fbdb = (await import("./firebase-config.js?v=10.51")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.51");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -867,8 +884,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.50")).db;
-    const { appId } = await import("./firebase-config.js?v=10.50");
+    const fbdb = (await import("./firebase-config.js?v=10.51")).db;
+    const { appId } = await import("./firebase-config.js?v=10.51");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
