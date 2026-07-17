@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.66";
-import { showToast } from "./ui.js?v=10.66";
-import { escaparHTML } from "./utils.js?v=10.66";
+import { db, getPath } from "./firebase-config.js?v=10.67";
+import { showToast } from "./ui.js?v=10.67";
+import { escaparHTML } from "./utils.js?v=10.67";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -787,7 +787,7 @@ export async function cargarPlanillaEvaluaciones() {
 
       let colsHtml = `
         <td class="px-2 py-2 md:px-4 md:py-3 font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r dark:border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.05)] w-32 sm:w-64 max-w-[200px] sm:max-w-[250px]">
-          <button type="button" onclick="app.abrirPerfilAlumno('${al.id}', '${escaparHTML(curso).replace(/'/g, "\\'")}')" class="truncate text-xs md:text-sm text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline w-full flex items-center gap-1" title="Ver asistencia de ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
+          <button type="button" onclick="app.abrirPerfilAlumno('${al.id}', '${escaparHTML(curso).replace(/'/g, "\\'")}')" class="font-sans truncate text-xs md:text-sm text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline w-full flex items-center gap-1" title="Ver asistencia de ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
             <i class="ph ph-chart-bar text-slate-400 shrink-0"></i>
             <span class="truncate">${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}</span>
           </button>
