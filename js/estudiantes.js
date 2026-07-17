@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.55";
-import { showToast } from "./ui.js?v=10.55";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.55";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.55";
+import { db, getPath } from "./firebase-config.js?v=10.56";
+import { showToast } from "./ui.js?v=10.56";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.56";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.56";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -200,7 +200,7 @@ export function _cambiarDivisionPrimaria() {
   }
   
   tarjeta.classList.remove('hidden');
-  
+
   let countMats = 0;
   document.querySelectorAll('.division-block').forEach(block => {
     if (block.dataset.division === div) {
@@ -213,25 +213,49 @@ export function _cambiarDivisionPrimaria() {
           window.app._toggleInscripcionDetails(cb);
         }
       });
-    } else {
+    } else if (!block.querySelector('.cb-materia:checked')) {
+      // Solo ocultar bloques SIN inscripción. Los de divisiones previas quedan visibles
+      // para poder registrar su baja tras un cambio de división.
       block.classList.add('hidden');
     }
   });
-  
-  txtResumen.innerText = `Inscrito en ${div} (${countMats} asignaturas)`;
+
+  txtResumen.innerText = `División actual: ${div} (${countMats} asignaturas)`;
   _sincronizarGlobales();
 }
 
 export function _sincronizarGlobales() {
-  const globalGrupo = document.getElementById('formGrupoGlobal').value;
+  const globalGrupo  = document.getElementById('formGrupoGlobal').value;
   const globalEstado = document.getElementById('formEstadoGlobal').value;
-  
-  document.querySelectorAll('.division-block:not(.hidden) .group-materia-row').forEach(row => {
+  const divSel = document.getElementById('formDivisionPrimaria').value;
+
+  // Aplicar los valores globales SOLO al bloque de la división seleccionada, para no pisar
+  // el estado/fecha de baja de divisiones previas que estén visibles.
+  const bloque = document.querySelector(`.division-block[data-division="${divSel}"]`);
+  if (!bloque) return;
+  bloque.querySelectorAll('.group-materia-row').forEach(row => {
     if (row.querySelector('.cb-materia').checked) {
-      row.querySelector('.sel-grupo-materia').value = globalGrupo;
+      row.querySelector('.sel-grupo-materia').value  = globalGrupo;
       row.querySelector('.sel-estado-materia').value = globalEstado;
     }
   });
+}
+
+// Marca todas las materias de una división como BAJA con la fecha de hoy (para registrar
+// que el alumno dejó esa división al cambiarse a otra).
+export function _marcarBajaDivision(div) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const bloque = document.querySelector(`.division-block[data-division="${div}"]`);
+  if (!bloque) return;
+  bloque.querySelectorAll('.group-materia-row').forEach(row => {
+    const cb = row.querySelector('.cb-materia');
+    if (!cb.checked) return;
+    row.querySelector('.sel-estado-materia').value = 'BAJA';
+    const selHasta = row.querySelector('.sel-hasta-materia');
+    if (!selHasta.value) selHasta.value = hoy;
+    row.querySelector('.sel-inscripcion-details')?.classList.remove('hidden');
+  });
+  window.app.showToast?.(`Materias de ${div} marcadas como BAJA (${hoy}). Revisá la fecha si corresponde otra.`, 'info');
 }
 
 export function _toggleMateriasIndividuales() {
@@ -276,9 +300,17 @@ export function abrirModalAlumno(alumno = null) {
   
   divisiones.forEach(div => {
     const block = document.createElement('div');
-    block.className = 'division-block hidden mb-2 rounded-lg overflow-hidden';
+    block.className = 'division-block hidden mb-2 rounded-lg overflow-hidden border dark:border-slate-700';
     block.dataset.division = div;
-    
+
+    // Encabezado para distinguir bloques cuando hay varias divisiones visibles (cambios de división)
+    const header = document.createElement('div');
+    header.className = 'flex items-center justify-between bg-slate-100 dark:bg-slate-700/50 px-2 py-1.5';
+    header.innerHTML = `
+      <span class="text-xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-wide"><i class="ph ph-chalkboard-simple"></i> ${escaparHTML(div)}</span>
+      <button type="button" onclick="app._marcarBajaDivision('${escaparHTML(div)}')" class="text-[10px] font-bold text-red-600 dark:text-red-400 hover:underline flex items-center gap-1" title="Marcar baja de esta división con la fecha de hoy"><i class="ph ph-sign-out"></i> Dar de baja</button>`;
+    block.appendChild(header);
+
     grupos[div].forEach(mat => {
       const { base } = _descomponerMat(mat);
       const row = document.createElement('div');
@@ -373,17 +405,22 @@ export function abrirModalAlumno(alumno = null) {
     if (divPrincipal && divisiones.includes(divPrincipal)) {
       selectDiv.value = divPrincipal;
       document.getElementById('tarjetaInscripcionDivision').classList.remove('hidden');
-      
-      let countMats = 0;
+
+      // Mostrar TODOS los bloques donde el alumno tiene (o tuvo) materias, para poder editar
+      // la baja de divisiones anteriores. Antes solo se veía la división primaria → no se podía
+      // registrar la baja de una división intermedia tras un segundo cambio.
+      let divisionesVisibles = 0;
       document.querySelectorAll('.division-block').forEach(block => {
-        if (block.dataset.division === divPrincipal) {
+        const tieneMarcadas = block.querySelector('.cb-materia:checked');
+        if (block.dataset.division === divPrincipal || tieneMarcadas) {
           block.classList.remove('hidden');
-          countMats = block.querySelectorAll('.cb-materia').length;
+          divisionesVisibles++;
         } else {
           block.classList.add('hidden');
         }
       });
-      document.getElementById('txtResumenDivision').innerText = `Inscrito en ${divPrincipal} (${countMats} asignaturas)`;
+      const extra = divisionesVisibles > 1 ? ` (+${divisionesVisibles - 1} división(es) previa(s) visibles para editar bajas)` : '';
+      document.getElementById('txtResumenDivision').innerText = `División actual: ${divPrincipal}${extra}`;
     }
 
   } else {
@@ -873,8 +910,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.55")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.55");
+      const fbdb = (await import("./firebase-config.js?v=10.56")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.56");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -911,8 +948,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.55")).db;
-    const { appId } = await import("./firebase-config.js?v=10.55");
+    const fbdb = (await import("./firebase-config.js?v=10.56")).db;
+    const { appId } = await import("./firebase-config.js?v=10.56");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
