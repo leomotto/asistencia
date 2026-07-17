@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.60";
-import { showToast } from "./ui.js?v=10.60";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.60";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.60";
+import { db, getPath } from "./firebase-config.js?v=10.61";
+import { showToast } from "./ui.js?v=10.61";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.61";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.61";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -108,9 +108,13 @@ export async function cargarAlumnosMatricula() {
         case 'nombre':
           cmp = (a.nombre || '').localeCompare(b.nombre || ''); break;
         case 'anio':
-          cmp = _anioDivision(a).anio.localeCompare(_anioDivision(b).anio, undefined, { numeric: true }); break;
-        case 'division':
-          cmp = _anioDivision(a).division.localeCompare(_anioDivision(b).division, undefined, { numeric: true }); break;
+        case 'division': {
+          // Orden compuesto: primero por año, luego por división (1ro A, 1ro B, ... 2do A, ...)
+          const da = _anioDivision(a), db = _anioDivision(b);
+          cmp = da.anio.localeCompare(db.anio, undefined, { numeric: true });
+          if (cmp === 0) cmp = da.division.localeCompare(db.division, undefined, { numeric: true });
+          break;
+        }
         default:
           cmp = (a.apellido || '').localeCompare(b.apellido || '');
       }
@@ -996,8 +1000,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.60")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.60");
+      const fbdb = (await import("./firebase-config.js?v=10.61")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.61");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1034,8 +1038,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.60")).db;
-    const { appId } = await import("./firebase-config.js?v=10.60");
+    const fbdb = (await import("./firebase-config.js?v=10.61")).db;
+    const { appId } = await import("./firebase-config.js?v=10.61");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
