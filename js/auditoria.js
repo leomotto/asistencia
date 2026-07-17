@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.44";
+import { db, getPath, appId } from "./firebase-config.js?v=10.45";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.44";
-import { escaparHTML } from "./utils.js?v=10.44";
+import { showToast } from "./ui.js?v=10.45";
+import { escaparHTML } from "./utils.js?v=10.45";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1734,6 +1734,36 @@ export async function analizarDatosRoot() {
       return;
     }
 
+    // Detalle de las calificaciones en root (resuelve alumnoId → nombre)
+    const nombrePorId = new Map(_rootMigracionData.estudiantes.map(e => [e.id, `${e.data.apellido || ''}, ${e.data.nombre || ''}`.trim()]));
+    const CAMPOS_NOTA = ['b1', 'b2', 'b3', 'b4', 'po_dic', 'po_feb'];
+    const detalleEval = _rootMigracionData.evaluaciones.map(ev => {
+      const d = ev.data;
+      const notas = CAMPOS_NOTA.filter(k => _valPresente(d[k])).map(k => `${k}=${d[k]}`).join(' · ') || '(sin notas cargadas)';
+      const nombre = nombrePorId.get(d.alumnoId) || d.alumnoId || '(alumno desconocido)';
+      return `<tr class="border-b dark:border-slate-800">
+        <td class="p-2 text-xs font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(nombre)}</td>
+        <td class="p-2 text-xs text-slate-500">${escaparHTML(d.materia || '')}</td>
+        <td class="p-2 text-xs font-mono text-slate-600 dark:text-slate-300">${escaparHTML(notas)}</td>
+      </tr>`;
+    }).join('');
+
+    const bloqueEval = _rootMigracionData.evaluaciones.length ? `
+      <details class="mb-4 group">
+        <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 text-sm select-none">
+          <i class="ph ph-caret-right group-open:rotate-90 transition-transform"></i>
+          Ver las ${_rootMigracionData.evaluaciones.length} calificaciones en root
+        </summary>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 mt-2">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-[11px] uppercase text-slate-500"><tr>
+              <th class="p-2 text-left">Estudiante</th><th class="p-2 text-left">Materia</th><th class="p-2 text-left">Notas</th>
+            </tr></thead>
+            <tbody>${detalleEval}</tbody>
+          </table>
+        </div>
+      </details>` : '';
+
     cont.innerHTML = `
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.estudiantes.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Estudiantes</p></div>
@@ -1741,6 +1771,7 @@ export async function analizarDatosRoot() {
         <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.asistencias.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Asistencias</p></div>
         <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.locks.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Bloqueos</p></div>
       </div>
+      ${bloqueEval}
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-lg">
         <label class="text-sm font-bold text-indigo-800 dark:text-indigo-300 whitespace-nowrap">Reconciliar con:</label>
         <select id="migracionEscuelaDestino" class="flex-1 p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
@@ -1936,5 +1967,74 @@ export async function aplicarReconciliacion() {
     console.error(e);
     showToast('Error al aplicar: ' + e.message, 'error');
     cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}. Es seguro reintentar (aditivo, idempotente).</div>`;
+  }
+}
+
+// ==========================================
+// BACKUP TOTAL DE LA BASE (root + todas las escuelas)
+// ==========================================
+export async function backupTotalBaseDatos() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const cont = document.getElementById('backupTotalResultados');
+  if (cont) cont.innerHTML = `<div class="text-center py-4"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Leyendo toda la base...</p></div>`;
+
+  const COLS = ['estudiantes', 'asistencias', 'evaluaciones', 'evaluaciones_locks', 'materias', 'horarios', 'config'];
+
+  try {
+    // Globales
+    const [snapUsuarios, snapEscuelas] = await Promise.all([
+      getDocs(collection(db, getPath('usuarios'))),
+      getDocs(collection(db, getPath('escuelas'))),
+    ]);
+
+    const backup = {
+      exportado: new Date().toISOString(),
+      version: '2.0-total',
+      globales: { usuarios: {}, escuelas: {} },
+      namespaces: {},   // { root: {col: {id: data}}, EEM1DE20: {...}, ... }
+    };
+    snapUsuarios.forEach(d => { backup.globales.usuarios[d.id] = d.data(); });
+    snapEscuelas.forEach(d => { backup.globales.escuelas[d.id] = d.data(); });
+
+    // Namespaces: root + cada escuela
+    const tenants = ['root', ...snapEscuelas.docs.map(d => d.id)];
+
+    let totalDocs = 0;
+    for (const ns of tenants) {
+      backup.namespaces[ns] = {};
+      for (const col of COLS) {
+        const path = ns === 'root' ? _rootColPath(col) : _tenantColPath(ns, col);
+        try {
+          const snap = await getDocs(collection(db, path));
+          const obj = {};
+          snap.forEach(d => { obj[d.id] = d.data(); });
+          backup.namespaces[ns][col] = obj;
+          totalDocs += snap.size;
+        } catch(colErr) {
+          backup.namespaces[ns][col] = { __error: colErr.message };
+        }
+      }
+    }
+
+    const fecha = new Date().toISOString().split('T')[0];
+    const blob  = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url   = URL.createObjectURL(blob);
+    const a     = Object.assign(document.createElement('a'), { href: url, download: `backup_TOTAL_sideac_${fecha}.json` });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+
+    const resumen = tenants.map(ns => {
+      const c = backup.namespaces[ns];
+      return `${ns}: ${Object.keys(c.estudiantes||{}).length} est · ${Object.keys(c.evaluaciones||{}).length} calif · ${Object.keys(c.asistencias||{}).length} asist`;
+    }).join('<br>');
+
+    showToast(`✅ Backup TOTAL descargado: ${totalDocs} documentos.`, 'success');
+    if (cont) cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
+      <p class="font-bold flex items-center gap-2 mb-2"><i class="ph ph-check-circle text-xl"></i> Backup descargado (${totalDocs} docs · ${Object.keys(backup.globales.usuarios).length} usuarios)</p>
+      <p class="text-xs font-mono leading-relaxed">${resumen}</p>
+    </div>`;
+  } catch(e) {
+    console.error(e);
+    if (cont) cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
   }
 }

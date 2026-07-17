@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.44">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.45">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -843,6 +843,26 @@
 
           <hr class="my-8 border-slate-200 dark:border-slate-700">
 
+          <!-- BACKUP TOTAL — Solo SUPERADMIN -->
+          <div id="seccionBackupTotal">
+            <div class="mb-4">
+              <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                <i class="ph ph-download-simple text-emerald-500"></i> Backup total de la base de datos
+              </h3>
+              <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                Descarga un único JSON con TODO: root + cada escuela, todas las colecciones (estudiantes, calificaciones, asistencias, materias, bloqueos, config) + usuarios y escuelas globales. Hacelo antes de limpiar root.
+              </p>
+            </div>
+            <div class="flex gap-2 mb-4">
+              <button onclick="app.backupTotalBaseDatos()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg shadow-sm transition flex items-center gap-2 text-sm">
+                <i class="ph ph-download-simple text-lg"></i> Descargar backup total (.json)
+              </button>
+            </div>
+            <div id="backupTotalResultados"></div>
+          </div>
+
+          <hr class="my-8 border-slate-200 dark:border-slate-700">
+
           <!-- MIGRADOR ROOT → ESCUELA — Solo SUPERADMIN -->
           <div id="seccionMigracionRoot">
             <div class="mb-4">
@@ -1326,6 +1346,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.44"></script>
+  <script type="module" src="js/app.js?v=10.45"></script>
 </body>
 </html>
