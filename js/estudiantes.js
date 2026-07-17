@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.54";
-import { showToast } from "./ui.js?v=10.54";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.54";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.54";
+import { db, getPath } from "./firebase-config.js?v=10.55";
+import { showToast } from "./ui.js?v=10.55";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.55";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.55";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -541,8 +541,27 @@ export async function abrirModalFusion() {
 
   showToast('Cargando lista de estudiantes...', 'info');
   try {
-    const snap = await getDocs(collection(db, getPath('estudiantes')));
-    snap.forEach(d => fusionState.todosAlumnos.push({ id: d.id, ...d.data() }));
+    const [snap, snapAsist, snapEval] = await Promise.all([
+      getDocs(collection(db, getPath('estudiantes'))),
+      getDocs(collection(db, getPath('asistencias'))),
+      getDocs(collection(db, getPath('evaluaciones'))),
+    ]);
+
+    // Conteo de marcas de asistencia reales y planillas de notas por alumno
+    const asistPorId = new Map(), evalPorId = new Map();
+    snapAsist.forEach(d => {
+      const regs = d.data().registros || {};
+      Object.entries(regs).forEach(([aid, m]) => {
+        if (m !== undefined && m !== null && m !== '' && m !== '-') asistPorId.set(aid, (asistPorId.get(aid) || 0) + 1);
+      });
+    });
+    snapEval.forEach(d => { const aid = d.data().alumnoId; if (aid) evalPorId.set(aid, (evalPorId.get(aid) || 0) + 1); });
+
+    snap.forEach(d => fusionState.todosAlumnos.push({
+      id: d.id, ...d.data(),
+      _nAsist: asistPorId.get(d.id) || 0,
+      _nEval:  evalPorId.get(d.id) || 0,
+    }));
     fusionState.todosAlumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
     showToast(`✅ ${fusionState.todosAlumnos.length} estudiantes cargados.`);
   } catch(e) { showToast('❌ Error al cargar estudiantes.', 'error'); }
@@ -563,10 +582,11 @@ export function buscarParaFusion() {
   resultadosDiv.innerHTML = encontrados.length === 0
     ? '<p class="text-xs text-slate-400 p-2 text-center">Sin resultados.</p>'
     : encontrados.map(a => `
-        <div class="p-2 border-b dark:border-slate-700 text-xs hover:bg-orange-50 dark:hover:bg-slate-700 flex justify-between items-center gap-2">
+        <div class="p-2 border-b dark:border-slate-700 text-xs hover:bg-orange-50 dark:hover:bg-slate-700 flex flex-wrap items-center gap-x-2 gap-y-1">
           <span class="font-bold text-slate-800 dark:text-slate-200">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</span>
-          <span class="text-slate-400">${escaparHTML(a.dni || '')}</span>
-          <span class="text-indigo-600 dark:text-indigo-400 text-[10px]">${(a.materias || [a.curso]).map(escaparHTML).join(', ')}</span>
+          ${a.dni ? `<span class="text-slate-400 font-mono text-[10px]">${escaparHTML(a.dni)}</span>` : ''}
+          <span class="text-[10px] font-bold text-blue-600 dark:text-blue-400" title="Asistencias"><i class="ph ph-calendar-check"></i> ${a._nAsist || 0}</span>
+          <span class="text-[10px] font-bold text-purple-600 dark:text-purple-400" title="Notas"><i class="ph ph-exam"></i> ${a._nEval || 0}</span>
           <div class="flex gap-1 ml-auto">
             <button onclick="app.seleccionarParaFusion('primario', '${a.id}')" class="px-2 py-0.5 bg-emerald-500 dark:bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-600 dark:hover:bg-emerald-500">Primario</button>
             <button onclick="app.seleccionarParaFusion('secundario', '${a.id}')" class="px-2 py-0.5 bg-red-500 dark:bg-red-600 text-white rounded text-[10px] font-bold hover:bg-red-600 dark:hover:bg-red-500">Secundario</button>
@@ -579,12 +599,19 @@ export function seleccionarParaFusion(rol, id) {
   const alumno = fusionState.todosAlumnos.find(a => a.id === id);
   if (!alumno) return;
   fusionState[rol] = alumno;
-  document.getElementById(`fusion${rol.charAt(0).toUpperCase() + rol.slice(1)}`).innerHTML = `
-    <div class="text-left not-italic">
-      <p class="font-bold text-slate-800 dark:text-slate-100">${escaparHTML(alumno.apellido)}, ${escaparHTML(alumno.nombre)}</p>
-      ${alumno.dni ? `<p class="text-slate-500 dark:text-slate-400 font-mono">DNI: ${escaparHTML(alumno.dni)}</p>` : ''}
-      <p class="text-indigo-600 mt-1">${(alumno.materias || [alumno.curso]).map(escaparHTML).join(', ')}</p>
-      <p class="text-slate-400 text-[10px] mt-1">ID: ${escaparHTML(alumno.id)}</p>
+  const box = document.getElementById(`fusion${rol.charAt(0).toUpperCase() + rol.slice(1)}`);
+  box.classList.remove('items-center', 'justify-center', 'italic');
+  const materias = (alumno.materias || [alumno.curso]).filter(Boolean);
+  box.innerHTML = `
+    <div class="text-left not-italic w-full">
+      <p class="font-bold text-slate-800 dark:text-slate-100 break-words">${escaparHTML(alumno.apellido)}, ${escaparHTML(alumno.nombre)}</p>
+      ${alumno.dni ? `<p class="text-slate-500 dark:text-slate-400 font-mono text-[11px]">DNI: ${escaparHTML(alumno.dni)}</p>` : ''}
+      <div class="flex gap-3 mt-1.5 mb-1">
+        <span class="text-[11px] font-bold text-blue-600 dark:text-blue-400"><i class="ph ph-calendar-check"></i> ${alumno._nAsist || 0} asist.</span>
+        <span class="text-[11px] font-bold text-purple-600 dark:text-purple-400"><i class="ph ph-exam"></i> ${alumno._nEval || 0} notas</span>
+      </div>
+      <p class="text-indigo-600 dark:text-indigo-400 text-[10px] break-words" title="${escaparHTML(materias.join(', '))}">${materias.slice(0, 4).map(escaparHTML).join(', ')}${materias.length > 4 ? ` +${materias.length - 4}` : ''}</p>
+      <p class="text-slate-400 text-[9px] mt-1 font-mono truncate">ID: ${escaparHTML(alumno.id)}</p>
     </div>`;
   _actualizarResumenFusion();
 }
@@ -846,8 +873,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.54")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.54");
+      const fbdb = (await import("./firebase-config.js?v=10.55")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.55");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -884,8 +911,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.54")).db;
-    const { appId } = await import("./firebase-config.js?v=10.54");
+    const fbdb = (await import("./firebase-config.js?v=10.55")).db;
+    const { appId } = await import("./firebase-config.js?v=10.55");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
