@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.47";
+import { db, getPath, appId } from "./firebase-config.js?v=10.48";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.47";
-import { escaparHTML } from "./utils.js?v=10.47";
+import { showToast } from "./ui.js?v=10.48";
+import { escaparHTML } from "./utils.js?v=10.48";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1027,9 +1027,31 @@ function _titleCase(s) {
   return (s || '').toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
 }
 
+// De una sección larga del JSON ("1er año Vespertino Extendida A") extrae número de año
+// y letra de división, y busca la división SIDEAC equivalente ("1ro A") en la lista real.
+function _derivarDivisionSideac(seccion, sideacDivisiones) {
+  const s = _normStr(seccion);
+  const year = (s.match(/\d/) || [''])[0];              // primer dígito = año
+  const tokens = s.split(/\s+/).filter(Boolean);
+  let letter = '';
+  for (let i = tokens.length - 1; i >= 0; i--) {         // última letra suelta = división
+    if (/^[A-Z]$/.test(tokens[i])) { letter = tokens[i]; break; }
+  }
+  if (!year && !letter) return '';
+  return sideacDivisiones.find(d => {
+    const ds = _normStr(d);
+    const dYear = (ds.match(/\d/) || [''])[0];
+    const dTok = ds.split(/\s+/).filter(Boolean);
+    let dLetter = '';
+    for (let i = dTok.length - 1; i >= 0; i--) { if (/^[A-Z]$/.test(dTok[i])) { dLetter = dTok[i]; break; } }
+    return dYear === year && dLetter === letter;
+  }) || '';
+}
+
 let _lastFaltantes    = [];
 let _lastCoincidentes = [];
 let _lastParciales    = [];
+let _lastSobran       = [];
 
 // Devuelve número de palabras en común entre dos claves word-sorted.
 function _intersectCount(keyA, keyB) {
@@ -1141,6 +1163,7 @@ export async function compararMatricula() {
     _lastFaltantes    = [...faltantesDisplay].sort((a, b) => a.apOrig.localeCompare(b.apOrig));
     _lastCoincidentes = coincidenList;
     _lastParciales    = parciales;
+    _lastSobran       = [...sobranDisplay].sort((a, b) => a.apOrig.localeCompare(b.apOrig));
 
     // ── HTML ──
     let html = `
@@ -1217,8 +1240,8 @@ export async function compararMatricula() {
     // ── FALTAN EN FIREBASE (estrictos, sin parciales) ──
     if (_lastFaltantes.length > 0) {
       const rows = _lastFaltantes.map((e, i) => {
-        const secNorm = _normStr(e.seccion);
-        const presel  = sideacDivisiones.find(d => _normStr(d) === secNorm) || '';
+        // Deriva "1ro A" desde "1er año Vespertino Extendida A" y busca la división real SIDEAC
+        const presel  = _derivarDivisionSideac(e.seccion, sideacDivisiones);
         const opts = sideacDivisiones.map(d =>
           `<option value="${escaparHTML(d)}"${d === presel ? ' selected' : ''}>${escaparHTML(d)}</option>`
         ).join('');
@@ -1372,22 +1395,35 @@ export async function compararMatricula() {
         </details>`;
     }
 
-    // ── SOLO EN FIREBASE (sin coincidencia ni parcial) ──
-    if (sobranDisplay.length > 0) {
-      const rows = sobranDisplay
-        .sort((a, b) => a.apOrig.localeCompare(b.apOrig))
-        .map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+    // ── SOLO EN FIREBASE (sin coincidencia ni parcial) — con vinculación manual al JSON ──
+    if (_lastSobran.length > 0) {
+      // Opciones = registros JSON que quedaron sin match (faltantes). Permite forzar la unión manual.
+      const optFaltantes = _lastFaltantes.map((f, i) =>
+        `<option value="${i}">${escaparHTML(_titleCase(f.apOrig))}, ${escaparHTML(_titleCase(f.noOrig))} — ${escaparHTML(f.seccion || 's/secc')} — DNI ${escaparHTML(f.dni || '—')}</option>`
+      ).join('');
+      const selectorHtml = _lastFaltantes.length
+        ? (sid) => `<div class="flex gap-1 items-center">
+            <select id="iny_${escaparHTML(sid)}" class="text-xs border border-slate-300 dark:border-slate-600 rounded px-1 py-1 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 max-w-[220px]">
+              <option value="">— registro JSON a inyectar —</option>${optFaltantes}
+            </select>
+            <button onclick="app.inyectarManual('${escaparHTML(sid)}')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1"><i class="ph ph-syringe"></i> Inyectar</button>
+          </div>`
+        : () => '<span class="text-xs text-slate-400">no hay registros JSON sueltos</span>';
+
+      const rows = _lastSobran.map(e => `<tr class="bg-white dark:bg-slate-900 hover:bg-amber-50 dark:hover:bg-amber-900/20">
           <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(e.apOrig)}</td>
           <td class="p-2 text-slate-700 dark:text-slate-300">${escaparHTML(e.noOrig)}</td>
           <td class="p-2 text-xs text-slate-400">${escaparHTML(e.curso)}</td>
-          <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.dni)}</td></tr>`)
+          <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(e.dni)}</td>
+          <td class="p-2">${selectorHtml(e.id)}</td></tr>`)
         .join('');
       html += `
         <details class="group">
           <summary class="cursor-pointer list-none flex items-center gap-2 font-bold text-amber-700 dark:text-amber-400 text-sm select-none mb-3">
             <i class="ph ph-caret-right text-base group-open:rotate-90 transition-transform"></i>
-            <i class="ph ph-user-plus text-lg"></i> Solo en Firebase — ${sobranDisplay.length} estudiante(s) sin correspondencia en el JSON
+            <i class="ph ph-user-plus text-lg"></i> Solo en Firebase — ${_lastSobran.length} estudiante(s) sin correspondencia automática
           </summary>
+          <p class="text-xs text-slate-500 mb-2">Si sabés que un alumno de acá es en realidad uno del JSON (nombres muy distintos), elegí el registro JSON y "Inyectar": se le cargan DNI, email, fecha nac., ID MiEscuela y se corrige el nombre. Se conserva la división de la base.</p>
           <div class="overflow-x-auto rounded-lg border border-amber-100 dark:border-amber-900">
             <table class="w-full text-sm">
               <thead class="bg-amber-50 dark:bg-amber-900/30"><tr>
@@ -1395,6 +1431,7 @@ export async function compararMatricula() {
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Nombre</th>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">División</th>
                 <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">DNI</th>
+                <th class="p-2 text-left font-bold text-amber-800 dark:text-amber-300">Vincular con JSON</th>
               </tr></thead>
               <tbody class="divide-y divide-amber-100 dark:divide-amber-900">${rows}</tbody>
             </table>
@@ -1507,6 +1544,45 @@ export async function confirmarParciales() {
   } catch(e) {
     console.error(e);
     showToast('Error al confirmar: ' + e.message, 'error');
+  }
+}
+
+// Vinculación manual: inyecta un registro JSON (faltante) en un estudiante de "Solo en Firebase".
+export async function inyectarManual(sobranId) {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const sel = document.getElementById('iny_' + sobranId);
+  const idx = sel?.value;
+  if (idx === '' || idx == null) { showToast('Elegí el registro JSON a inyectar.', 'error'); return; }
+
+  const ref = _lastFaltantes[+idx];
+  const dbe = _lastSobran.find(x => x.id === sobranId);
+  if (!ref || !dbe) { showToast('No encontré el par. Recompará.', 'error'); return; }
+
+  const ok = await window.app.showConfirm(
+    'Inyectar datos del JSON',
+    `Vas a marcar que el alumno de la base:\n  "${dbe.apOrig}, ${dbe.noOrig}" (${dbe.curso})\nes en realidad el del JSON:\n  "${_titleCase(ref.apOrig)}, ${_titleCase(ref.noOrig)}" (${ref.seccion || 's/secc'})\n\nSe corrige el nombre y se cargan DNI, email, fecha nac. e ID MiEscuela. Se CONSERVA la división y las asistencias de la base.\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  try {
+    const docRef = doc(db, _auditPath('estudiantes'), dbe.id);
+    const upd = {
+      apellido: _titleCase(ref.apOrig),
+      nombre:   _titleCase(ref.noOrig),
+    };
+    if (ref.dni)              upd.dni              = ref.dni;
+    if (ref.email)            upd.email            = ref.email;
+    if (ref.id_miescuela)     upd.id_miescuela     = ref.id_miescuela;
+    if (ref.fecha_nacimiento) upd.fecha_nacimiento = ref.fecha_nacimiento;
+    const batch = writeBatch(db);
+    batch.update(docRef, upd);
+    await batch.commit();
+    showToast(`Datos inyectados en "${dbe.apOrig}, ${dbe.noOrig}".`, 'success');
+    compararMatricula();
+  } catch(e) {
+    console.error(e);
+    showToast('Error al inyectar: ' + e.message, 'error');
   }
 }
 
