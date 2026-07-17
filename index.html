@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.59">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.60">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -637,14 +637,17 @@
               <table class="w-full text-sm text-left">
                 <thead class="bg-slate-100 dark:bg-slate-900 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase border-b dark:border-slate-700">
                   <tr>
-                    <th class="px-4 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('apellido')">Estudiante <span id="sortArrow-apellido"></span></th>
-                    <th class="px-4 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('estado')">Año y División <span id="sortArrow-estado"></span></th>
-                    <th class="px-4 py-3 text-right">Acción</th>
+                    <th class="px-3 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('apellido')">Apellido <span id="sortArrow-apellido"></span></th>
+                    <th class="px-3 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('nombre')">Nombre <span id="sortArrow-nombre"></span></th>
+                    <th class="px-3 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('anio')">Año <span id="sortArrow-anio"></span></th>
+                    <th class="px-3 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('division')">División <span id="sortArrow-division"></span></th>
+                    <th class="px-3 py-3 cursor-pointer select-none hover:text-indigo-600" onclick="app.ordenarMatricula('estado')">Estado <span id="sortArrow-estado"></span></th>
+                    <th class="px-3 py-3 text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody id="tablaMatricula" class="divide-y divide-gray-200 dark:divide-slate-700">
                   <tr>
-                    <td colspan="4" class="px-4 py-8 text-center text-slate-400 italic">Seleccione un curso para ver la matrícula actual de alumnos.</td>
+                    <td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">Seleccione un curso para ver la matrícula actual de alumnos.</td>
                   </tr>
                 </tbody>
               </table>
@@ -1399,6 +1402,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.59"></script>
+  <script type="module" src="js/app.js?v=10.60"></script>
 </body>
 </html>

@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.59";
-import { showToast } from "./ui.js?v=10.59";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.59";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.59";
+import { db, getPath } from "./firebase-config.js?v=10.60";
+import { showToast } from "./ui.js?v=10.60";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.60";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.60";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -31,6 +31,17 @@ function _resumenCambios(est) {
   return { baja, pase, cambio: cambio || baja, rank: baja ? 2 : (cambio ? 1 : 0) };
 }
 
+// Devuelve { anio, division } a partir del curso ("2do D") y planEstudio.
+function _anioDivision(est) {
+  const curso = est.curso || (est.materias && est.materias[0]
+    ? (est.materias[0].includes(' - ') ? est.materias[0].split(' - ')[0] : est.materias[0])
+    : '') || '';
+  const m = curso.match(/^\s*(\d+\s*(?:ro|do|er|to|mo|vo|no|°|º)?)\s*(.*)$/i);
+  const anio = est.planEstudio || (m ? m[1].replace(/\s+/g, '') : '');
+  const division = (m && m[2]) ? m[2].trim() : curso;   // solo la letra/sección
+  return { anio, division };
+}
+
 export function ordenarMatricula(key) {
   if (_matSort.key === key) _matSort.dir *= -1;
   else _matSort = { key, dir: 1 };
@@ -47,10 +58,10 @@ export async function cargarAlumnosMatricula() {
   const esTodos = curso === '__TODOS__';
 
   if (!curso) {
-    tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td></tr>';
+    tabla.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Seleccione un curso del menú superior.</td></tr>';
     return;
   }
-  tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-indigo-500 animate-pulse">Sincronizando matrícula...</td></tr>';
+  tabla.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-indigo-500 animate-pulse">Sincronizando matrícula...</td></tr>';
 
   try {
     const snap = await getDocs(collection(db, getPath("estudiantes")));
@@ -91,23 +102,30 @@ export async function cargarAlumnosMatricula() {
     // Orden por columna
     alumnosFiltrados = [...alumnosFiltrados].sort((a, b) => {
       let cmp;
-      if (_matSort.key === 'estado') {
-        cmp = _resumenCambios(a).rank - _resumenCambios(b).rank;
-        if (cmp === 0) cmp = (a.apellido || '').localeCompare(b.apellido || '');
-      } else {
-        cmp = (a.apellido || '').localeCompare(b.apellido || '');
+      switch (_matSort.key) {
+        case 'estado':
+          cmp = _resumenCambios(a).rank - _resumenCambios(b).rank; break;
+        case 'nombre':
+          cmp = (a.nombre || '').localeCompare(b.nombre || ''); break;
+        case 'anio':
+          cmp = _anioDivision(a).anio.localeCompare(_anioDivision(b).anio, undefined, { numeric: true }); break;
+        case 'division':
+          cmp = _anioDivision(a).division.localeCompare(_anioDivision(b).division, undefined, { numeric: true }); break;
+        default:
+          cmp = (a.apellido || '').localeCompare(b.apellido || '');
       }
+      if (cmp === 0) cmp = (a.apellido || '').localeCompare(b.apellido || '');
       return cmp * _matSort.dir;
     });
 
     // Indicadores de flecha en los headers
-    ['apellido', 'estado'].forEach(k => {
+    ['apellido', 'nombre', 'anio', 'division', 'estado'].forEach(k => {
       const el = document.getElementById(`sortArrow-${k}`);
       if (el) el.textContent = _matSort.key === k ? (_matSort.dir === 1 ? '▲' : '▼') : '';
     });
 
     if (alumnosFiltrados.length === 0) {
-      tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-amber-600">No hay ningún alumno matriculado en este espacio que coincida con la búsqueda.</td></tr>';
+      tabla.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-amber-600">No hay ningún alumno matriculado en este espacio que coincida con la búsqueda.</td></tr>';
       return;
     }
 
@@ -156,29 +174,23 @@ export async function cargarAlumnosMatricula() {
         </span>`;
       }).join('');
 
-      // Año y División actual (curso) + badge de estado (pase/baja/cambio)
       const r = _resumenCambios(est);
-      const divActual = est.curso || (est.materias && est.materias[0] ? (est.materias[0].includes(' - ') ? est.materias[0].split(' - ')[0] : est.materias[0]) : '—');
-      const anio = est.planEstudio ? `<span class="text-slate-400 font-normal text-xs">${escaparHTML(est.planEstudio)} · </span>` : '';
-      let estadoBadge = '';
-      if (r.pase)        estadoBadge = `<span class="ml-2 text-[9px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded font-black uppercase" title="Pase a ${escaparHTML(est.pase?.destino || '')}">PASE → ${escaparHTML(est.pase?.destino || '')}</span>`;
-      else if (r.baja)   estadoBadge = '<span class="ml-2 text-[9px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded font-black uppercase">BAJA</span>';
-      else if (r.cambio) estadoBadge = '<span class="ml-2 text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded font-black uppercase">CAMBIO DIV.</span>';
+      const { anio, division } = _anioDivision(est);
+      let estadoBadge, estadoCls;
+      if (r.pase)        { estadoBadge = `PASE → ${escaparHTML(est.pase?.destino || '')}`; estadoCls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; }
+      else if (r.baja)   { estadoBadge = 'BAJA';        estadoCls = 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'; }
+      else if (r.cambio) { estadoBadge = 'CAMBIO DIV.'; estadoCls = 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'; }
+      else               { estadoBadge = 'ACTIVO';      estadoCls = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'; }
 
       const tr = document.createElement('tr');
       tr.className = `hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 ${r.baja ? 'opacity-70' : ''}`;
       tr.innerHTML = `
-        <td class="px-2 py-1.5 align-middle">
-          <p class="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-1 text-[9px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
-          ${notasStr}
-        </td>
-        <td class="px-2 py-1.5 align-middle">
-          <div class="flex items-center flex-wrap">
-            <span class="font-bold text-slate-700 dark:text-slate-200">${anio}${escaparHTML(divActual)}</span>${estadoBadge}
-          </div>
-          ${r.cambio ? `<div class="flex flex-wrap gap-0.5 mt-1">${materiasHtml}</div>` : ''}
-        </td>
-        <td class="px-2 py-1.5 text-right align-middle">
+        <td class="px-3 py-1.5 align-middle font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}<span class="text-blue-600 font-normal">${apodoStr}</span></td>
+        <td class="px-3 py-1.5 align-middle">${escaparHTML(est.nombre)}${est.dni ? `<span class="ml-1 text-[9px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}${notasStr}</td>
+        <td class="px-3 py-1.5 align-middle text-slate-600 dark:text-slate-300">${escaparHTML(anio) || '—'}</td>
+        <td class="px-3 py-1.5 align-middle font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(division) || '—'}${r.cambio ? `<div class="flex flex-wrap gap-0.5 mt-1">${materiasHtml}</div>` : ''}</td>
+        <td class="px-3 py-1.5 align-middle"><span class="text-[9px] px-1.5 py-0.5 rounded font-black uppercase whitespace-nowrap ${estadoCls}">${estadoBadge}</span></td>
+        <td class="px-3 py-1.5 text-right align-middle">
           <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-1.5 rounded transition" title="Editar Estudiante">
             <i class="ph ph-pencil-simple text-lg"></i>
           </button>
@@ -984,8 +996,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.59")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.59");
+      const fbdb = (await import("./firebase-config.js?v=10.60")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.60");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1022,8 +1034,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.59")).db;
-    const { appId } = await import("./firebase-config.js?v=10.59");
+    const fbdb = (await import("./firebase-config.js?v=10.60")).db;
+    const { appId } = await import("./firebase-config.js?v=10.60");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
