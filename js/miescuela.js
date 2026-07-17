@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.69";
+import { db, getPath } from "./firebase-config.js?v=10.70";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.69";
-import { escaparHTML } from "./utils.js?v=10.69";
+import { showToast } from "./ui.js?v=10.70";
+import { escaparHTML } from "./utils.js?v=10.70";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -105,11 +105,13 @@ export async function usarUltimaPlanillaMiescuela() {
     }
     document.getElementById('miSeccion').value     = u.espacioCurricularSeccion;
     document.getElementById('miPeriodoGcaba').value = u.periodo || '';
-    // Pre-seleccionar período SIDEAC según el período GCABA (1→b1, 2→b2, 3→b3, 4→b4)
-    const mapPer = { '1': 'b1', '2': 'b2', '3': 'b3', '4': 'b4' };
+    // GCABA numera los períodos corridos: 2=1er bim, 3=2do bim, 4=3er bim, 5=4to bim.
+    // (confirmado: período 3 = 2do bimestre). Si algún caso no encaja, ajustá el dropdown a mano.
+    const mapPer = { '2': 'b1', '3': 'b2', '4': 'b3', '5': 'b4' };
     const ps = mapPer[String(u.periodo)];
     if (ps) document.getElementById('miPeriodoSideac').value = ps;
-    showToast(`Planilla detectada: sección ${u.espacioCurricularSeccion}, período ${u.periodo}. Elegí la materia SIDEAC y compará.`, 'success');
+    const nombreBim = { b1: '1er bim', b2: '2do bim', b3: '3er bim', b4: '4to bim' }[ps] || '(revisá el bimestre)';
+    showToast(`Planilla detectada: sección ${u.espacioCurricularSeccion}, período GCABA ${u.periodo} → ${nombreBim}. Verificá el bimestre y elegí la materia.`, 'success');
   } catch (e) {
     showToast(e.message, 'error');
   }

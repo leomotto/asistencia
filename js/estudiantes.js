@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.69";
-import { showToast } from "./ui.js?v=10.69";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.69";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.69";
+import { db, getPath } from "./firebase-config.js?v=10.70";
+import { showToast } from "./ui.js?v=10.70";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.70";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.70";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -1022,8 +1022,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.69")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.69");
+      const fbdb = (await import("./firebase-config.js?v=10.70")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.70");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1060,8 +1060,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.69")).db;
-    const { appId } = await import("./firebase-config.js?v=10.69");
+    const fbdb = (await import("./firebase-config.js?v=10.70")).db;
+    const { appId } = await import("./firebase-config.js?v=10.70");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
