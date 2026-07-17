@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.67";
+import { db, getPath } from "./firebase-config.js?v=10.68";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.67";
-import { escaparHTML } from "./utils.js?v=10.67";
+import { showToast } from "./ui.js?v=10.68";
+import { escaparHTML } from "./utils.js?v=10.68";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -73,6 +73,7 @@ function _parsearGet(data) {
     idCalificacion: it.idCalificacion ?? it.calificacion?.idCalificacion ?? null,
     idConocimiento: it.nota?.idConocimiento ?? it.idConocimiento ?? null,
     notaGCABA:      it.nota?.nota ?? it.nota ?? it.data?.calificacion ?? '',
+    ppi:            it.data?.ppi ?? it.nota?.ppi ?? it.ppi ?? false,
     nombre:         [it.alumno?.apellido, it.alumno?.nombre].filter(Boolean).join(', '),
   })).filter(x => x.idAlumno != null);
 }
@@ -161,6 +162,7 @@ export async function traerYCompararMiescuela() {
       }
       return {
         idAlumno: g.idAlumno, idCalificacion: g.idCalificacion, idConocimiento: g.idConocimiento,
+        estId: local?.estId || null, ppi: !!g.ppi,
         nombre: local?.nombre || g.nombre || `ID ${g.idAlumno}`,
         notaSideac: local?.notaSideac ?? '', notaGCABA: g.notaGCABA ?? '', accion, motivo,
       };
@@ -221,9 +223,14 @@ function _renderStaging(cont, filas, huerfanosSideac) {
       </table>
     </div>
     ${avisoHuerfanos}
-    <button onclick="app.sincronizarMiescuela()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm ${(nPost + nPut) === 0 ? 'opacity-40 pointer-events-none' : ''}">
-      <i class="ph ph-upload-simple"></i> Enviar a MiEscuela (${nPost + nPut})
-    </button>`;
+    <div class="flex flex-wrap gap-2 mt-4">
+      <button onclick="app.importarNotasMiescuela()" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm">
+        <i class="ph ph-download-simple"></i> Importar a SIDEAC (nota + PPI)
+      </button>
+      <button onclick="app.sincronizarMiescuela()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm ${(nPost + nPut) === 0 ? 'opacity-40 pointer-events-none' : ''}">
+        <i class="ph ph-upload-simple"></i> Enviar a MiEscuela (${nPost + nPut})
+      </button>
+    </div>`;
 }
 
 // ── PASO 3: POST (nuevas) + PUT (actualizaciones) ──
@@ -279,6 +286,64 @@ export async function sincronizarMiescuela() {
   } catch (e) {
     console.error(e);
     showToast('Error al sincronizar: ' + e.message, 'error');
+    cont.insertAdjacentHTML('afterbegin', `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded-lg font-bold mb-3">${escaparHTML(e.message)}</div>`);
+  }
+}
+
+// ── IMPORTAR: trae de MiEscuela a SIDEAC. Guarda nota + PPI en evaluaciones.oficial.{periodo}
+//    y deriva un flag por bimestre a nivel estudiante (ppi_{periodo}) — PPI es por alumno/bimestre.
+export async function importarNotasMiescuela() {
+  if (!_staging) { showToast('Primero traé y compará.', 'error'); return; }
+  const { periodoSideac, materia, filas } = _staging;
+
+  // Solo alumnos que existen en SIDEAC (tienen estId) y tienen nota o ppi en GCABA
+  const aImportar = filas.filter(f => f.estId && (String(f.notaGCABA).trim() !== '' || f.ppi));
+  if (!aImportar.length) { showToast('No hay notas de MiEscuela para importar a estudiantes de SIDEAC.', 'info'); return; }
+
+  const conPPI = aImportar.filter(f => f.ppi).length;
+  const ok = await window.app.showConfirm(
+    'Importar notas de MiEscuela a SIDEAC',
+    `Se guardarán ${aImportar.length} nota(s) oficiales en SIDEAC (campo "oficial", sin tocar tus notas internas).\n${conPPI} con PPI.\nPeríodo: ${periodoSideac} · Materia: ${materia}\n\n¿Confirmar?`
+  );
+  if (!ok) return;
+
+  const cont = document.getElementById('miResultados');
+  try {
+    const now = new Date().toISOString();
+    let escritos = 0;
+    for (let i = 0; i < aImportar.length; i += 400) {
+      const chunk = aImportar.slice(i, i + 400);
+      const batch = writeBatch(db);
+      chunk.forEach(f => {
+        const docId = `${f.estId}_${materia.replace(/[\s/]+/g, '')}`;
+        const ref = doc(db, getPath('evaluaciones'), docId);
+        batch.set(ref, {
+          alumnoId: f.estId,
+          materia,
+          oficial: {
+            [periodoSideac]: {
+              nota: String(f.notaGCABA ?? ''),
+              ppi: !!f.ppi,
+              idCalificacion: f.idCalificacion ?? null,
+              idConocimiento: f.idConocimiento ?? null,
+              syncedAt: now,
+            }
+          }
+        }, { merge: true });
+        // Flag PPI por bimestre a nivel estudiante (para badges/filtros)
+        if (f.ppi) {
+          const estRef = doc(db, getPath('estudiantes'), f.estId);
+          batch.set(estRef, { ppi: { [periodoSideac]: true } }, { merge: true });
+        }
+      });
+      await batch.commit();
+      escritos += chunk.length;
+    }
+    showToast(`✅ ${escritos} nota(s) oficiales importadas a SIDEAC.`, 'success');
+    cont.insertAdjacentHTML('afterbegin', `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-3 rounded-lg font-bold mb-3"><i class="ph ph-check-circle"></i> ${escritos} nota(s) oficiales guardadas en SIDEAC (${conPPI} con PPI).</div>`);
+  } catch (e) {
+    console.error(e);
+    showToast('Error al importar: ' + e.message, 'error');
     cont.insertAdjacentHTML('afterbegin', `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded-lg font-bold mb-3">${escaparHTML(e.message)}</div>`);
   }
 }
