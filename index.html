@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.68">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.69">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1147,6 +1147,10 @@
           <b>⚠️ Extensión no detectada.</b> Instalá "SIDEAC Conector" y abrí MiEscuela logueado para capturar el token.
         </div>
         <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Trae la planilla de MiEscuela, la compara con las notas de SIDEAC y te muestra qué se crea (POST) o actualiza (PUT) antes de enviar. Requiere la extensión y estar logueado en MiEscuela.</p>
+        <div class="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800 p-3 rounded-lg mb-3 flex flex-col sm:flex-row sm:items-center gap-2">
+          <p class="text-xs text-cyan-800 dark:text-cyan-300 flex-1"><i class="ph ph-magic-wand"></i> Abrí la planilla en MiEscuela y usá esto para autocompletar sección y período (sin tipear IDs):</p>
+          <button onclick="app.usarUltimaPlanillaMiescuela()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 whitespace-nowrap"><i class="ph ph-download-simple"></i> Usar última planilla vista</button>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
             <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MATERIA SIDEAC</label>
@@ -1451,6 +1455,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.68"></script>
+  <script type="module" src="js/app.js?v=10.69"></script>
 </body>
 </html>

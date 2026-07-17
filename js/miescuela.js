@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.68";
+import { db, getPath } from "./firebase-config.js?v=10.69";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.68";
-import { escaparHTML } from "./utils.js?v=10.68";
+import { showToast } from "./ui.js?v=10.69";
+import { escaparHTML } from "./utils.js?v=10.69";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -91,6 +91,28 @@ export function abrirModalMiescuela() {
   document.getElementById('miResultados').innerHTML = '';
   document.getElementById('miAvisoExtension')?.classList.toggle('hidden', _bridgeReady);
   modal.classList.remove('hidden');
+}
+
+// Trae la última planilla de calificaciones que el docente abrió en MiEscuela (capturada por
+// la extensión). Autocompleta sección + período GCABA — cero IDs tipeados a mano.
+export async function usarUltimaPlanillaMiescuela() {
+  try {
+    const r = await _bridge('MIESCUELA_ULTIMA_CALIF');
+    const u = r?.ultima;
+    if (!u || !u.espacioCurricularSeccion) {
+      showToast('No hay planilla capturada. Abrí una planilla de calificaciones en MiEscuela y volvé.', 'error');
+      return;
+    }
+    document.getElementById('miSeccion').value     = u.espacioCurricularSeccion;
+    document.getElementById('miPeriodoGcaba').value = u.periodo || '';
+    // Pre-seleccionar período SIDEAC según el período GCABA (1→b1, 2→b2, 3→b3, 4→b4)
+    const mapPer = { '1': 'b1', '2': 'b2', '3': 'b3', '4': 'b4' };
+    const ps = mapPer[String(u.periodo)];
+    if (ps) document.getElementById('miPeriodoSideac').value = ps;
+    showToast(`Planilla detectada: sección ${u.espacioCurricularSeccion}, período ${u.periodo}. Elegí la materia SIDEAC y compará.`, 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
 }
 
 let _staging = null;   // { idSeccion, idPeriodo, periodoSideac, filas: [...] }
