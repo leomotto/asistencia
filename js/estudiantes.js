@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.58";
-import { showToast } from "./ui.js?v=10.58";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.58";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.58";
+import { db, getPath } from "./firebase-config.js?v=10.59";
+import { showToast } from "./ui.js?v=10.59";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.59";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.59";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -25,8 +25,10 @@ function _resumenCambios(est) {
     if (arr && arr.length > 1) cambio = true;   // más de un tramo en la misma materia
   });
   if (divs.size > 1) cambio = true;             // estuvo en más de una división
-  // rank para ordenar: 0 activo simple, 1 con cambio, 2 con baja
-  return { baja, cambio: cambio || baja, rank: baja ? 2 : (cambio ? 1 : 0) };
+  const pase = !!est.pase;                       // pase a otra escuela
+  if (pase) baja = true;
+  // rank para ordenar: 0 activo simple, 1 con cambio, 2 con baja/pase
+  return { baja, pase, cambio: cambio || baja, rank: baja ? 2 : (cambio ? 1 : 0) };
 }
 
 export function ordenarMatricula(key) {
@@ -79,6 +81,7 @@ export async function cargarAlumnosMatricula() {
       alumnosFiltrados = alumnosFiltrados.filter(est => {
         const r = _resumenCambios(est);
         if (filtroCambios === 'cambios') return r.cambio;
+        if (filtroCambios === 'pase')    return r.pase;
         if (filtroCambios === 'baja')    return r.baja;
         if (filtroCambios === 'activo')  return !r.cambio;
         return true;
@@ -153,14 +156,28 @@ export async function cargarAlumnosMatricula() {
         </span>`;
       }).join('');
 
+      // Año y División actual (curso) + badge de estado (pase/baja/cambio)
+      const r = _resumenCambios(est);
+      const divActual = est.curso || (est.materias && est.materias[0] ? (est.materias[0].includes(' - ') ? est.materias[0].split(' - ')[0] : est.materias[0]) : '—');
+      const anio = est.planEstudio ? `<span class="text-slate-400 font-normal text-xs">${escaparHTML(est.planEstudio)} · </span>` : '';
+      let estadoBadge = '';
+      if (r.pase)        estadoBadge = `<span class="ml-2 text-[9px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded font-black uppercase" title="Pase a ${escaparHTML(est.pase?.destino || '')}">PASE → ${escaparHTML(est.pase?.destino || '')}</span>`;
+      else if (r.baja)   estadoBadge = '<span class="ml-2 text-[9px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded font-black uppercase">BAJA</span>';
+      else if (r.cambio) estadoBadge = '<span class="ml-2 text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded font-black uppercase">CAMBIO DIV.</span>';
+
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200";
+      tr.className = `hover:bg-slate-50 dark:hover:bg-slate-700/30 border-b dark:border-slate-700 transition-colors text-slate-700 dark:text-slate-200 ${r.baja ? 'opacity-70' : ''}`;
       tr.innerHTML = `
         <td class="px-2 py-1.5 align-middle">
           <p class="font-bold text-slate-800 dark:text-slate-100 text-sm leading-tight">${escaparHTML(est.apellido)}, ${escaparHTML(est.nombre)}<span class="text-blue-600">${apodoStr}</span>${est.dni ? `<span class="ml-1 text-[9px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}</p>
           ${notasStr}
         </td>
-        <td class="px-2 py-1.5 align-middle"><div class="flex flex-wrap gap-0.5">${materiasHtml}</div></td>
+        <td class="px-2 py-1.5 align-middle">
+          <div class="flex items-center flex-wrap">
+            <span class="font-bold text-slate-700 dark:text-slate-200">${anio}${escaparHTML(divActual)}</span>${estadoBadge}
+          </div>
+          ${r.cambio ? `<div class="flex flex-wrap gap-0.5 mt-1">${materiasHtml}</div>` : ''}
+        </td>
         <td class="px-2 py-1.5 text-right align-middle">
           <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-1.5 rounded transition" title="Editar Estudiante">
             <i class="ph ph-pencil-simple text-lg"></i>
@@ -967,8 +984,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.58")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.58");
+      const fbdb = (await import("./firebase-config.js?v=10.59")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.59");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1005,8 +1022,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.58")).db;
-    const { appId } = await import("./firebase-config.js?v=10.58");
+    const fbdb = (await import("./firebase-config.js?v=10.59")).db;
+    const { appId } = await import("./firebase-config.js?v=10.59");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
@@ -1027,21 +1044,32 @@ export async function confirmarEmitirPase() {
     }
 
     const data = docSnap.data();
-    data.fechaPase = new Date().toISOString();
-    data.escuelaOrigen = window.app.currentTenant;
-    // Si va a una escuela real, se limpia su estado global para que empiece de cero, o se deja 'PASE'?
-    // Mejor lo dejamos como PASE en la de origen (aunque la borramos de ahí), pero en la destino debería entrar como ACTIVO o similar.
-    data.estadoGlobal = 'ACTIVO';
-    // Limpiamos las materias individuales (no van a coincidir con la nueva escuela)
-    data.materiasActivas = {};
-    data.materiasInactivas = {};
-    // La asistencia NO viaja porque la asistencia está en la colección 'asistencias' (aislada), 
-    // y no en el doc del alumno, por lo que el alumno llega con asistencia "limpia".
+    const hoy = new Date().toISOString().split('T')[0];
 
-    await setDoc(newRef, data);
-    await deleteDoc(oldRef);
+    // 1) Copia al destino, arrancando activo y con asistencia limpia (asistencias viven aparte).
+    const dataDestino = { ...data, fechaPase: new Date().toISOString(), escuelaOrigen: window.app.currentTenant, estado: 'ACTIVO' };
+    delete dataDestino.pase;
+    await setDoc(newRef, dataDestino);
 
-    window.app.showToast("Pase emitido exitosamente. El legajo fue transferido a " + destino, "success");
+    // 2) En ORIGEN no se borra: se marca BAJA por pase, cerrando todas las inscripciones con
+    //    fecha de hoy. Así el alumno sale de listas/cálculos activos pero conserva su historial
+    //    de divisiones (asistencias/notas previas siguen vinculadas por su id).
+    const inscCerradas = {};
+    Object.entries(data.inscripciones || {}).forEach(([mat, arr]) => {
+      const historial = Array.isArray(arr) ? [...arr] : [];
+      const ultimo = historial.length ? { ...historial[historial.length - 1] } : { grupo: 'GENERAL', desde: '' };
+      ultimo.estado = 'BAJA';
+      if (!ultimo.hasta) ultimo.hasta = hoy;
+      inscCerradas[mat] = historial.length ? [...historial.slice(0, -1), ultimo] : [ultimo];
+    });
+
+    await setDoc(oldRef, {
+      estado: 'BAJA',
+      pase: { destino, fecha: hoy },
+      inscripciones: inscCerradas,
+    }, { merge: true });
+
+    window.app.showToast(`Pase emitido a ${destino}. Queda registrado como BAJA por pase.`, "success");
     cerrarModalPase();
     if (typeof window.app.cerrarPerfilAlumno === 'function') window.app.cerrarPerfilAlumno();
     if (typeof window.app.cargarAlumnosMatricula === 'function') window.app.cargarAlumnosMatricula();
