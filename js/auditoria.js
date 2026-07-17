@@ -1,12 +1,34 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.46";
+import { db, getPath, appId } from "./firebase-config.js?v=10.47";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.46";
-import { escaparHTML } from "./utils.js?v=10.46";
+import { showToast } from "./ui.js?v=10.47";
+import { escaparHTML } from "./utils.js?v=10.47";
 
 let datosAuditoria = {
   materiasOficiales: [],
   estudiantesConProblemas: []
 };
+
+// Escuela sobre la que operan Comparador y Detector de duplicados. Vacío = contexto actual (getPath).
+// Necesario porque estas herramientas viven en auditoríaTab (contexto root, sin datos operativos).
+let _auditTenant = '';
+export function setAuditTenant(sel) {
+  _auditTenant = (sel && sel.value) || '';
+  showToast(_auditTenant ? `Herramientas operando sobre "${_auditTenant}"` : 'Herramientas usando contexto actual', 'info');
+}
+function _auditPath(col) {
+  return _auditTenant ? _tenantColPath(_auditTenant, col) : getPath(col);
+}
+// Pobla un <select> de escuelas para las herramientas (llamado desde el HTML al abrir Auditoría).
+export async function poblarSelectorAuditoria() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  const sel = document.getElementById('auditEscuelaSelector');
+  if (!sel) return;
+  try {
+    const snap = await getDocs(collection(db, getPath('escuelas')));
+    const opts = snap.docs.map(d => `<option value="${escaparHTML(d.id)}"${d.id === _auditTenant ? ' selected' : ''}>${escaparHTML(d.data().nombre || d.id)}</option>`).join('');
+    sel.innerHTML = `<option value="">— Contexto actual —</option>${opts}`;
+  } catch(e) { console.error(e); }
+}
 
 export async function iniciarAuditoriaDatos() {
   const progresoMsg = document.getElementById('auditoriaProgresoMsg');
@@ -1052,8 +1074,8 @@ export async function compararMatricula() {
 
   try {
     const [snap, snapMat] = await Promise.all([
-      getDocs(collection(db, getPath('estudiantes'))),
-      getDocs(collection(db, getPath('materias'))),
+      getDocs(collection(db, _auditPath('estudiantes'))),
+      getDocs(collection(db, _auditPath('materias'))),
     ]);
 
     const sideacDivisiones = [...new Set(
@@ -1424,7 +1446,7 @@ export async function importarFaltantes() {
   try {
     const batch = writeBatch(db);
     seleccionados.forEach(s => {
-      const ref = doc(collection(db, getPath('estudiantes')));
+      const ref = doc(collection(db, _auditPath('estudiantes')));
       batch.set(ref, {
         apellido:         _titleCase(s.apOrig),
         nombre:           _titleCase(s.noOrig),
@@ -1468,7 +1490,7 @@ export async function confirmarParciales() {
   try {
     const batch = writeBatch(db);
     seleccionados.forEach(({ ref, dbe }) => {
-      const docRef = doc(db, getPath('estudiantes'), dbe.id);
+      const docRef = doc(db, _auditPath('estudiantes'), dbe.id);
       const upd = {
         apellido: _titleCase(ref.apOrig),
         nombre:   _titleCase(ref.noOrig),
@@ -1517,7 +1539,7 @@ export async function actualizarCoincidentes() {
   try {
     const batch = writeBatch(db);
     seleccionados.forEach(s => {
-      const ref = doc(db, getPath('estudiantes'), s.id);
+      const ref = doc(db, _auditPath('estudiantes'), s.id);
       const upd = {};
       if (s.ref.dni && s.ref.dni !== s.dni)                             upd.dni              = s.ref.dni;
       if (s.ref.apOrig && _titleCase(s.ref.apOrig) !== s.apOrig)        upd.apellido         = _titleCase(s.ref.apOrig);
@@ -1550,7 +1572,7 @@ export async function detectarDuplicadosEstudiantes() {
   container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Analizando estudiantes...</p></div>`;
 
   try {
-    const snap = await getDocs(collection(db, getPath('estudiantes')));
+    const snap = await getDocs(collection(db, _auditPath('estudiantes')));
     const alumnos = [];
     snap.forEach(d => {
       const data = d.data();
