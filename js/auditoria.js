@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.45";
+import { db, getPath, appId } from "./firebase-config.js?v=10.46";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.45";
-import { escaparHTML } from "./utils.js?v=10.45";
+import { showToast } from "./ui.js?v=10.46";
+import { escaparHTML } from "./utils.js?v=10.46";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -2036,5 +2036,123 @@ export async function backupTotalBaseDatos() {
   } catch(e) {
     console.error(e);
     if (cont) cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+// ==========================================
+// LIMPIEZA DE ROOT (borra datos operativos redundantes)
+// ==========================================
+// Solo borra las 4 colecciones operativas de root (estudiantes, evaluaciones,
+// asistencias, evaluaciones_locks) DESPUÉS de verificar que cada doc existe en la
+// escuela canónica. Nunca toca usuarios/escuelas (globales) ni materias/horarios/config.
+const _COLS_LIMPIEZA = ['estudiantes', 'evaluaciones', 'asistencias', 'evaluaciones_locks'];
+let _planLimpiezaRoot = null;
+
+export async function prepararLimpiezaRoot() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  const cont = document.getElementById('limpiezaRootResultados');
+  cont.innerHTML = `<div class="text-center py-3"><i class="ph ph-spinner animate-spin text-xl text-indigo-500"></i></div>`;
+  try {
+    const snapEsc = await getDocs(collection(db, getPath('escuelas')));
+    const opts = snapEsc.docs.map(d => `<option value="${escaparHTML(d.id)}">${escaparHTML(d.data().nombre || d.id)}</option>`).join('');
+    cont.innerHTML = `
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-lg">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">Copia buena está en:</label>
+        <select id="limpiezaEscuelaCanonica" class="flex-1 p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
+          <option value="">— Seleccionar escuela canónica —</option>${opts}
+        </select>
+        <button onclick="app.analizarLimpiezaRoot()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-5 rounded-lg transition flex items-center justify-center gap-2 text-sm whitespace-nowrap"><i class="ph ph-shield-check"></i> Verificar y analizar</button>
+      </div>`;
+  } catch(e) {
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+export async function analizarLimpiezaRoot() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+
+  const tenant = document.getElementById('limpiezaEscuelaCanonica')?.value;
+  if (!tenant) { showToast('Elegí la escuela que tiene la copia buena.', 'error'); return; }
+
+  const cont = document.getElementById('limpiezaRootResultados');
+  cont.innerHTML = `<div class="text-center py-4"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Verificando que ${escaparHTML(tenant)} tenga todo lo de root...</p></div>`;
+
+  try {
+    const faltantes = [];   // docs de root que NO están en la escuela → bloquean el borrado
+    const aBorrar = [];     // { col, id }
+    let totalRoot = 0;
+
+    for (const col of _COLS_LIMPIEZA) {
+      const [snapRoot, snapDest] = await Promise.all([
+        getDocs(collection(db, _rootColPath(col))),
+        getDocs(collection(db, _tenantColPath(tenant, col))),
+      ]);
+      const destIds = new Set(snapDest.docs.map(d => d.id));
+      snapRoot.forEach(d => {
+        totalRoot++;
+        if (destIds.has(d.id)) aBorrar.push({ col, id: d.id });
+        else faltantes.push({ col, id: d.id });
+      });
+    }
+
+    if (totalRoot === 0) {
+      cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800"><i class="ph ph-check-circle text-2xl"></i> Root ya está limpio.</div>`;
+      return;
+    }
+
+    if (faltantes.length > 0) {
+      _planLimpiezaRoot = null;
+      const filas = faltantes.slice(0, 30).map(f => `<tr class="border-b dark:border-slate-800"><td class="p-2 text-xs text-slate-500">${escaparHTML(f.col)}</td><td class="p-2 text-xs font-mono">${escaparHTML(f.id)}</td></tr>`).join('');
+      cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4 rounded-lg">
+        <p class="font-bold text-red-700 dark:text-red-300 flex items-center gap-2 mb-2"><i class="ph ph-warning-octagon text-xl"></i> NO se puede limpiar: ${faltantes.length} doc(s) de root NO están en "${escaparHTML(tenant)}".</p>
+        <p class="text-xs text-slate-500 mb-2">Borrar ahora perdería esos datos. Reconciliá primero (o revisá si la escuela canónica es la correcta).</p>
+        <div class="overflow-x-auto rounded border border-red-100 dark:border-red-900"><table class="w-full text-sm"><thead class="bg-red-50 dark:bg-red-900/30 text-[11px] uppercase text-red-700"><tr><th class="p-2 text-left">Colección</th><th class="p-2 text-left">Doc</th></tr></thead><tbody>${filas}</tbody></table></div>
+      </div>`;
+      return;
+    }
+
+    _planLimpiezaRoot = { tenant, aBorrar };
+    const porCol = _COLS_LIMPIEZA.map(c => `${c}: ${aBorrar.filter(x => x.col === c).length}`).join(' · ');
+    cont.innerHTML = `<div class="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 p-4 rounded-lg">
+      <p class="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2 mb-2"><i class="ph ph-check-circle text-xl"></i> Verificado: los ${aBorrar.length} docs de root ya están en "${escaparHTML(tenant)}".</p>
+      <p class="text-xs font-mono text-slate-600 dark:text-slate-300 mb-3">${porCol}</p>
+      <p class="text-xs text-slate-500 mb-3">Se borrarán SOLO de root. No se toca usuarios, escuelas, ni materias/horarios/config de root. Irreversible (por eso el backup).</p>
+      <button onclick="app.ejecutarLimpiezaRoot()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm"><i class="ph ph-trash"></i> Borrar ${aBorrar.length} docs de root</button>
+    </div>`;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
+  }
+}
+
+export async function ejecutarLimpiezaRoot() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  if (!_planLimpiezaRoot || !_planLimpiezaRoot.aBorrar.length) { showToast('Analizá la limpieza primero.', 'error'); return; }
+
+  const { tenant, aBorrar } = _planLimpiezaRoot;
+
+  const ok = await window.app.showConfirm(
+    'Borrar datos de root',
+    `Se borrarán ${aBorrar.length} documentos de ROOT (estudiantes, calificaciones, asistencias, bloqueos).\n\nYa verificado que todos existen en "${tenant}". ¿Descargaste el backup total?\n\nEsto es IRREVERSIBLE. ¿Confirmar?`
+  );
+  if (!ok) return;
+
+  const cont = document.getElementById('limpiezaRootResultados');
+  try {
+    let borrados = 0;
+    for (let i = 0; i < aBorrar.length; i += 450) {
+      const chunk = aBorrar.slice(i, i + 450);
+      const batch = writeBatch(db);
+      chunk.forEach(it => batch.delete(doc(db, _rootColPath(it.col), it.id)));
+      await batch.commit();
+      borrados += chunk.length;
+    }
+    showToast(`✅ Root limpio: ${borrados} documentos borrados.`, 'success');
+    cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800"><i class="ph ph-check-circle text-2xl"></i> Root limpio: ${borrados} documentos borrados. Los datos siguen en "${escaparHTML(tenant)}".</div>`;
+    _planLimpiezaRoot = null;
+  } catch(e) {
+    console.error(e);
+    showToast('Error al borrar: ' + e.message, 'error');
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}. Reintentá (idempotente).</div>`;
   }
 }
