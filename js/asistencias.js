@@ -1,12 +1,12 @@
 // js/asistencias.js — Toma diaria, planilla grilla, panel BI y creación de columnas
 
 import { doc, setDoc, getDoc, collection, getDocs, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.43";
-import { showToast } from "./ui.js?v=10.43";
-import { PERIODOS_CALENDARIO } from "./constants.js?v=10.43";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.43";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.43";
-import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=10.43";
+import { db, getPath } from "./firebase-config.js?v=10.44";
+import { showToast } from "./ui.js?v=10.44";
+import { PERIODOS_CALENDARIO } from "./constants.js?v=10.44";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.44";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.44";
+import { calcularNotaFinalYCondicion } from "./evaluaciones.js?v=10.44";
 
 // ==========================================
 // TOMA DIARIA — VALIDACIÓN DE HORARIO
@@ -228,6 +228,7 @@ export async function guardarAsistencia() {
   const tipoClase = document.getElementById('tomaTipo').value;
 
   if (!curso || !fecha) { showToast('⚠️ Complete Curso y Fecha antes de guardar.', 'error'); return; }
+  if ((window.app.currentTenant || 'root') === 'root') { showToast('⚠️ Seleccioná una escuela en el menú de contexto antes de guardar asistencia. Root no es un establecimiento.', 'error'); return; }
   if (!window.app.tienePermiso(curso)) { showToast('⛔ No tenés permisos para modificar la asistencia de esta materia.', 'error'); return; }
 
   const registros = {};
@@ -468,6 +469,7 @@ export function registrarCambioGrilla(fecha, alumnoId, selector) {
 export async function guardarCambiosMasivosGrilla() {
   const curso = document.getElementById('grillaCurso').value;
   if (!curso) return;
+  if ((window.app.currentTenant || 'root') === 'root') { showToast('⚠️ Seleccioná una escuela en el menú de contexto antes de guardar asistencia. Root no es un establecimiento.', 'error'); return; }
   if (!window.app.tienePermiso(curso)) { showToast('⛔ No tenés permisos para guardar cambios en esta materia.', 'error'); return; }
 
   showToast("Guardando cambios consolidados...", "info");
