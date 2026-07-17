@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.63";
+import { db, getPath } from "./firebase-config.js?v=10.64";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.63";
-import { escaparHTML } from "./utils.js?v=10.63";
+import { showToast } from "./ui.js?v=10.64";
+import { escaparHTML } from "./utils.js?v=10.64";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;

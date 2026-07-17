@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.63">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.64">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -389,6 +389,11 @@
                 <option value="po_dic">PO Diciembre (Numérico)</option>
                 <option value="po_feb">PO Febrero (Numérico)</option>
               </select>
+            </div>
+            <div class="flex items-end">
+              <button onclick="app.verAsistenciaDelBimestre()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-3 rounded transition flex items-center gap-1.5 text-sm whitespace-nowrap" title="Ver la asistencia del bimestre seleccionado">
+                <i class="ph ph-calendar-check text-lg"></i> <span class="hidden sm:inline">Ver asistencia</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1448,6 +1453,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.63"></script>
+  <script type="module" src="js/app.js?v=10.64"></script>
 </body>
 </html>

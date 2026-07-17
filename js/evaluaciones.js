@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.63";
-import { showToast } from "./ui.js?v=10.63";
-import { escaparHTML } from "./utils.js?v=10.63";
+import { db, getPath } from "./firebase-config.js?v=10.64";
+import { showToast } from "./ui.js?v=10.64";
+import { escaparHTML } from "./utils.js?v=10.64";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -958,4 +958,28 @@ export async function guardarCambiosEvaluaciones() {
     btn.disabled = false;
     btn.innerHTML = origHtml;
   }
+}
+
+// Acceso ágil desde Calificaciones al módulo de asistencia (grilla) del bimestre seleccionado.
+// Mapea el período de evaluación (b1..b4, po) al período de calendario que usa la grilla.
+const _MAP_EVAL_A_BIMESTRE = {
+  b1: '1er BIMESTRE', b2: '2do BIMESTRE', b3: '3er BIMESTRE', b4: '4to BIMESTRE',
+  po_dic: 'PO DIC', po_feb: 'PO FEB-MAR',
+};
+
+export function verAsistenciaDelBimestre() {
+  const curso   = document.getElementById('evalCurso').value;
+  const periodo = document.getElementById('evalPeriodo').value;
+  if (!curso)   { showToast('Seleccioná una división primero.', 'error'); return; }
+  if (!periodo) { showToast('Seleccioná un período/bimestre primero.', 'error'); return; }
+
+  const bimestre = _MAP_EVAL_A_BIMESTRE[periodo] || 'CLASES REGULARES';
+
+  window.app.switchTab('planillaGrilla');
+  const gc  = document.getElementById('grillaCurso');
+  const gpe = document.getElementById('grillaPeriodo');
+  if (gc)  gc.value  = curso;
+  if (gpe) gpe.value = bimestre;
+  window.app.cargarPlanillaGrilla();
+  showToast(`Asistencia de ${curso} — ${bimestre}`, 'info');
 }
