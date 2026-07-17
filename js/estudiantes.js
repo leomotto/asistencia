@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.49";
-import { showToast } from "./ui.js?v=10.49";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.49";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.49";
+import { db, getPath } from "./firebase-config.js?v=10.50";
+import { showToast } from "./ui.js?v=10.50";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.50";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.50";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -605,6 +605,7 @@ function _actualizarResumenFusion() {
     <p>→ Se fusionarán sus materias: <strong class="text-indigo-600">${materiasUnidas.map(escaparHTML).join(', ')}</strong></p>
     <p>→ Todos los registros del secundario (<code class="bg-gray-200 px-1 rounded">${escaparHTML(secundario.id)}</code>) serán reescritos.</p>
     <p class="text-red-600 mt-1">→ El documento del secundario (<strong>${escaparHTML(secundario.apellido)}, ${escaparHTML(secundario.nombre)}</strong>) será eliminado.</p>
+    <p class="text-amber-700 dark:text-amber-400 mt-2 text-xs">💡 El PRIMARIO conserva el nombre. Elegí como primario al del nombre correcto. Notas, asistencias y datos del secundario se traspasan sin pisar los del primario.</p>
   `;
   resumenDiv.classList.remove('hidden');
   btnFusion.disabled = false;
@@ -659,19 +660,32 @@ export async function ejecutarFusion() {
       }
     });
 
+    // Valor presente = no vacío ni marcador '-'. El primario (nombre válido) gana; el secundario rellena huecos.
+    const _presente = v => v !== undefined && v !== null && String(v).trim() !== '' && String(v).trim() !== '-';
+
+    // Notas ya existentes del primario, para no pisarlas al traer las del secundario.
+    const primEvals = new Map();
+    const snapPrimEvals = await getDocs(query(collection(db, getPath('evaluaciones')), where('alumnoId', '==', primario.id)));
+    snapPrimEvals.forEach(d => primEvals.set(d.id, d.data()));
+
     let reescriturasEvaluaciones = 0;
     const qEvals = query(collection(db, getPath('evaluaciones')), where('alumnoId', '==', secundario.id));
     const snapEvals = await getDocs(qEvals);
-    
+
     snapEvals.forEach(docSnap => {
       const data = docSnap.data();
       const materia = data.materia || '';
       const newDocId = `${primario.id}_${materia.replace(/[\s/]+/g, '')}`;
       const newRef = doc(db, getPath('evaluaciones'), newDocId);
-      
-      const newData = { ...data, alumnoId: primario.id };
-      addOperation('set', newRef, newData);
-      addOperation('delete', docSnap.ref);
+
+      // Merge campo a campo: arranca del secundario, y todo campo con valor en el primario gana.
+      const existing = primEvals.get(newDocId) || {};
+      const merged = { ...data, ...Object.fromEntries(Object.entries(existing).filter(([, v]) => _presente(v))) };
+      merged.alumnoId = primario.id;
+      merged.materia = materia || existing.materia || '';
+
+      addOperation('set', newRef, merged);
+      if (docSnap.ref.id !== newDocId) addOperation('delete', docSnap.ref);
       reescriturasEvaluaciones++;
     });
 
@@ -689,10 +703,18 @@ export async function ejecutarFusion() {
       }
     }
 
+    // Identidad: el primario (nombre válido) manda; el secundario solo rellena lo que falte.
+    const _fill = (a, b) => (_presente(a) ? a : (b || ''));
     addOperation('update', doc(db, getPath('estudiantes'), primario.id), {
-      materias: materiasUnidas, 
-      curso: materiasUnidas[0] || '', 
-      dni: primario.dni || secundario.dni || '',
+      materias: materiasUnidas,
+      curso: primario.curso || materiasUnidas[0] || '',
+      dni:              _fill(primario.dni, secundario.dni),
+      email:            _fill(primario.email, secundario.email),
+      fecha_nacimiento: _fill(primario.fecha_nacimiento, secundario.fecha_nacimiento),
+      id_miescuela:     _fill(primario.id_miescuela, secundario.id_miescuela),
+      apodo:            _fill(primario.apodo, secundario.apodo),
+      notas:            _fill(primario.notas, secundario.notas),
+      planEstudio:      _fill(primario.planEstudio, secundario.planEstudio),
       grupos: gruposUnidos,
       inscripciones: inscripcionesUnidas
     });
@@ -807,8 +829,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.49")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.49");
+      const fbdb = (await import("./firebase-config.js?v=10.50")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.50");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -845,8 +867,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.49")).db;
-    const { appId } = await import("./firebase-config.js?v=10.49");
+    const fbdb = (await import("./firebase-config.js?v=10.50")).db;
+    const { appId } = await import("./firebase-config.js?v=10.50");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
