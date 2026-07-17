@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.53";
+import { db, getPath, appId } from "./firebase-config.js?v=10.54";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.53";
-import { escaparHTML } from "./utils.js?v=10.53";
+import { showToast } from "./ui.js?v=10.54";
+import { escaparHTML } from "./utils.js?v=10.54";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1752,7 +1752,7 @@ export async function detectarDuplicadosEstudiantes() {
     let html = `
       <div class="bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 p-4 rounded-lg font-semibold flex items-center gap-2 border border-amber-200 dark:border-amber-800 mb-4">
         <i class="ph ph-users-three text-2xl"></i> ${grupos.length} grupo(s) de posibles duplicados sobre ${alumnos.length} estudiantes.
-        <span class="text-xs font-normal">Elegí como PRIMARIO al de más Asist./Notas (marcado en verde). Fusionar: Matrícula → Fusionar.</span>
+        <span class="text-xs font-normal block mt-1">La fusión traspasa asistencias y notas de AMBOS al primario — no se pierde nada elijas cual elijas. Elegí como PRIMARIO al del NOMBRE correcto. Las columnas Asist./Notas solo confirman que los registros existen.</span>
       </div>`;
 
     grupos.forEach(g => {
@@ -1762,7 +1762,7 @@ export async function detectarDuplicadosEstudiantes() {
         const total = a.asistencias + a.evaluaciones;
         const esPrimarioSugerido = total === maxDatos && total > 0;
         const badge = esPrimarioSugerido
-          ? '<span class="ml-2 text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded font-black uppercase">← primario sugerido</span>'
+          ? '<span class="ml-2 text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded font-black uppercase">más registros</span>'
           : '';
         return `
         <tr class="${esPrimarioSugerido ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : 'bg-white dark:bg-slate-900'}">
