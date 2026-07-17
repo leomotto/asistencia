@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.42";
+import { db, getPath, appId } from "./firebase-config.js?v=10.43";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.42";
-import { escaparHTML } from "./utils.js?v=10.42";
+import { showToast } from "./ui.js?v=10.43";
+import { escaparHTML } from "./utils.js?v=10.43";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1688,7 +1688,15 @@ function _rootColPath(col) {
     : col;
 }
 
+// Un valor "presente" = no vacío y no marcador '-'. Usado para no pisar buenos con vacíos.
+function _valPresente(v) {
+  if (v === undefined || v === null) return false;
+  const s = String(v).trim();
+  return s !== '' && s !== '-';
+}
+
 let _rootMigracionData = null;
+let _reconPlan = null;
 
 export async function analizarDatosRoot() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
@@ -1721,7 +1729,7 @@ export async function analizarDatosRoot() {
 
     if (total === 0) {
       cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
-        <i class="ph ph-check-circle text-2xl"></i> No hay datos en root para migrar. Todo está bajo alguna escuela.
+        <i class="ph ph-check-circle text-2xl"></i> No hay datos en root. Nada para reconciliar.
       </div>`;
       return;
     }
@@ -1734,87 +1742,199 @@ export async function analizarDatosRoot() {
         <div class="bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-center"><p class="text-2xl font-black text-slate-700 dark:text-slate-200">${_rootMigracionData.locks.length}</p><p class="text-[11px] font-bold text-slate-500 uppercase">Bloqueos</p></div>
       </div>
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-4 rounded-lg">
-        <label class="text-sm font-bold text-indigo-800 dark:text-indigo-300 whitespace-nowrap">Migrar a escuela:</label>
+        <label class="text-sm font-bold text-indigo-800 dark:text-indigo-300 whitespace-nowrap">Reconciliar con:</label>
         <select id="migracionEscuelaDestino" class="flex-1 p-2 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">— Seleccionar escuela destino —</option>${escuelasOpts}
         </select>
-        <button onclick="app.migrarRootAEscuela()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center justify-center gap-2 text-sm whitespace-nowrap">
-          <i class="ph ph-arrow-right"></i> Migrar
+        <button onclick="app.previsualizarReconciliacion()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center justify-center gap-2 text-sm whitespace-nowrap">
+          <i class="ph ph-git-diff"></i> Previsualizar
         </button>
       </div>
-      <p class="text-xs text-slate-400 mt-2">Copia los datos a la escuela elegida sin borrar los de root y sin pisar lo que ya exista allí (merge). Preserva los IDs para no romper vínculos.</p>`;
+      <p class="text-xs text-slate-400 mt-2">Modo reconciliación aditiva: solo agrega documentos que faltan en la escuela y rellena campos vacíos. NUNCA pisa un valor existente. La escuela es la fuente de verdad.</p>`;
   } catch(e) {
     console.error(e);
     cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
   }
 }
 
-export async function migrarRootAEscuela() {
+// Calcula qué se escribiría para un doc: null si nada, o { tipo, data, campos }.
+// tipo 'nuevo' = doc no existe en destino. 'completar' = existe pero faltan campos/registros.
+function _planearDoc(col, rootData, destData) {
+  if (!destData) return { tipo: 'nuevo', data: rootData, campos: ['(documento completo)'] };
+
+  const upd = {};
+  const campos = [];
+
+  // Gap-fill de campos de primer nivel (no toca 'registros', se maneja aparte)
+  Object.keys(rootData).forEach(k => {
+    if (k === 'registros') return;
+    if (_valPresente(rootData[k]) && !_valPresente(destData[k])) {
+      upd[k] = rootData[k];
+      campos.push(k);
+    }
+  });
+
+  // Asistencias: rellenar solo los alumnos que faltan/están vacíos en el destino
+  if (col === 'asistencias' && rootData.registros) {
+    const destReg = destData.registros || {};
+    const regUpd = {};
+    Object.entries(rootData.registros).forEach(([alu, val]) => {
+      if (_valPresente(val) && !_valPresente(destReg[alu])) regUpd[alu] = val;
+    });
+    if (Object.keys(regUpd).length) {
+      upd.registros = regUpd;  // set merge fusiona claves sin borrar las existentes
+      campos.push(`${Object.keys(regUpd).length} registro(s) de alumno`);
+    }
+  }
+
+  if (Object.keys(upd).length === 0) return null;
+  return { tipo: 'completar', data: upd, campos };
+}
+
+export async function previsualizarReconciliacion() {
   if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
   if (!_rootMigracionData) { showToast('Primero analizá los datos de root.', 'error'); return; }
 
   const tenant = document.getElementById('migracionEscuelaDestino')?.value;
   if (!tenant) { showToast('Elegí la escuela destino.', 'error'); return; }
 
-  const { estudiantes, evaluaciones, asistencias, locks } = _rootMigracionData;
+  const cont = document.getElementById('migracionRootResultados');
+  cont.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Comparando root con ${escaparHTML(tenant)}...</p></div>`;
 
-  // Red anti-duplicación: contar qué ya existe en el destino.
-  const [destEst, destEval, destAsist] = await Promise.all([
-    getDocs(collection(db, _tenantColPath(tenant, 'estudiantes'))),
-    getDocs(collection(db, _tenantColPath(tenant, 'evaluaciones'))),
-    getDocs(collection(db, _tenantColPath(tenant, 'asistencias'))),
-  ]);
-  const destTotal = destEst.size + destEval.size + destAsist.size;
+  try {
+    const [dEst, dEval, dAsist, dLocks] = await Promise.all([
+      getDocs(collection(db, _tenantColPath(tenant, 'estudiantes'))),
+      getDocs(collection(db, _tenantColPath(tenant, 'evaluaciones'))),
+      getDocs(collection(db, _tenantColPath(tenant, 'asistencias'))),
+      getDocs(collection(db, _tenantColPath(tenant, 'evaluaciones_locks'))),
+    ]);
+    const destMaps = {
+      estudiantes: new Map(dEst.docs.map(d => [d.id, d.data()])),
+      evaluaciones: new Map(dEval.docs.map(d => [d.id, d.data()])),
+      asistencias: new Map(dAsist.docs.map(d => [d.id, d.data()])),
+      evaluaciones_locks: new Map(dLocks.docs.map(d => [d.id, d.data()])),
+    };
 
-  // IDs de root que ya existen igual en destino → merge (no duplican). Los que difieren sí sumarían.
-  const destEstIds = new Set(destEst.docs.map(d => d.id));
-  const estNuevos = estudiantes.filter(x => !destEstIds.has(x.id)).length;
+    const cols = [
+      ['estudiantes', _rootMigracionData.estudiantes],
+      ['evaluaciones', _rootMigracionData.evaluaciones],
+      ['asistencias', _rootMigracionData.asistencias],
+      ['evaluaciones_locks', _rootMigracionData.locks],
+    ];
 
-  let aviso = '';
-  if (destTotal > 0) {
-    aviso = `\n⚠️ La escuela "${tenant}" YA tiene datos: ${destEst.size} estudiantes, ${destEval.size} calificaciones, ${destAsist.size} asistencias.\n` +
-            `De los ${estudiantes.length} estudiantes de root, ${estNuevos} tienen ID nuevo (se agregarían) y ${estudiantes.length - estNuevos} ya existen (merge, no duplican).\n` +
-            `Si esos "${estNuevos}" son en realidad los mismos alumnos con otro ID, se DUPLICARÍAN. Revisá antes de continuar.\n`;
-  } else {
-    aviso = `\n✅ La escuela "${tenant}" está vacía: dup imposible (IDs preservados, merge).\n`;
+    const plan = [];
+    const resumen = {};
+    cols.forEach(([col, lista]) => {
+      resumen[col] = { nuevo: 0, completar: 0, sinCambio: 0 };
+      lista.forEach(({ id, data }) => {
+        const p = _planearDoc(col, data, destMaps[col].get(id));
+        if (!p) { resumen[col].sinCambio++; return; }
+        resumen[col][p.tipo]++;
+        plan.push({ col, id, tipo: p.tipo, data: p.data, campos: p.campos });
+      });
+    });
+
+    _reconPlan = { tenant, plan };
+
+    const totalCambios = plan.length;
+    if (totalCambios === 0) {
+      cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
+        <i class="ph ph-check-circle text-2xl"></i> "${escaparHTML(tenant)}" ya tiene todo lo de root. No hay nada que reconciliar (dato bueno intacto).
+      </div>`;
+      return;
+    }
+
+    const filaResumen = (col, label) => `
+      <tr class="border-b dark:border-slate-700">
+        <td class="p-2 font-semibold text-slate-700 dark:text-slate-200">${label}</td>
+        <td class="p-2 text-center text-emerald-600 font-bold">${resumen[col].nuevo}</td>
+        <td class="p-2 text-center text-blue-600 font-bold">${resumen[col].completar}</td>
+        <td class="p-2 text-center text-slate-400">${resumen[col].sinCambio}</td>
+      </tr>`;
+
+    // Detalle de los 'completar' de calificaciones y asistencias (lo relevante)
+    const detalles = plan
+      .filter(p => p.tipo !== 'nuevo' || p.col === 'evaluaciones' || p.col === 'asistencias')
+      .slice(0, 40)
+      .map(p => `<tr class="border-b dark:border-slate-800">
+        <td class="p-2 text-xs">${p.tipo === 'nuevo' ? '<span class="text-emerald-600 font-bold">NUEVO</span>' : '<span class="text-blue-600 font-bold">completar</span>'}</td>
+        <td class="p-2 text-xs text-slate-500">${escaparHTML(p.col)}</td>
+        <td class="p-2 text-xs font-mono text-slate-400">${escaparHTML(p.id.substring(0, 28))}</td>
+        <td class="p-2 text-xs text-slate-600 dark:text-slate-300">${escaparHTML(p.campos.join(', '))}</td>
+      </tr>`).join('');
+
+    cont.innerHTML = `
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-lg mb-4">
+        <h4 class="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-2"><i class="ph ph-git-diff"></i> Plan de reconciliación → "${escaparHTML(tenant)}"</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="text-[11px] uppercase text-slate-500"><tr>
+              <th class="p-2 text-left">Colección</th><th class="p-2 text-center">Nuevos</th><th class="p-2 text-center">Completar</th><th class="p-2 text-center">Sin cambio</th>
+            </tr></thead>
+            <tbody>
+              ${filaResumen('estudiantes', 'Estudiantes')}
+              ${filaResumen('evaluaciones', 'Calificaciones')}
+              ${filaResumen('asistencias', 'Asistencias')}
+              ${filaResumen('evaluaciones_locks', 'Bloqueos')}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">Nuevos = no existen en la escuela. Completar = existen pero se rellenan campos vacíos. Sin cambio = ya están completos (no se tocan).</p>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700 mb-4">
+        <table class="w-full text-sm">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-[11px] uppercase text-slate-500"><tr>
+            <th class="p-2 text-left">Acción</th><th class="p-2 text-left">Colección</th><th class="p-2 text-left">Doc</th><th class="p-2 text-left">Qué se agrega</th>
+          </tr></thead>
+          <tbody>${detalles}</tbody>
+        </table>
+      </div>
+      ${plan.length > 40 ? `<p class="text-xs text-slate-400 mb-3">Mostrando 40 de ${plan.length} cambios.</p>` : ''}
+      <button onclick="app.aplicarReconciliacion()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm">
+        <i class="ph ph-check-fat"></i> Aplicar reconciliación (${totalCambios} cambios)
+      </button>`;
+  } catch(e) {
+    console.error(e);
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}</div>`;
   }
+}
+
+export async function aplicarReconciliacion() {
+  if (window.app.currentUser?.rolActivo !== 'SUPERADMIN') return;
+  if (!_reconPlan || !_reconPlan.plan.length) { showToast('Previsualizá primero.', 'error'); return; }
+
+  const { tenant, plan } = _reconPlan;
+  const nuevos = plan.filter(p => p.tipo === 'nuevo').length;
+  const completar = plan.filter(p => p.tipo === 'completar').length;
 
   const ok = await window.app.showConfirm(
-    'Migrar datos de root a la escuela',
-    `Se copiarán a "${tenant}":\n- ${estudiantes.length} estudiantes\n- ${evaluaciones.length} calificaciones\n- ${asistencias.length} planillas de asistencia\n- ${locks.length} bloqueos\n${aviso}\nNo se borra nada de root.\n\n¿Confirmar?`
+    'Aplicar reconciliación',
+    `En "${tenant}":\n- ${nuevos} documento(s) nuevos\n- ${completar} documento(s) a completar (solo campos vacíos)\n\nNo se pisa ningún valor existente. No se borra nada de root.\n\n¿Confirmar?`
   );
   if (!ok) return;
 
   const cont = document.getElementById('migracionRootResultados');
   try {
-    // Documentos a escribir: [{ path, id, data }]
-    const items = [];
-    estudiantes.forEach(x => items.push({ col: 'estudiantes', id: x.id, data: x.data }));
-    evaluaciones.forEach(x => items.push({ col: 'evaluaciones', id: x.id, data: x.data }));
-    asistencias.forEach(x => items.push({ col: 'asistencias', id: x.id, data: x.data }));
-    locks.forEach(x => items.push({ col: 'evaluaciones_locks', id: x.id, data: x.data }));
-
-    // Chunks de 450 (límite Firestore 500)
     let escritos = 0;
-    for (let i = 0; i < items.length; i += 450) {
-      const chunk = items.slice(i, i + 450);
+    for (let i = 0; i < plan.length; i += 450) {
+      const chunk = plan.slice(i, i + 450);
       const batch = writeBatch(db);
-      chunk.forEach(it => {
-        const ref = doc(db, _tenantColPath(tenant, it.col), it.id);
-        batch.set(ref, it.data, { merge: true });
+      chunk.forEach(p => {
+        const ref = doc(db, _tenantColPath(tenant, p.col), p.id);
+        batch.set(ref, p.data, { merge: true });
       });
       await batch.commit();
       escritos += chunk.length;
     }
 
-    showToast(`✅ ${escritos} documento(s) migrados a "${tenant}". Los originales en root siguen intactos.`, 'success');
+    showToast(`✅ Reconciliación aplicada: ${escritos} cambio(s) en "${tenant}". Nada bueno se pisó.`, 'success');
     cont.innerHTML = `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-4 rounded-lg font-bold flex items-center gap-2 border border-emerald-200 dark:border-emerald-800">
-      <i class="ph ph-check-circle text-2xl"></i> Migración completa: ${escritos} documento(s) copiados a "${escaparHTML(tenant)}". Entrá al contexto de esa escuela para verlos. Verificá y, si todo está OK, podés limpiar root manualmente.
+      <i class="ph ph-check-circle text-2xl"></i> Reconciliación completa: ${escritos} cambio(s) en "${escaparHTML(tenant)}". Entrá al contexto de esa escuela para verificar.
     </div>`;
-    _rootMigracionData = null;
+    _reconPlan = null;
   } catch(e) {
     console.error(e);
-    showToast('Error al migrar: ' + e.message, 'error');
-    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error al migrar: ${escaparHTML(e.message)}. Algunos documentos pueden haberse copiado; es seguro reintentar (merge).</div>`;
+    showToast('Error al aplicar: ' + e.message, 'error');
+    cont.innerHTML = `<div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-4 rounded-lg font-bold">Error: ${escaparHTML(e.message)}. Es seguro reintentar (aditivo, idempotente).</div>`;
   }
 }
