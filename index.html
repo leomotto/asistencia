@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.62">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.63">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -359,6 +359,9 @@
             </button>
             <button onclick="app.toggleBloqueoCurso()" id="btnLockEvaluaciones" class="hidden bg-slate-600 text-white px-2 md:px-3 py-2 rounded font-semibold hover:bg-slate-700 transition flex items-center gap-1.5" title="Bloquear planilla">
               <i class="ph ph-lock-key text-lg"></i> <span class="hidden sm:inline">Bloquear</span>
+            </button>
+            <button onclick="app.abrirModalMiescuela()" id="btnMiescuela" class="hidden bg-cyan-600 text-white px-2 md:px-3 py-2 rounded font-semibold hover:bg-cyan-700 transition flex items-center gap-1.5" title="Sincronizar con MiEscuela">
+              <i class="ph ph-cloud-arrow-up text-lg"></i> <span class="hidden sm:inline">MiEscuela</span>
             </button>
             <button onclick="app.guardarCambiosEvaluaciones()" id="btnGuardarEvaluaciones" disabled class="bg-indigo-600 text-white px-3 md:px-4 py-2 rounded font-semibold hover:bg-indigo-700 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
               <i class="ph ph-floppy-disk text-lg"></i> <span>Guardar</span>
@@ -1130,6 +1133,49 @@
     </div>
 
     <!-- MODAL DE FUSIÓN DE ESTUDIANTES -->
+    <!-- MODAL SINCRONIZACIÓN MIESCUELA -->
+    <div id="modalMiescuela" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-center border-b dark:border-slate-700 pb-3 mb-4">
+          <h3 class="text-xl font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-2"><i class="ph ph-cloud-arrow-up text-2xl"></i> Sincronizar con MiEscuela</h3>
+          <button onclick="document.getElementById('modalMiescuela').classList.add('hidden')" class="text-slate-400 hover:text-red-500 transition"><i class="ph ph-x text-xl"></i></button>
+        </div>
+        <div id="miAvisoExtension" class="hidden bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 p-3 rounded-lg mb-4 text-xs text-amber-800 dark:text-amber-300">
+          <b>⚠️ Extensión no detectada.</b> Instalá "SIDEAC Conector" y abrí MiEscuela logueado para capturar el token.
+        </div>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Trae la planilla de MiEscuela, la compara con las notas de SIDEAC y te muestra qué se crea (POST) o actualiza (PUT) antes de enviar. Requiere la extensión y estar logueado en MiEscuela.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">MATERIA SIDEAC</label>
+            <select id="miMateria" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm select-curso-global"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">PERÍODO SIDEAC (qué nota mando)</label>
+            <select id="miPeriodoSideac" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm">
+              <option value="b1">1er Bim (b1)</option>
+              <option value="b2">2do Bim (b2)</option>
+              <option value="b3">3er Bim (b3)</option>
+              <option value="b4">4to Bim (b4)</option>
+              <option value="po_dic">PO Diciembre</option>
+              <option value="po_feb">PO Febrero</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ID SECCIÓN (MiEscuela)</label>
+            <input type="text" id="miSeccion" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm font-mono" placeholder="ID de la sección/curso en MiEscuela">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ID PERÍODO (MiEscuela)</label>
+            <input type="text" id="miPeriodoGcaba" class="w-full p-2 border dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-sm font-mono" placeholder="Ej: 3 (2do bimestre)">
+          </div>
+        </div>
+        <button onclick="app.traerYCompararMiescuela()" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-5 rounded-lg transition flex items-center gap-2 text-sm mb-4">
+          <i class="ph ph-arrows-down-up"></i> Traer y comparar
+        </button>
+        <div id="miResultados"></div>
+      </div>
+    </div>
+
     <div id="modalFusion" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 fade-in hidden">
       <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border dark:border-slate-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
         <h3 class="text-xl font-bold text-orange-600 dark:text-orange-500 border-b dark:border-slate-700 pb-3 mb-4 flex items-center gap-2">
@@ -1402,6 +1448,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.62"></script>
+  <script type="module" src="js/app.js?v=10.63"></script>
 </body>
 </html>
