@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.64";
-import { showToast } from "./ui.js?v=10.64";
-import { escaparHTML } from "./utils.js?v=10.64";
+import { db, getPath } from "./firebase-config.js?v=10.65";
+import { showToast } from "./ui.js?v=10.65";
+import { escaparHTML } from "./utils.js?v=10.65";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -727,6 +727,7 @@ export async function cargarPlanillaEvaluaciones() {
       }
     });
     alumnos.sort((a, b) => a.apellido.localeCompare(b.apellido));
+    window.app._evalAlumnos = alumnos;   // para que el perfil (abrirPerfilAlumno) los encuentre
 
     if (alumnos.length === 0) {
       tablaBody.innerHTML = '<tr><td colspan="10" class="px-4 py-8 text-center text-amber-600 font-bold">No hay alumnos registrados en esta materia.</td></tr>';
@@ -786,9 +787,10 @@ export async function cargarPlanillaEvaluaciones() {
 
       let colsHtml = `
         <td class="px-2 py-2 md:px-4 md:py-3 font-bold text-slate-800 dark:text-slate-100 bg-white dark:bg-slate-800 sticky left-0 z-10 border-r dark:border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.05)] w-32 sm:w-64 max-w-[200px] sm:max-w-[250px]">
-          <div class="truncate text-xs md:text-sm" title="${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
-            ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}
-          </div>
+          <button type="button" onclick="app.abrirPerfilAlumno('${al.id}', '${escaparHTML(curso).replace(/'/g, "\\'")}')" class="truncate text-xs md:text-sm text-left hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline w-full flex items-center gap-1" title="Ver asistencia de ${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}">
+            <i class="ph ph-chart-bar text-slate-400 shrink-0"></i>
+            <span class="truncate">${escaparHTML(al.apellido)}, ${escaparHTML(al.nombre)}${labelHistorico}</span>
+          </button>
         </td>
       `;
 
@@ -958,28 +960,4 @@ export async function guardarCambiosEvaluaciones() {
     btn.disabled = false;
     btn.innerHTML = origHtml;
   }
-}
-
-// Acceso ágil desde Calificaciones al módulo de asistencia (grilla) del bimestre seleccionado.
-// Mapea el período de evaluación (b1..b4, po) al período de calendario que usa la grilla.
-const _MAP_EVAL_A_BIMESTRE = {
-  b1: '1er BIMESTRE', b2: '2do BIMESTRE', b3: '3er BIMESTRE', b4: '4to BIMESTRE',
-  po_dic: 'PO DIC', po_feb: 'PO FEB-MAR',
-};
-
-export function verAsistenciaDelBimestre() {
-  const curso   = document.getElementById('evalCurso').value;
-  const periodo = document.getElementById('evalPeriodo').value;
-  if (!curso)   { showToast('Seleccioná una división primero.', 'error'); return; }
-  if (!periodo) { showToast('Seleccioná un período/bimestre primero.', 'error'); return; }
-
-  const bimestre = _MAP_EVAL_A_BIMESTRE[periodo] || 'CLASES REGULARES';
-
-  window.app.switchTab('planillaGrilla');
-  const gc  = document.getElementById('grillaCurso');
-  const gpe = document.getElementById('grillaPeriodo');
-  if (gc)  gc.value  = curso;
-  if (gpe) gpe.value = bimestre;
-  window.app.cargarPlanillaGrilla();
-  showToast(`Asistencia de ${curso} — ${bimestre}`, 'info');
 }

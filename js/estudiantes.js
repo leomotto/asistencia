@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.64";
-import { showToast } from "./ui.js?v=10.64";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.64";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.64";
+import { db, getPath } from "./firebase-config.js?v=10.65";
+import { showToast } from "./ui.js?v=10.65";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.65";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.65";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -916,7 +916,8 @@ export async function abrirPerfilAlumno(uid, curso) {
   // Buscar alumno en caché local (toma diaria, matrícula o grilla)
   const al = window.app.alumnosActivos?.find(a => a.id === uid)
           || window.app.alumnosMatriculaCache?.find(a => a.id === uid)
-          || window.app._grillaData?.alumnos?.find(a => a.id === uid);
+          || window.app._grillaData?.alumnos?.find(a => a.id === uid)
+          || window.app._evalAlumnos?.find(a => a.id === uid);
 
   if (!al) { showToast('❌ No se encontró el perfil.', 'error'); return; }
 
@@ -957,13 +958,15 @@ export async function abrirPerfilAlumno(uid, curso) {
     ));
 
     let p = 0, a = 0, acp = 0;
+    const fPresente = [], fAusente = [], fJustif = [];
     snap.forEach(d => {
       const data = d.data();
       if (!['CLASE','CLASES REGULARES','Migrada',undefined].includes(data.tipoClase)) return;
       const marca = data.registros?.[uid];
-      if      (marca === 'P')   p++;
-      else if (marca === 'A')   a++;
-      else if (marca === 'ACP') acp++;
+      const f = formatISOToDisplay(data.fecha) || data.fecha;
+      if      (marca === 'P')   { p++;   fPresente.push(f); }
+      else if (marca === 'A')   { a++;   fAusente.push(f); }
+      else if (marca === 'ACP') { acp++; fJustif.push(f); }
     });
 
     const conReg = p + a + acp;
@@ -978,6 +981,20 @@ export async function abrirPerfilAlumno(uid, curso) {
     barra.className   = `h-full rounded-full transition-all duration-500 ${
       pct >= 80 ? 'bg-emerald-500' : pct >= 60 ? 'bg-amber-500' : 'bg-red-500'
     }`;
+
+    // Detalle de fechas
+    const chips = (fechas, cls) => fechas.length
+      ? fechas.map(f => `<span class="inline-block text-[10px] px-1.5 py-0.5 rounded ${cls} mr-1 mb-1 font-mono">${escaparHTML(f)}</span>`).join('')
+      : '<span class="text-xs text-slate-400 italic">—</span>';
+    const det = document.getElementById('perfilDetalleFechas');
+    if (det) {
+      det.innerHTML = `
+        <div class="space-y-2">
+          <details open><summary class="cursor-pointer text-xs font-bold text-red-600 dark:text-red-400 select-none">Ausentes (${a})</summary><div class="mt-1.5">${chips(fAusente, 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300')}</div></details>
+          <details><summary class="cursor-pointer text-xs font-bold text-amber-600 dark:text-amber-400 select-none">Justificadas (${acp})</summary><div class="mt-1.5">${chips(fJustif, 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300')}</div></details>
+          <details><summary class="cursor-pointer text-xs font-bold text-emerald-600 dark:text-emerald-400 select-none">Presentes (${p})</summary><div class="mt-1.5">${chips(fPresente, 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300')}</div></details>
+        </div>`;
+    }
   } catch(e) {
     console.error(e);
     showToast('❌ Error al cargar el perfil del alumno.', 'error');
@@ -1000,8 +1017,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.64")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.64");
+      const fbdb = (await import("./firebase-config.js?v=10.65")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.65");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1038,8 +1055,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.64")).db;
-    const { appId } = await import("./firebase-config.js?v=10.64");
+    const fbdb = (await import("./firebase-config.js?v=10.65")).db;
+    const { appId } = await import("./firebase-config.js?v=10.65");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
