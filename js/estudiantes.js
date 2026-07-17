@@ -1,12 +1,39 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.57";
-import { showToast } from "./ui.js?v=10.57";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.57";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.57";
+import { db, getPath } from "./firebase-config.js?v=10.58";
+import { showToast } from "./ui.js?v=10.58";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.58";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.58";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
+
+// Estado de orden de la tabla de matrícula
+let _matSort = { key: 'apellido', dir: 1 };
+
+// Resume el estado de un alumno: si tuvo baja, cambio de división, o está activo simple.
+function _resumenCambios(est) {
+  const insMap = est.inscripciones || {};
+  const divs = new Set();
+  let baja = false, cambio = false;
+  Object.entries(insMap).forEach(([mat, arr]) => {
+    const div = mat.includes(' - ') ? mat.split(' - ')[0] : mat;
+    divs.add(div);
+    const last = (arr && arr.length) ? arr[arr.length - 1] : {};
+    if (last.estado === 'BAJA') baja = true;
+    if (last.hasta) cambio = true;
+    if (arr && arr.length > 1) cambio = true;   // más de un tramo en la misma materia
+  });
+  if (divs.size > 1) cambio = true;             // estuvo en más de una división
+  // rank para ordenar: 0 activo simple, 1 con cambio, 2 con baja
+  return { baja, cambio: cambio || baja, rank: baja ? 2 : (cambio ? 1 : 0) };
+}
+
+export function ordenarMatricula(key) {
+  if (_matSort.key === key) _matSort.dir *= -1;
+  else _matSort = { key, dir: 1 };
+  cargarAlumnosMatricula();
+}
 
 // ==========================================
 // MATRÍCULA — LISTADO
@@ -40,11 +67,41 @@ export async function cargarAlumnosMatricula() {
     let alumnosFiltrados = window.app.alumnosMatriculaCache;
 
     if (terminoBusqueda) {
-      alumnosFiltrados = alumnosFiltrados.filter(est => 
-        (est.apellido && est.apellido.toLowerCase().includes(terminoBusqueda)) || 
+      alumnosFiltrados = alumnosFiltrados.filter(est =>
+        (est.apellido && est.apellido.toLowerCase().includes(terminoBusqueda)) ||
         (est.nombre && est.nombre.toLowerCase().includes(terminoBusqueda))
       );
     }
+
+    // Filtro por cambios/pases/bajas
+    const filtroCambios = document.getElementById('mFiltroCambios')?.value || '';
+    if (filtroCambios) {
+      alumnosFiltrados = alumnosFiltrados.filter(est => {
+        const r = _resumenCambios(est);
+        if (filtroCambios === 'cambios') return r.cambio;
+        if (filtroCambios === 'baja')    return r.baja;
+        if (filtroCambios === 'activo')  return !r.cambio;
+        return true;
+      });
+    }
+
+    // Orden por columna
+    alumnosFiltrados = [...alumnosFiltrados].sort((a, b) => {
+      let cmp;
+      if (_matSort.key === 'estado') {
+        cmp = _resumenCambios(a).rank - _resumenCambios(b).rank;
+        if (cmp === 0) cmp = (a.apellido || '').localeCompare(b.apellido || '');
+      } else {
+        cmp = (a.apellido || '').localeCompare(b.apellido || '');
+      }
+      return cmp * _matSort.dir;
+    });
+
+    // Indicadores de flecha en los headers
+    ['apellido', 'estado'].forEach(k => {
+      const el = document.getElementById(`sortArrow-${k}`);
+      if (el) el.textContent = _matSort.key === k ? (_matSort.dir === 1 ? '▲' : '▼') : '';
+    });
 
     if (alumnosFiltrados.length === 0) {
       tabla.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-amber-600">No hay ningún alumno matriculado en este espacio que coincida con la búsqueda.</td></tr>';
@@ -910,8 +967,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.57")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.57");
+      const fbdb = (await import("./firebase-config.js?v=10.58")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.58");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -948,8 +1005,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.57")).db;
-    const { appId } = await import("./firebase-config.js?v=10.57");
+    const fbdb = (await import("./firebase-config.js?v=10.58")).db;
+    const { appId } = await import("./firebase-config.js?v=10.58");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
