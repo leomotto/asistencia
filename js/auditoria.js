@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.52";
+import { db, getPath, appId } from "./firebase-config.js?v=10.53";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.52";
-import { escaparHTML } from "./utils.js?v=10.52";
+import { showToast } from "./ui.js?v=10.53";
+import { escaparHTML } from "./utils.js?v=10.53";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -1648,7 +1648,30 @@ export async function detectarDuplicadosEstudiantes() {
   container.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Analizando estudiantes...</p></div>`;
 
   try {
-    const snap = await getDocs(collection(db, _auditPath('estudiantes')));
+    // Estudiantes + asistencias + evaluaciones (para contar registros por alumno y saber cuál priorizar)
+    const [snap, snapAsist, snapEval] = await Promise.all([
+      getDocs(collection(db, _auditPath('estudiantes'))),
+      getDocs(collection(db, _auditPath('asistencias'))),
+      getDocs(collection(db, _auditPath('evaluaciones'))),
+    ]);
+
+    // Cuenta cuántas marcas de asistencia reales tiene cada alumno (por su id en registros)
+    const asistPorId = new Map();
+    snapAsist.forEach(d => {
+      const regs = d.data().registros || {};
+      Object.entries(regs).forEach(([aid, marca]) => {
+        if (marca !== undefined && marca !== null && marca !== '' && marca !== '-') {
+          asistPorId.set(aid, (asistPorId.get(aid) || 0) + 1);
+        }
+      });
+    });
+    // Cuenta docs de evaluaciones por alumnoId
+    const evalPorId = new Map();
+    snapEval.forEach(d => {
+      const aid = d.data().alumnoId;
+      if (aid) evalPorId.set(aid, (evalPorId.get(aid) || 0) + 1);
+    });
+
     const alumnos = [];
     snap.forEach(d => {
       const data = d.data();
@@ -1659,6 +1682,8 @@ export async function detectarDuplicadosEstudiantes() {
         curso:    data.curso    || '',
         dni:      (data.dni || '').toString().trim(),
         estado:   data.estado   || '',
+        asistencias: asistPorId.get(d.id) || 0,
+        evaluaciones: evalPorId.get(d.id) || 0,
         key:      _normKey(_normStr(data.apellido || ''), _normStr(data.nombre || '')),
       });
     });
@@ -1727,18 +1752,29 @@ export async function detectarDuplicadosEstudiantes() {
     let html = `
       <div class="bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 p-4 rounded-lg font-semibold flex items-center gap-2 border border-amber-200 dark:border-amber-800 mb-4">
         <i class="ph ph-users-three text-2xl"></i> ${grupos.length} grupo(s) de posibles duplicados sobre ${alumnos.length} estudiantes.
-        <span class="text-xs font-normal">Para fusionar: Matrícula → botón Fusionar.</span>
+        <span class="text-xs font-normal">Elegí como PRIMARIO al de más Asist./Notas (marcado en verde). Fusionar: Matrícula → Fusionar.</span>
       </div>`;
 
     grupos.forEach(g => {
-      const rows = g.alumnos.map(a => `
-        <tr class="bg-white dark:bg-slate-900">
-          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}</td>
+      // El candidato con más datos (asist + notas) es el sugerido como PRIMARIO
+      const maxDatos = Math.max(...g.alumnos.map(a => a.asistencias + a.evaluaciones));
+      const rows = g.alumnos.map(a => {
+        const total = a.asistencias + a.evaluaciones;
+        const esPrimarioSugerido = total === maxDatos && total > 0;
+        const badge = esPrimarioSugerido
+          ? '<span class="ml-2 text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded font-black uppercase">← primario sugerido</span>'
+          : '';
+        return `
+        <tr class="${esPrimarioSugerido ? 'bg-emerald-50/60 dark:bg-emerald-900/10' : 'bg-white dark:bg-slate-900'}">
+          <td class="p-2 font-semibold text-slate-800 dark:text-slate-200">${escaparHTML(a.apellido)}, ${escaparHTML(a.nombre)}${badge}</td>
           <td class="p-2 text-xs text-slate-500">${escaparHTML(a.curso)}</td>
           <td class="p-2 text-xs font-mono text-slate-500">${escaparHTML(a.dni || '—')}</td>
+          <td class="p-2 text-center text-xs font-bold ${a.asistencias ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300'}">${a.asistencias}</td>
+          <td class="p-2 text-center text-xs font-bold ${a.evaluaciones ? 'text-purple-600 dark:text-purple-400' : 'text-slate-300'}">${a.evaluaciones}</td>
           <td class="p-2 text-xs text-slate-400">${escaparHTML(a.estado)}</td>
           <td class="p-2 text-xs font-mono text-slate-300">${escaparHTML(a.id.substring(0, 8))}…</td>
-        </tr>`).join('');
+        </tr>`;
+      }).join('');
       html += `
         <div class="mb-4 rounded-lg border border-amber-200 dark:border-amber-800 overflow-hidden">
           <p class="bg-amber-50 dark:bg-amber-900/30 px-3 py-2 text-xs font-bold text-amber-800 dark:text-amber-300">${escaparHTML(g.motivo)}</p>
@@ -1748,6 +1784,8 @@ export async function detectarDuplicadosEstudiantes() {
                 <th class="p-2 text-left">Estudiante</th>
                 <th class="p-2 text-left">División</th>
                 <th class="p-2 text-left">DNI</th>
+                <th class="p-2 text-center" title="Marcas de asistencia">Asist.</th>
+                <th class="p-2 text-center" title="Planillas de notas">Notas</th>
                 <th class="p-2 text-left">Estado</th>
                 <th class="p-2 text-left">ID</th>
               </tr></thead>
