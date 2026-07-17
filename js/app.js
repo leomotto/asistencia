@@ -1,9 +1,9 @@
 // js/app.js — Entry point: ensambla el namespace window.app y arranca la aplicación
 
-import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext, enterContextAndGoTo } from "./ui.js?v=10.56";
-import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth, setAppTenant, actualizarBadgePendientes } from "./auth.js?v=10.56";
-import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=10.56";
-import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=10.56";
+import { showToast, mostrarSkeletonTable, mostrarSkeletonCards, showConfirm, switchTab, toggleDarkMode, popularCursos, popularPeriodos, initTheme, toggleMenuMobile, toggleSidebar, initSidebar, cargarVersion, renderAgenda, buildContextSwitcher, switchContext, enterContextAndGoTo } from "./ui.js?v=10.57";
+import { setupAuthListener, iniciarSesionGoogle, cerrarSesion, entrarModoDesarrollo, showDevButton, initAuth, setAppTenant, actualizarBadgePendientes } from "./auth.js?v=10.57";
+import { cargarOnboardingEscuelas, onboardingEscuelaCambiada, solicitarUnirseEscuela } from "./onboarding.js?v=10.57";
+import { HORARIOS_DINAMICOS, cargarMateriasDinamicas, cargarListaMateriasAdmin, abrirModalMateria, cerrarModalMateria, agregarDiaMateria, guardarMateria, eliminarMateria, abrirModalGenerador, cerrarModalGenerador, ejecutarGenerador } from "./materias.js?v=10.57";
 import { 
   cargarAlumnosMatricula, abrirModalAlumnoConId, _cambiarDivisionPrimaria, _sincronizarGlobales, _marcarBajaDivision,
   _toggleMateriasIndividuales, eliminarAlumno, toggleInscripcionDetails, abrirModalAlumno, 
@@ -11,12 +11,12 @@ import {
   buscarParaFusion, seleccionarParaFusion, ejecutarFusion, abrirModalNormalizacion, 
   cerrarModalNormalizacion, toggleNormalizacionItem, ejecutarNormalizacionSeleccionada, 
   abrirPerfilAlumno, cerrarPerfilAlumno, emitirPase, cerrarModalPase, confirmarEmitirPase
-} from "./estudiantes.js?v=10.56";
-import { cargarListaUsuarios, guardarAsignacionDocente, eliminarDocente, agregarMateriaChip } from "./usuarios.js?v=10.56";
-import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=10.56";
-import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion, abrirModalConfigEval } from "./evaluaciones.js?v=10.56";
-import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad, analizarEstructuraRelacional, ejecutarMigracionEstructura, restaurarBackup, ejecutarRestauracionParcial, auditarAsistencias, compararMatricula, importarFaltantes, confirmarParciales, inyectarManual, actualizarCoincidentes, detectarDuplicadosEstudiantes, analizarDatosRoot, previsualizarReconciliacion, aplicarReconciliacion, backupTotalBaseDatos, prepararLimpiezaRoot, analizarLimpiezaRoot, ejecutarLimpiezaRoot, setAuditTenant, poblarSelectorAuditoria } from "./auditoria.js?v=10.56";
-import { cargarListaEscuelas, abrirModalEscuela, cerrarModalEscuela, guardarEscuela, eliminarEscuela, abrirModalUnirseEscuela, solicitarUnirseOtraEscuela, cargarMateriasParaEscuela } from "./escuelas.js?v=10.56";
+} from "./estudiantes.js?v=10.57";
+import { cargarListaUsuarios, guardarAsignacionDocente, eliminarDocente, agregarMateriaChip } from "./usuarios.js?v=10.57";
+import { verificarDiaSemana, actualizarHorariosYFechasRapidas, cargarAlumnos, llenarPresentes, guardarAsistencia, cambiarPeriodoGrilla, cambiarTipoColumna, cargarPlanillaGrilla, registrarCambioGrilla, guardarCambiosMasivosGrilla, abrirModalNuevaColumna, cerrarModalNuevaColumna, crearColumnaPlanilla, seleccionarPeriodo, cargarPanelBI, exportarGrillaCSV, exportarBICSV, invalidarCacheBI, setBiView } from "./asistencias.js?v=10.57";
+import { registrarCambioEvaluacion, cargarPlanillaEvaluaciones, guardarCambiosEvaluaciones, toggleBloqueoCurso, guardarConfiguracionHabilitacion, cargarConfiguracionHabilitacion, agregarColumnaAdicional, eliminarColumnaAdicional, moverColumnaAdicional, guardarEstructuraColumnas, registrarCambioAdicionalEvaluacion, abrirModalConfigEval } from "./evaluaciones.js?v=10.57";
+import { iniciarAuditoriaDatos, simularMigracionAuditoria, ejecutarMigracionAuditoria, analizarIntegridadEstudiantes, ejecutarMigracionIntegridad, analizarEstructuraRelacional, ejecutarMigracionEstructura, restaurarBackup, ejecutarRestauracionParcial, auditarAsistencias, compararMatricula, importarFaltantes, confirmarParciales, inyectarManual, actualizarCoincidentes, detectarDuplicadosEstudiantes, analizarDatosRoot, previsualizarReconciliacion, aplicarReconciliacion, backupTotalBaseDatos, prepararLimpiezaRoot, analizarLimpiezaRoot, ejecutarLimpiezaRoot, setAuditTenant, poblarSelectorAuditoria } from "./auditoria.js?v=10.57";
+import { cargarListaEscuelas, abrirModalEscuela, cerrarModalEscuela, guardarEscuela, eliminarEscuela, abrirModalUnirseEscuela, solicitarUnirseOtraEscuela, cargarMateriasParaEscuela } from "./escuelas.js?v=10.57";
 
 // ==========================================
 // NAMESPACE GLOBAL — Estado compartido
