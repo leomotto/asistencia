@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.48">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.49">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1211,6 +1211,20 @@
               <input type="text" id="formDni" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm font-mono" placeholder="Ej: 44123456">
             </div>
           </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">EMAIL</label>
+              <input type="email" id="formEmail" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="alumno@mail.com">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">FECHA DE NACIMIENTO</label>
+              <input type="text" id="formFechaNacimiento" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-white dark:bg-slate-800 text-base md:text-sm" placeholder="DD/MM/AAAA">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">ID MIESCUELA</label>
+              <input type="text" id="formIdMiescuela" class="w-full p-2 border dark:border-slate-700 rounded-md outline-none focus:ring-2 focus:ring-slate-500 bg-slate-100 dark:bg-slate-700 text-base md:text-sm font-mono" placeholder="ID GCABA">
+            </div>
+          </div>
           <!-- Panel de Inscripción a División (Spec-Driven) -->
           <div class="bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-lg p-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1375,6 +1389,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.48"></script>
+  <script type="module" src="js/app.js?v=10.49"></script>
 </body>
 </html>

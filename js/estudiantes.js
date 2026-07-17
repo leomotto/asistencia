@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.48";
-import { showToast } from "./ui.js?v=10.48";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.48";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.48";
+import { db, getPath } from "./firebase-config.js?v=10.49";
+import { showToast } from "./ui.js?v=10.49";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.49";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.49";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -257,6 +257,9 @@ export function abrirModalAlumno(alumno = null) {
   document.getElementById('formNombre').value = '';
   document.getElementById('formApodo').value = '';
   document.getElementById('formDni').value = '';
+  document.getElementById('formEmail').value = '';
+  document.getElementById('formFechaNacimiento').value = '';
+  document.getElementById('formIdMiescuela').value = '';
   document.getElementById('formNotas').value = '';
   
   const container = document.getElementById('formMateriasContainer');
@@ -310,6 +313,9 @@ export function abrirModalAlumno(alumno = null) {
     document.getElementById('formNombre').value     = alumno.nombre || "";
     document.getElementById('formApodo').value      = alumno.apodo || "";
     document.getElementById('formDni').value        = alumno.dni || "";
+    document.getElementById('formEmail').value          = alumno.email || "";
+    document.getElementById('formFechaNacimiento').value = alumno.fecha_nacimiento || "";
+    document.getElementById('formIdMiescuela').value    = alumno.id_miescuela || "";
     document.getElementById('formNotas').value      = alumno.notas || "";
 
     const inscripciones = alumno.inscripciones || {};
@@ -418,6 +424,9 @@ export async function guardarAlumnoMatricula() {
   const nombre   = document.getElementById('formNombre').value.trim();
   const apodo    = document.getElementById('formApodo').value.trim();
   const dni      = document.getElementById('formDni').value.trim();
+  const email            = document.getElementById('formEmail').value.trim();
+  const fecha_nacimiento = document.getElementById('formFechaNacimiento').value.trim();
+  const id_miescuela     = document.getElementById('formIdMiescuela').value.trim();
   const notas    = document.getElementById('formNotas').value.trim();
 
   if (!apellido || !nombre) { showToast('⚠️ Apellido y Nombre son requeridos.', 'error'); return; }
@@ -449,7 +458,7 @@ export async function guardarAlumnoMatricula() {
       : doc(collection(db, getPath("estudiantes")));
 
     await setDoc(docRef, {
-      apellido, nombre, apodo, dni, notas, planEstudio,
+      apellido, nombre, apodo, dni, email, fecha_nacimiento, id_miescuela, notas, planEstudio,
       inscripciones: inscripcionesMap,
       materias: materiasSeleccionadas,
       grupos:   gruposMap,
@@ -798,8 +807,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.48")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.48");
+      const fbdb = (await import("./firebase-config.js?v=10.49")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.49");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -836,8 +845,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.48")).db;
-    const { appId } = await import("./firebase-config.js?v=10.48");
+    const fbdb = (await import("./firebase-config.js?v=10.49")).db;
+    const { appId } = await import("./firebase-config.js?v=10.49");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
