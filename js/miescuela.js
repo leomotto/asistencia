@@ -6,10 +6,11 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.77";
+import { db, getPath } from "./firebase-config.js?v=10.78";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.77";
-import { escaparHTML } from "./utils.js?v=10.77";
+import { showToast } from "./ui.js?v=10.78";
+import { escaparHTML } from "./utils.js?v=10.78";
+import { registrarBitacora } from "./bitacora.js?v=10.78";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -326,7 +327,10 @@ export async function sincronizarMiescuela() {
 
     showToast(`✅ ${enviados} nota(s) sincronizadas a MiEscuela.`, 'success');
     cont.insertAdjacentHTML('afterbegin', `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-3 rounded-lg font-bold mb-3"><i class="ph ph-check-circle"></i> ${enviados} nota(s) enviadas. Volvé a "Traer y comparar" para verificar.</div>`);
+    registrarBitacora('enviar_miescuela', { materia: _staging.materia, periodoSideac: _staging.periodoSideac, post: postArr.length, put: putArr.length });
     _staging = null;
+    // Refresca la planilla de Calificaciones si está cargada, sin recargar la página
+    window.app.cargarPlanillaEvaluaciones?.();
   } catch (e) {
     console.error(e);
     showToast('Error al sincronizar: ' + e.message, 'error');
@@ -385,6 +389,9 @@ export async function importarNotasMiescuela() {
     }
     showToast(`✅ ${escritos} nota(s) oficiales importadas a SIDEAC.`, 'success');
     cont.insertAdjacentHTML('afterbegin', `<div class="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 p-3 rounded-lg font-bold mb-3"><i class="ph ph-check-circle"></i> ${escritos} nota(s) oficiales guardadas en SIDEAC (${conPPI} con PPI).</div>`);
+    registrarBitacora('importar_miescuela', { materia, periodoSideac, cantidad: escritos, conPPI });
+    // Refresca la planilla de Calificaciones si está cargada, sin recargar la página
+    window.app.cargarPlanillaEvaluaciones?.();
   } catch (e) {
     console.error(e);
     showToast('Error al importar: ' + e.message, 'error');

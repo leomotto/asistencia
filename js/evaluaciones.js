@@ -1,9 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.77";
-import { showToast } from "./ui.js?v=10.77";
-import { escaparHTML } from "./utils.js?v=10.77";
+import { db, getPath } from "./firebase-config.js?v=10.78";
+import { showToast } from "./ui.js?v=10.78";
+import { escaparHTML } from "./utils.js?v=10.78";
+import { registrarBitacora } from "./bitacora.js?v=10.78";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -644,6 +645,38 @@ export function registrarCambioPPI(alumnoId, periodo, valor) {
   if (btn) btn.disabled = false;
 }
 
+// Aplica el mismo valor de PPI (SI/NO/limpiar) a todos los selects visibles de la planilla actual.
+export function aplicarPPIMasivo(valor) {
+  if (planillaBloqueadaCurso) {
+    showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
+    return;
+  }
+  const selects = document.querySelectorAll('#evalBody .sel-ppi:not(:disabled)');
+  if (!selects.length) { showToast('No hay filas editables para aplicar PPI.', 'error'); return; }
+  selects.forEach(sel => {
+    sel.value = valor;
+    sel.dispatchEvent(new Event('change'));
+  });
+  showToast(`PPI "${valor || 'sin definir'}" aplicado a ${selects.length} estudiante(s). Revisá y Guardá.`, 'success');
+  registrarBitacora('ppi_masivo', { materia: document.getElementById('evalCurso')?.value, periodo: document.getElementById('evalPeriodo')?.value, valor, cantidad: selects.length });
+}
+
+// Copia la nota oficial de MiEscuela al select de SIDEAC (queda pendiente de Guardar, como
+// cualquier otro cambio manual — no escribe directo a Firestore).
+export function tomarNotaOficial(alumnoId, periodo) {
+  const sel = document.getElementById(`sel-nota-${alumnoId}`);
+  const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
+  const oficial = notaData.oficial?.[periodo];
+  if (!sel || !oficial || String(oficial.nota ?? '').trim() === '') return;
+  sel.value = String(oficial.nota);
+  if (sel.value !== String(oficial.nota)) {
+    showToast('La nota oficial no coincide con ninguna opción disponible en SIDEAC para este período.', 'error');
+    return;
+  }
+  sel.dispatchEvent(new Event('change'));
+  registrarBitacora('tomar_nota_oficial', { alumnoId, materia: document.getElementById('evalCurso')?.value, periodo, nota: oficial.nota });
+}
+
 function _recalcularFilaEvaluacion(alumnoId) {
   const tr = document.querySelector(`tr[data-alumno-id="${alumnoId}"]`);
   if (!tr) return;
@@ -774,13 +807,13 @@ export async function cargarPlanillaEvaluaciones() {
     let headersHtml = `
         <th class="px-2 py-2 md:px-4 md:py-3 text-left w-32 sm:w-64 max-w-[200px] sm:max-w-[250px] sticky left-0 z-20 bg-slate-900 border-r border-slate-700 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Estudiante</th>
 `;
-      cols.forEach(col => {
-        headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[50px] leading-tight break-words">${escaparHTML(col.label)}</th>`;
-      });
       const esBimestre = ['b1', 'b2', 'b3', 'b4'].includes(periodo);
       if (esBimestre) {
         headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[40px] leading-tight" title="Proyecto Pedagógico Individual — se envía a MiEscuela">PPI</th>`;
       }
+      cols.forEach(col => {
+        headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[50px] leading-tight break-words">${escaparHTML(col.label)}</th>`;
+      });
       headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[55px] leading-tight bg-cyan-900/70" title="Lo que trae el GET de MiEscuela — solo lectura, no editable desde acá">MiEscuela</th>`;
       if (mostrarResumen) {
         headersHtml += `
@@ -831,6 +864,25 @@ export async function cargarPlanillaEvaluaciones() {
       // Nota oficial de MiEscuela (importada por GET) — solo lectura, se muestra en su propia columna
       const oficial = notaData.oficial?.[periodo];
 
+      // Tri-estado igual que MiEscuela: sin definir / SI / NO. SI o NO exige nota (MiEscuela lo obliga).
+      const rawPPI = notaData.ppi?.[periodo];
+      const ppiVal = rawPPI === true ? 'SI' : (rawPPI === 'SI' || rawPPI === 'NO') ? rawPPI : '';
+
+      if (esBimestre) {
+        const sinNota = ppiVal !== '' && String(notaData[periodo] ?? '').trim() === '';
+        colsHtml += `
+          <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[55px]">
+            <select data-alumno-id="${al.id}" ${disabledAttr} class="sel-ppi w-full max-w-[52px] mx-auto py-0.5 px-0.5 border rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-purple-500 text-center ${sinNota ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700'}"
+              onchange="app.registrarCambioPPI('${al.id}', '${periodo}', this.value)" title="PPI — si elegís SI/NO, MiEscuela exige que haya nota cargada">
+              <option value="" ${ppiVal === '' ? 'selected' : ''}>—</option>
+              <option value="SI" ${ppiVal === 'SI' ? 'selected' : ''}>SI</option>
+              <option value="NO" ${ppiVal === 'NO' ? 'selected' : ''}>NO</option>
+            </select>
+            ${sinNota ? '<div class="text-[8px] text-amber-600 font-bold mt-0.5" title="MiEscuela exige nota si hay PPI definido">falta nota</div>' : ''}
+          </td>
+        `;
+      }
+
       cols.forEach(col => {
         if (col.type === 'principal') {
           const val = notaData[periodo] ?? '';
@@ -846,7 +898,7 @@ export async function cargarPlanillaEvaluaciones() {
 
             colsHtml += `
               <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[70px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[65px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+                <select id="sel-nota-${al.id}" ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[65px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorCls} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-100 text-\\w+-800 border-\\w+-300 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v==='EN PROCESO') this.classList.add('bg-orange-100','text-orange-800','border-orange-300'); else if(v==='SUFICIENTE') this.classList.add('bg-emerald-100','text-emerald-800','border-emerald-300'); else if(v==='AVANZADO') this.classList.add('bg-indigo-100','text-indigo-800','border-indigo-300'); else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   <option value="" ${val === '' ? 'selected' : ''}>-</option>
                   <option value="EN PROCESO" ${val === 'EN PROCESO' ? 'selected' : ''}>EP</option>
@@ -864,7 +916,7 @@ export async function cargarPlanillaEvaluaciones() {
                                 
             colsHtml += `
               <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[50px]">
-                <select ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[48px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
+                <select id="sel-nota-${al.id}" ${disabledAttr} class="sel-${periodo.replace('_','-')} w-full max-w-[48px] mx-auto py-1 md:py-0.5 px-0.5 md:px-0.5 border rounded text-xs font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-colors ${colorClsNum} disabled:opacity-75 disabled:cursor-not-allowed text-center"
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-50 text-\\w+-700 border-\\w+-200 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v!==''){ const n = parseFloat(v); if(n<7) this.classList.add('bg-red-50','text-red-700','border-red-200'); else this.classList.add('bg-blue-50','text-blue-700','border-blue-200'); } else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   ${_getOptionsNumericas(val)}
                 </select>
@@ -883,40 +935,23 @@ export async function cargarPlanillaEvaluaciones() {
         }
       });
 
-      // Tri-estado igual que MiEscuela: sin definir / SI / NO. SI o NO exige nota (MiEscuela lo obliga).
-      const rawPPI = notaData.ppi?.[periodo];
-      const ppiVal = rawPPI === true ? 'SI' : (rawPPI === 'SI' || rawPPI === 'NO') ? rawPPI : '';
-
-      if (esBimestre) {
-        const sinNota = ppiVal !== '' && String(notaData[periodo] ?? '').trim() === '';
-        colsHtml += `
-          <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[55px]">
-            <select ${disabledAttr} class="w-full max-w-[52px] mx-auto py-0.5 px-0.5 border rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-purple-500 text-center ${sinNota ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700'}"
-              onchange="app.registrarCambioPPI('${al.id}', '${periodo}', this.value)" title="PPI — si elegís SI/NO, MiEscuela exige que haya nota cargada">
-              <option value="" ${ppiVal === '' ? 'selected' : ''}>—</option>
-              <option value="SI" ${ppiVal === 'SI' ? 'selected' : ''}>SI</option>
-              <option value="NO" ${ppiVal === 'NO' ? 'selected' : ''}>NO</option>
-            </select>
-            ${sinNota ? '<div class="text-[8px] text-amber-600 font-bold mt-0.5" title="MiEscuela exige nota si hay PPI definido">falta nota</div>' : ''}
-          </td>
-        `;
-      }
-
       // Columna MiEscuela: solo lectura, lo que trajo el último GET (campo "oficial"). Resalta si
-      // difiere de lo cargado en SIDEAC, para detectar cambios hechos en MiEscuela que no impactaron acá.
+      // difiere de lo cargado en SIDEAC. Si SIDEAC no tiene nota pero MiEscuela sí, ofrece "Tomar".
       {
         const notaLocalStr = String(notaData[periodo] ?? '').trim();
         const notaOficialStr = String(oficial?.nota ?? '').trim();
         const ppiOficialVal = oficial?.ppi === true ? 'SI' : (oficial?.ppi === false ? 'NO' : '');
-        const hayOficial = oficial !== undefined;
-        const notaDiff = hayOficial && notaOficialStr !== '' && notaLocalStr !== '' && notaOficialStr !== notaLocalStr;
+        const hayOficial = oficial !== undefined && notaOficialStr !== '';
+        const notaDiff = hayOficial && notaLocalStr !== '' && notaOficialStr !== notaLocalStr;
         const ppiDiff   = hayOficial && esBimestre && ppiOficialVal !== '' && ppiVal !== '' && ppiOficialVal !== ppiVal;
         const hayDiff = notaDiff || ppiDiff;
+        const puedeTomar = hayOficial && notaLocalStr === '';
         colsHtml += `
           <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[55px] ${hayDiff ? 'bg-red-50 dark:bg-red-900/20' : 'bg-slate-50/50 dark:bg-slate-900/30'}" ${hayDiff ? 'title="Difiere de lo cargado en SIDEAC — puede haberse modificado en MiEscuela sin importar el cambio"' : ''}>
-            <span class="text-xs font-bold ${notaDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}">${hayOficial ? escaparHTML(notaOficialStr || '—') : '—'}</span>
-            ${esBimestre && hayOficial ? `<div class="text-[9px] font-bold ${ppiDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}">PPI: ${ppiOficialVal || '—'}</div>` : ''}
+            <span class="text-xs font-bold ${notaDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}">${hayOficial ? escaparHTML(notaOficialStr) : '—'}</span>
+            ${esBimestre && oficial !== undefined ? `<div class="text-[9px] font-bold ${ppiDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}">PPI: ${ppiOficialVal || '—'}</div>` : ''}
             ${hayDiff ? '<div class="text-[8px] text-red-600 font-black uppercase">⚠ difiere</div>' : ''}
+            ${puedeTomar && !disabledAttr ? `<button type="button" onclick="app.tomarNotaOficial('${al.id}','${periodo}')" class="mt-0.5 text-[8px] font-bold text-cyan-700 dark:text-cyan-300 underline" title="Copiar esta nota a SIDEAC">Tomar</button>` : ''}
           </td>
         `;
       }
@@ -1032,6 +1067,13 @@ export async function guardarCambiosEvaluaciones() {
 
     await batch.commit();
     showToast(`✅ Se guardaron las calificaciones de ${uids.length} estudiantes.`);
+
+    // Bitácora: un registro por alumno con lo que cambió (no bloquea el flujo si falla)
+    uids.forEach(uid => {
+      const p = cambiosPendientesEvaluaciones[uid];
+      registrarBitacora('guardar_calificacion', { alumnoId: uid, materia: curso, cambios: p });
+    });
+
     limpiarCambiosEvaluaciones();
     await cargarPlanillaEvaluaciones();
 

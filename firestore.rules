@@ -112,6 +112,9 @@ service cloud.firestore {
     match /horarios/{docId} {
       allow read, write: if isSuperAdmin();
     }
+    match /log_calificaciones/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
 
     // Compatibilidad para `getPath` con prefijo artifacts
     match /artifacts/mi-app-asistencia/public/data/escuelas/{docId} {
@@ -173,6 +176,15 @@ service cloud.firestore {
       allow delete: if isDocente(tenantId) &&
                        resource != null &&
                        docenteTieneCurso(tenantId, resource.data.curso);
+    }
+
+    // Bitácora de calificaciones: auditoría/histórico, no se usa para BI. Cualquier docente/admin
+    // autenticado del tenant puede crear su propio registro; inmutable (sin update/delete);
+    // lectura solo Admin (consulta de auditoría).
+    match /instituciones/{tenantId}/log_calificaciones/{docId} {
+      allow read:   if isAdmin(tenantId);
+      allow create: if isDocente(tenantId);
+      allow update, delete: if false;
     }
 
     match /instituciones/{tenantId}/evaluaciones/{docId} {
