@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.73";
-import { showToast } from "./ui.js?v=10.73";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.73";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.73";
+import { db, getPath } from "./firebase-config.js?v=10.74";
+import { showToast } from "./ui.js?v=10.74";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.74";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.74";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -197,8 +197,8 @@ export async function cargarAlumnosMatricula() {
       tr.innerHTML = `
         <td class="px-3 py-1.5 align-middle font-bold text-slate-800 dark:text-slate-100">${escaparHTML(est.apellido)}<span class="text-blue-600 font-normal">${apodoStr}</span></td>
         <td class="px-3 py-1.5 align-middle">${escaparHTML(est.nombre)}${est.dni ? `<span class="ml-1 text-[9px] font-mono text-slate-400">${escaparHTML(est.dni)}</span>` : ''}${notasStr}</td>
-        <td class="px-3 py-1.5 align-middle text-slate-600 dark:text-slate-300 hidden sm:table-cell">${escaparHTML(anio) || '—'}</td>
-        <td class="px-3 py-1.5 align-middle font-semibold text-slate-700 dark:text-slate-200"><span class="sm:hidden text-slate-400 font-normal">${escaparHTML(anio)} </span>${escaparHTML(division) || '—'}${r.cambio ? `<div class="flex flex-wrap gap-0.5 mt-1">${materiasHtml}</div>` : ''}</td>
+        <td class="px-3 py-1.5 align-middle text-slate-600 dark:text-slate-300 font-semibold">${escaparHTML(anio) || '—'}</td>
+        <td class="px-3 py-1.5 align-middle font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(division) || '—'}${r.cambio ? `<div class="flex flex-wrap gap-0.5 mt-1">${materiasHtml}</div>` : ''}</td>
         <td class="px-3 py-1.5 align-middle"><span class="text-[9px] px-1.5 py-0.5 rounded font-black uppercase whitespace-nowrap ${estadoCls}">${estadoBadge}</span></td>
         <td class="px-3 py-1.5 text-right align-middle">
           <button onclick='app.abrirModalAlumnoConId("${est.id}")' class="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 p-1.5 rounded transition" title="Editar Estudiante">
@@ -1028,8 +1028,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.73")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.73");
+      const fbdb = (await import("./firebase-config.js?v=10.74")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.74");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1066,8 +1066,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.73")).db;
-    const { appId } = await import("./firebase-config.js?v=10.73");
+    const fbdb = (await import("./firebase-config.js?v=10.74")).db;
+    const { appId } = await import("./firebase-config.js?v=10.74");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
