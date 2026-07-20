@@ -6,11 +6,11 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.81";
+import { db, getPath } from "./firebase-config.js?v=10.82";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.81";
-import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.81";
-import { registrarBitacora } from "./bitacora.js?v=10.81";
+import { showToast } from "./ui.js?v=10.82";
+import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.82";
+import { registrarBitacora } from "./bitacora.js?v=10.82";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -212,9 +212,19 @@ export async function traerYCompararMiescuela() {
     const localPorMiId = new Map();  // id_miescuela -> { nombre, notaSideac, ppiSideac ('', 'SI', 'NO') }
     const notasPorAlumno = new Map();
     snapEval.forEach(d => { const x = d.data(); if (x.materia === materia) notasPorAlumno.set(x.alumnoId, x); });
+    // MiEscuela a veces no refresca el cambio de división y el GET trae alumnos de otra división/materia
+    // que ya no pertenecen a este curso. Si matcheáramos solo por id_miescuela (sin filtrar curso),
+    // esos alumnos "viejos" aparecerían en la comparación como si fueran de esta materia.
+    const nCurso = materia.replace(/\s+/g, ' ').toLowerCase().trim();
     snapEst.forEach(d => {
       const e = d.data();
       if (!e.id_miescuela) return;
+      const nDataMaterias = (e.materias || []).map(m => m.replace(/\s+/g, ' ').toLowerCase().trim());
+      const nDataCurso = (e.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+      const isInMaterias = nDataCurso === nCurso ||
+                           nDataMaterias.includes(nCurso) ||
+                           (nDataCurso && nDataCurso.length > 1 && nCurso.includes(nDataCurso));
+      if (!isInMaterias) return;   // no pertenece a esta materia/curso: se trata como huérfano GCABA
       const notaDoc = notasPorAlumno.get(d.id) || {};
       const rawPpi = notaDoc.ppi?.[periodoSideac];
       const ppiSideac = rawPpi === true ? 'SI' : (rawPpi === 'SI' || rawPpi === 'NO') ? rawPpi : '';
@@ -232,7 +242,7 @@ export async function traerYCompararMiescuela() {
       const local = localPorMiId.get(String(g.idAlumno));
       let accion, motivo = '';
       const ppiBool = local ? local.ppiSideac === 'SI' : false;
-      if (!local) { accion = 'huerfano_gcaba'; motivo = 'En MiEscuela pero no en SIDEAC'; }
+      if (!local) { accion = 'huerfano_gcaba'; motivo = 'En MiEscuela pero no en SIDEAC (o ya no pertenece a esta división/materia)'; }
       else {
         const nS = String(local.notaSideac ?? '').trim();
         const sinNota = nS === '' || nS === '-';
