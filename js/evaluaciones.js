@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.74";
-import { showToast } from "./ui.js?v=10.74";
-import { escaparHTML } from "./utils.js?v=10.74";
+import { db, getPath } from "./firebase-config.js?v=10.75";
+import { showToast } from "./ui.js?v=10.75";
+import { escaparHTML } from "./utils.js?v=10.75";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -615,6 +615,27 @@ export function registrarCambioAdicionalEvaluacion(alumnoId, periodo, campoKey, 
   if (btn) btn.disabled = false;
 }
 
+// PPI (Proyecto Pedagógico Individual) es por alumno y por bimestre. Se carga en SIDEAC
+// y viaja a MiEscuela recién cuando se envía (sincronizarMiescuela), nunca antes.
+export function registrarCambioPPI(alumnoId, periodo, checked) {
+  if (planillaBloqueadaCurso) {
+    showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
+    return;
+  }
+  if (!cambiosPendientesEvaluaciones[alumnoId]) {
+    const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
+    cambiosPendientesEvaluaciones[alumnoId] = {
+      b1: notaData.b1 ?? '', b2: notaData.b2 ?? '', b3: notaData.b3 ?? '',
+      b4: notaData.b4 ?? '', po_dic: notaData.po_dic ?? '', po_feb: notaData.po_feb ?? '',
+    };
+  }
+  if (!cambiosPendientesEvaluaciones[alumnoId].ppi) cambiosPendientesEvaluaciones[alumnoId].ppi = {};
+  cambiosPendientesEvaluaciones[alumnoId].ppi[periodo] = !!checked;
+
+  const btn = document.getElementById('btnGuardarEvaluaciones');
+  if (btn) btn.disabled = false;
+}
+
 function _recalcularFilaEvaluacion(alumnoId) {
   const tr = document.querySelector(`tr[data-alumno-id="${alumnoId}"]`);
   if (!tr) return;
@@ -748,6 +769,10 @@ export async function cargarPlanillaEvaluaciones() {
       cols.forEach(col => {
         headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[50px] leading-tight break-words">${escaparHTML(col.label)}</th>`;
       });
+      const esBimestre = ['b1', 'b2', 'b3', 'b4'].includes(periodo);
+      if (esBimestre) {
+        headersHtml += `<th class="px-1 py-2 md:px-2 md:py-3 text-center min-w-[40px] leading-tight" title="Proyecto Pedagógico Individual — se envía a MiEscuela">PPI</th>`;
+      }
       if (mostrarResumen) {
         headersHtml += `
           <th class="px-1 py-2 md:px-3 md:py-3 text-center min-w-[60px] bg-slate-700/80 leading-tight">C. Final</th>
@@ -794,6 +819,12 @@ export async function cargarPlanillaEvaluaciones() {
         </td>
       `;
 
+      // Nota oficial de MiEscuela (importada), si existe, para verla junto a la de SIDEAC
+      const oficial = notaData.oficial?.[periodo];
+      const oficialHtml = oficial && String(oficial.nota ?? '').trim() !== ''
+        ? `<div class="text-[9px] text-cyan-600 dark:text-cyan-400 font-bold mt-0.5" title="Nota oficial en MiEscuela">GCABA: ${escaparHTML(String(oficial.nota))}</div>`
+        : '';
+
       cols.forEach(col => {
         if (col.type === 'principal') {
           const val = notaData[periodo] ?? '';
@@ -816,6 +847,7 @@ export async function cargarPlanillaEvaluaciones() {
                   <option value="SUFICIENTE" ${val === 'SUFICIENTE' ? 'selected' : ''}>S</option>
                   <option value="AVANZADO" ${val === 'AVANZADO' ? 'selected' : ''}>A</option>
                 </select>
+                ${oficialHtml}
               </td>
             `;
           } else {
@@ -831,6 +863,7 @@ export async function cargarPlanillaEvaluaciones() {
                   onchange="app.registrarCambioEvaluacion('${al.id}', '${periodo}', this.value); this.className = this.className.replace(/bg-\\w+-50 text-\\w+-700 border-\\w+-200 bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700/g, ''); const v = this.value; if(v!==''){ const n = parseFloat(v); if(n<7) this.classList.add('bg-red-50','text-red-700','border-red-200'); else this.classList.add('bg-blue-50','text-blue-700','border-blue-200'); } else this.classList.add('bg-slate-50','dark:bg-slate-900','border-slate-300','dark:border-slate-700');">
                   ${_getOptionsNumericas(val)}
                 </select>
+                ${oficialHtml}
               </td>
             `;
           }
@@ -845,6 +878,16 @@ export async function cargarPlanillaEvaluaciones() {
           `;
         }
       });
+
+      if (esBimestre) {
+        const ppiChecked = !!notaData.ppi?.[periodo];
+        colsHtml += `
+          <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[40px]">
+            <input type="checkbox" ${disabledAttr} ${ppiChecked ? 'checked' : ''} class="w-4 h-4 accent-purple-600 cursor-pointer disabled:cursor-not-allowed"
+              onchange="app.registrarCambioPPI('${al.id}', '${periodo}', this.checked)" title="PPI (Proyecto Pedagógico Individual)">
+          </td>
+        `;
+      }
 
       // Columnas de resumen: Calif. Final, Definitiva y Condición
       // b4: siempre se muestran las tres (el alumno está cerrando el año)
@@ -942,6 +985,13 @@ export async function guardarCambiosEvaluaciones() {
           Object.keys(p.adicionales[periodoKey]).forEach(fieldKey => {
             payload[`adicionales_${periodoKey}_${fieldKey}`] = p.adicionales[periodoKey][fieldKey];
           });
+        });
+      }
+
+      // PPI en dot-notation para no pisar el de otros bimestres del mismo documento
+      if (p.ppi) {
+        Object.keys(p.ppi).forEach(periodoKey => {
+          payload[`ppi.${periodoKey}`] = p.ppi[periodoKey];
         });
       }
 

@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.74";
+import { db, getPath } from "./firebase-config.js?v=10.75";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.74";
-import { escaparHTML } from "./utils.js?v=10.74";
+import { showToast } from "./ui.js?v=10.75";
+import { escaparHTML } from "./utils.js?v=10.75";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -167,6 +167,7 @@ export async function traerYCompararMiescuela() {
       localPorMiId.set(String(e.id_miescuela), {
         nombre: `${e.apellido || ''}, ${e.nombre || ''}`,
         notaSideac: notaDoc[periodoSideac] ?? '',
+        ppiSideac: !!notaDoc.ppi?.[periodoSideac],
         estId: d.id,
       });
     });
@@ -179,14 +180,15 @@ export async function traerYCompararMiescuela() {
       if (!local) { accion = 'huerfano_gcaba'; motivo = 'En MiEscuela pero no en SIDEAC'; }
       else {
         const nS = String(local.notaSideac ?? '').trim();
+        const ppiDif = !!local.ppiSideac !== !!g.ppi;
         if (nS === '' || nS === '-') { accion = 'sin_nota'; motivo = 'Sin nota en SIDEAC'; }
         else if (!g.idConocimiento)  { accion = 'post'; }
-        else if (String(g.notaGCABA).trim() !== nS) { accion = 'put'; }
+        else if (String(g.notaGCABA).trim() !== nS || ppiDif) { accion = 'put'; }
         else { accion = 'igual'; }
       }
       return {
         idAlumno: g.idAlumno, idCalificacion: g.idCalificacion, idConocimiento: g.idConocimiento,
-        estId: local?.estId || null, ppi: !!g.ppi,
+        estId: local?.estId || null, ppi: !!g.ppi, ppiSideac: !!local?.ppiSideac,
         nombre: local?.nombre || g.nombre || `ID ${g.idAlumno}`,
         notaSideac: local?.notaSideac ?? '', notaGCABA: g.notaGCABA ?? '', accion, motivo,
       };
@@ -219,11 +221,16 @@ function _renderStaging(cont, filas, huerfanosSideac) {
     huerfano_gcaba: '<span class="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded font-black uppercase" title="No está en SIDEAC">solo GCABA</span>',
   }[a] || a);
 
+  const ppiCell = (f) => {
+    if (f.ppiSideac === f.ppi) return f.ppiSideac ? '<span class="text-purple-600 font-bold">SÍ</span>' : '<span class="text-slate-300">—</span>';
+    return `<span class="text-amber-600 font-bold" title="SIDEAC dice ${f.ppiSideac ? 'SÍ' : 'NO'}, MiEscuela dice ${f.ppi ? 'SÍ' : 'NO'}">${f.ppiSideac ? 'SÍ' : 'NO'} ⚠️</span>`;
+  };
   const rows = filas.map(f => `
     <tr class="border-b dark:border-slate-800">
       <td class="p-2 text-xs font-semibold text-slate-700 dark:text-slate-200">${escaparHTML(f.nombre)}</td>
       <td class="p-2 text-xs text-center font-mono">${escaparHTML(String(f.notaSideac || '—'))}</td>
       <td class="p-2 text-xs text-center font-mono text-slate-500">${escaparHTML(String(f.notaGCABA || '—'))}</td>
+      <td class="p-2 text-xs text-center">${ppiCell(f)}</td>
       <td class="p-2 text-xs">${badge(f.accion)}</td>
     </tr>`).join('');
 
@@ -241,7 +248,7 @@ function _renderStaging(cont, filas, huerfanosSideac) {
     <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 dark:bg-slate-800 text-[11px] uppercase text-slate-500"><tr>
-          <th class="p-2 text-left">Alumno</th><th class="p-2 text-center">Nota SIDEAC</th><th class="p-2 text-center">Nota GCABA</th><th class="p-2 text-left">Acción</th>
+          <th class="p-2 text-left">Alumno</th><th class="p-2 text-center">Nota SIDEAC</th><th class="p-2 text-center">Nota GCABA</th><th class="p-2 text-center">PPI</th><th class="p-2 text-left">Acción</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -268,7 +275,7 @@ export async function sincronizarMiescuela() {
       alumno: f.idAlumno,
       espacioCurricularSeccion: { idEspacioCurricularSeccion: idSeccion },
       calificacion: { idCalificacion: f.idCalificacion },
-      data: { ppi: false, calificacion: String(f.notaSideac) },
+      data: { ppi: !!f.ppiSideac, calificacion: String(f.notaSideac) },
       nota: String(f.notaSideac),
       aprobado: _aprobado(f.notaSideac),
       asistenciaEc: false,
