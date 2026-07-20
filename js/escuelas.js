@@ -1,4 +1,4 @@
-import { db, getPath } from "./firebase-config.js?v=10.71";
+import { db, getPath } from "./firebase-config.js?v=10.72";
 import { collection, getDocs, doc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // ==========================================
