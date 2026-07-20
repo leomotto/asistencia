@@ -1,10 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.80";
-import { showToast } from "./ui.js?v=10.80";
-import { escaparHTML, normValorativo } from "./utils.js?v=10.80";
-import { registrarBitacora } from "./bitacora.js?v=10.80";
+import { db, getPath } from "./firebase-config.js?v=10.81";
+import { showToast } from "./ui.js?v=10.81";
+import { escaparHTML, normValorativo } from "./utils.js?v=10.81";
+import { registrarBitacora } from "./bitacora.js?v=10.81";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -663,21 +663,50 @@ export function aplicarPPIMasivo(valor) {
 
 // Copia la nota oficial de MiEscuela al select de SIDEAC (queda pendiente de Guardar, como
 // cualquier otro cambio manual — no escribe directo a Firestore).
-export function tomarNotaOficial(alumnoId, periodo) {
+export function tomarNotaOficial(alumnoId, periodo, { silencioso = false } = {}) {
   const sel = document.getElementById(`sel-nota-${alumnoId}`);
   const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
   const oficial = notaData.oficial?.[periodo];
-  if (!sel || !oficial || String(oficial.nota ?? '').trim() === '') return;
+  if (!sel || !oficial || String(oficial.nota ?? '').trim() === '') return false;
   // normValorativo pasa "Suficiente" (MiEscuela) → "SUFICIENTE" (valor de <option> en SIDEAC).
   // En numéricos no cambia nada (mayúsculas de dígitos = mismos dígitos).
   const valorSideac = normValorativo(oficial.nota);
   sel.value = valorSideac;
   if (sel.value !== valorSideac) {
-    showToast('La nota oficial no coincide con ninguna opción disponible en SIDEAC para este período.', 'error');
-    return;
+    if (!silencioso) showToast('La nota oficial no coincide con ninguna opción disponible en SIDEAC para este período.', 'error');
+    return false;
   }
   sel.dispatchEvent(new Event('change'));
-  registrarBitacora('tomar_nota_oficial', { alumnoId, materia: document.getElementById('evalCurso')?.value, periodo, nota: oficial.nota });
+
+  // El PPI oficial también viaja: se guarda en oficial.ppi como booleano (true/false).
+  const selPpi = document.querySelector(`.sel-ppi[data-alumno-id="${alumnoId}"]`);
+  if (selPpi && typeof oficial.ppi === 'boolean') {
+    selPpi.value = oficial.ppi ? 'SI' : 'NO';
+    selPpi.dispatchEvent(new Event('change'));
+  }
+
+  if (!silencioso) {
+    registrarBitacora('tomar_nota_oficial', { alumnoId, materia: document.getElementById('evalCurso')?.value, periodo, nota: oficial.nota, ppi: oficial.ppi });
+  }
+  return true;
+}
+
+// Toma nota+PPI oficial de todos los estudiantes con el botón "Tomar" visible (vacío o con diferencia).
+export function tomarTodosOficiales() {
+  if (planillaBloqueadaCurso) {
+    showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
+    return;
+  }
+  const periodo = document.getElementById('evalPeriodo')?.value;
+  const botones = document.querySelectorAll('#evalBody .btn-tomar-fila');
+  if (!botones.length) { showToast('No hay notas oficiales pendientes de tomar.', 'error'); return; }
+  let n = 0;
+  botones.forEach(btn => {
+    const alumnoId = btn.dataset.alumnoId;
+    if (tomarNotaOficial(alumnoId, periodo, { silencioso: true })) n++;
+  });
+  showToast(`✅ Se tomó nota+PPI oficial de ${n} estudiante(s). Revisá y Guardá.`, 'success');
+  registrarBitacora('tomar_nota_oficial_masivo', { materia: document.getElementById('evalCurso')?.value, periodo, cantidad: n });
 }
 
 function _recalcularFilaEvaluacion(alumnoId) {
@@ -835,6 +864,7 @@ export async function cargarPlanillaEvaluaciones() {
     const disabledAttr = isPeriodoHabilitado ? '' : 'disabled';
 
     tablaBody.innerHTML = '';
+    let nDiferencias = 0;
     alumnos.forEach(al => {
       const notaData = notasMap[al.id] || {};
       
@@ -949,13 +979,15 @@ export async function cargarPlanillaEvaluaciones() {
         const notaDiff = hayOficial && notaLocalStr !== '' && normValorativo(notaOficialStr) !== normValorativo(notaLocalStr);
         const ppiDiff   = hayOficial && esBimestre && ppiOficialVal !== '' && ppiVal !== '' && ppiOficialVal !== ppiVal;
         const hayDiff = notaDiff || ppiDiff;
-        const puedeTomar = hayOficial && notaLocalStr === '';
+        if (hayDiff) nDiferencias++;
+        // "Tomar" disponible si SIDEAC está vacío O si hay diferencia (para resolverla con el dato oficial)
+        const puedeTomar = hayOficial && (notaLocalStr === '' || notaDiff || ppiDiff);
         colsHtml += `
           <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[55px] ${hayDiff ? 'bg-red-50 dark:bg-red-900/20' : 'bg-slate-50/50 dark:bg-slate-900/30'}" ${hayDiff ? 'title="Difiere de lo cargado en SIDEAC — puede haberse modificado en MiEscuela sin importar el cambio"' : ''}>
             <span class="text-xs font-bold ${notaDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'}">${hayOficial ? escaparHTML(notaOficialStr) : '—'}</span>
             ${esBimestre && oficial !== undefined ? `<div class="text-[9px] font-bold ${ppiDiff ? 'text-red-600 dark:text-red-400' : 'text-slate-400'}">PPI: ${ppiOficialVal || '—'}</div>` : ''}
             ${hayDiff ? '<div class="text-[8px] text-red-600 font-black uppercase">⚠ difiere</div>' : ''}
-            ${puedeTomar && !disabledAttr ? `<button type="button" onclick="app.tomarNotaOficial('${al.id}','${periodo}')" class="mt-0.5 text-[8px] font-bold text-cyan-700 dark:text-cyan-300 underline" title="Copiar esta nota a SIDEAC">Tomar</button>` : ''}
+            ${puedeTomar && !disabledAttr ? `<button type="button" data-alumno-id="${al.id}" onclick="app.tomarNotaOficial('${al.id}','${periodo}')" class="btn-tomar-fila mt-0.5 text-[8px] font-bold text-cyan-700 dark:text-cyan-300 underline" title="Copiar nota y PPI oficiales a SIDEAC">Tomar</button>` : ''}
           </td>
         `;
       }
@@ -995,6 +1027,16 @@ export async function cargarPlanillaEvaluaciones() {
       tr.innerHTML = colsHtml;
       tablaBody.appendChild(tr);
     });
+
+    const aviso = document.getElementById('avisoDiferenciasMiEscuela');
+    if (aviso) {
+      if (nDiferencias > 0) {
+        aviso.textContent = `⚠️ ${nDiferencias} estudiante(s) con diferencia entre la nota/PPI de SIDEAC y la de MiEscuela. Revisá la columna "MiEscuela" (en rojo) o usá "Tomar" para adoptar el valor oficial.`;
+        aviso.classList.remove('hidden');
+      } else {
+        aviso.classList.add('hidden');
+      }
+    }
 
   } catch(e) {
     console.error(e);
