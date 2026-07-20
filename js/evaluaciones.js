@@ -1,10 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.79";
-import { showToast } from "./ui.js?v=10.79";
-import { escaparHTML } from "./utils.js?v=10.79";
-import { registrarBitacora } from "./bitacora.js?v=10.79";
+import { db, getPath } from "./firebase-config.js?v=10.80";
+import { showToast } from "./ui.js?v=10.80";
+import { escaparHTML, normValorativo } from "./utils.js?v=10.80";
+import { registrarBitacora } from "./bitacora.js?v=10.80";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -668,8 +668,11 @@ export function tomarNotaOficial(alumnoId, periodo) {
   const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
   const oficial = notaData.oficial?.[periodo];
   if (!sel || !oficial || String(oficial.nota ?? '').trim() === '') return;
-  sel.value = String(oficial.nota);
-  if (sel.value !== String(oficial.nota)) {
+  // normValorativo pasa "Suficiente" (MiEscuela) → "SUFICIENTE" (valor de <option> en SIDEAC).
+  // En numéricos no cambia nada (mayúsculas de dígitos = mismos dígitos).
+  const valorSideac = normValorativo(oficial.nota);
+  sel.value = valorSideac;
+  if (sel.value !== valorSideac) {
     showToast('La nota oficial no coincide con ninguna opción disponible en SIDEAC para este período.', 'error');
     return;
   }
@@ -942,7 +945,8 @@ export async function cargarPlanillaEvaluaciones() {
         const notaOficialStr = String(oficial?.nota ?? '').trim();
         const ppiOficialVal = oficial?.ppi === true ? 'SI' : (oficial?.ppi === false ? 'NO' : '');
         const hayOficial = oficial !== undefined && notaOficialStr !== '';
-        const notaDiff = hayOficial && notaLocalStr !== '' && notaOficialStr !== notaLocalStr;
+        // normValorativo compara sin importar mayúsculas ("Suficiente" de MiEscuela vs "SUFICIENTE" de SIDEAC)
+        const notaDiff = hayOficial && notaLocalStr !== '' && normValorativo(notaOficialStr) !== normValorativo(notaLocalStr);
         const ppiDiff   = hayOficial && esBimestre && ppiOficialVal !== '' && ppiVal !== '' && ppiOficialVal !== ppiVal;
         const hayDiff = notaDiff || ppiDiff;
         const puedeTomar = hayOficial && notaLocalStr === '';

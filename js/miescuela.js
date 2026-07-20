@@ -6,11 +6,11 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.79";
+import { db, getPath } from "./firebase-config.js?v=10.80";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.79";
-import { escaparHTML } from "./utils.js?v=10.79";
-import { registrarBitacora } from "./bitacora.js?v=10.79";
+import { showToast } from "./ui.js?v=10.80";
+import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.80";
+import { registrarBitacora } from "./bitacora.js?v=10.80";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -243,7 +243,9 @@ export async function traerYCompararMiescuela() {
           accion = 'sin_nota'; motivo = 'Sin nota en SIDEAC';
         } else if (!g.idConocimiento) {
           accion = 'post';
-        } else if (String(g.notaGCABA).trim() !== nS || !!g.ppi !== ppiBool) {
+        } else if (normValorativo(g.notaGCABA) !== normValorativo(nS) || !!g.ppi !== ppiBool) {
+          // normValorativo compara sin importar mayúsculas/capitalización (Suficiente vs SUFICIENTE)
+          // y no afecta a los períodos numéricos (b2/b4/PO), solo normaliza texto igual en ambos lados.
           accion = 'put';
         } else {
           accion = 'igual';
@@ -332,17 +334,24 @@ function _renderStaging(cont, filas, huerfanosSideac) {
 // ── PASO 3: POST (nuevas) + PUT (actualizaciones) ──
 export async function sincronizarMiescuela() {
   if (!_staging) { showToast('Primero traé y compará.', 'error'); return; }
-  const { idSeccion, filas } = _staging;
+  const { idSeccion, periodoSideac, filas } = _staging;
+  const esValorativo = esPeriodoValorativo(periodoSideac);
 
   const ahora = new Date().toISOString();
   const armar = (f, conConocimiento) => {
+    // Valorativos: SIDEAC guarda SUFICIENTE/AVANZADO/EN PROCESO — MiEscuela espera
+    // "Suficiente"/"Avanzado"/"En Proceso". Se traduce solo al enviar, nunca al guardar en SIDEAC.
+    const notaParaEnviar = esValorativo ? valorativoDisplayGCABA(f.notaSideac) : String(f.notaSideac);
+    const aprobado = esValorativo
+      ? ['SUFICIENTE', 'AVANZADO'].includes(normValorativo(f.notaSideac))
+      : _aprobado(f.notaSideac);
     const base = {
       alumno: f.idAlumno,
       espacioCurricularSeccion: { idEspacioCurricularSeccion: idSeccion },
       calificacion: { idCalificacion: f.idCalificacion },
-      data: { ppi: f.ppiSideac === 'SI', calificacion: String(f.notaSideac) },
-      nota: String(f.notaSideac),
-      aprobado: _aprobado(f.notaSideac),
+      data: { ppi: f.ppiSideac === 'SI', calificacion: notaParaEnviar },
+      nota: notaParaEnviar,
+      aprobado,
       asistenciaEc: false,
       createdAt: ahora,
     };
