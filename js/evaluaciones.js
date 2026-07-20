@@ -1,9 +1,9 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.75";
-import { showToast } from "./ui.js?v=10.75";
-import { escaparHTML } from "./utils.js?v=10.75";
+import { db, getPath } from "./firebase-config.js?v=10.76";
+import { showToast } from "./ui.js?v=10.76";
+import { escaparHTML } from "./utils.js?v=10.76";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -615,9 +615,10 @@ export function registrarCambioAdicionalEvaluacion(alumnoId, periodo, campoKey, 
   if (btn) btn.disabled = false;
 }
 
-// PPI (Proyecto Pedagógico Individual) es por alumno y por bimestre. Se carga en SIDEAC
-// y viaja a MiEscuela recién cuando se envía (sincronizarMiescuela), nunca antes.
-export function registrarCambioPPI(alumnoId, periodo, checked) {
+// PPI (Proyecto Pedagógico Individual): tri-estado igual que MiEscuela — '' sin definir, 'SI', 'NO'.
+// Si queda SI o NO, MiEscuela exige que haya una nota cargada para poder enviarlo (se avisa en la UI).
+// Se carga en SIDEAC y viaja a MiEscuela recién cuando se envía (sincronizarMiescuela), nunca antes.
+export function registrarCambioPPI(alumnoId, periodo, valor) {
   if (planillaBloqueadaCurso) {
     showToast("🔒 La planilla está bloqueada. Desbloqueala antes de editar.", "error");
     return;
@@ -630,7 +631,14 @@ export function registrarCambioPPI(alumnoId, periodo, checked) {
     };
   }
   if (!cambiosPendientesEvaluaciones[alumnoId].ppi) cambiosPendientesEvaluaciones[alumnoId].ppi = {};
-  cambiosPendientesEvaluaciones[alumnoId].ppi[periodo] = !!checked;
+  cambiosPendientesEvaluaciones[alumnoId].ppi[periodo] = valor;
+
+  const notaData = _ultimaPlanillaCargadaNotasMap[alumnoId] || {};
+  const p = cambiosPendientesEvaluaciones[alumnoId];
+  const notaActual = p[periodo] !== undefined ? p[periodo] : (notaData[periodo] ?? '');
+  if (valor !== '' && String(notaActual).trim() === '') {
+    showToast(`⚠️ PPI ${valor} elegido pero sin nota — MiEscuela exige nota para poder enviarlo.`, 'error');
+  }
 
   const btn = document.getElementById('btnGuardarEvaluaciones');
   if (btn) btn.disabled = false;
@@ -880,11 +888,19 @@ export async function cargarPlanillaEvaluaciones() {
       });
 
       if (esBimestre) {
-        const ppiChecked = !!notaData.ppi?.[periodo];
+        // Tri-estado igual que MiEscuela: sin definir / SI / NO. SI o NO exige nota (MiEscuela lo obliga).
+        const raw = notaData.ppi?.[periodo];
+        const ppiVal = raw === true ? 'SI' : (raw === 'SI' || raw === 'NO') ? raw : '';
+        const sinNota = ppiVal !== '' && String(notaData[periodo] ?? '').trim() === '';
         colsHtml += `
-          <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[40px]">
-            <input type="checkbox" ${disabledAttr} ${ppiChecked ? 'checked' : ''} class="w-4 h-4 accent-purple-600 cursor-pointer disabled:cursor-not-allowed"
-              onchange="app.registrarCambioPPI('${al.id}', '${periodo}', this.checked)" title="PPI (Proyecto Pedagógico Individual)">
+          <td class="px-1 py-1 text-center border-b dark:border-slate-700/50 min-w-[55px]">
+            <select ${disabledAttr} class="w-full max-w-[52px] mx-auto py-0.5 px-0.5 border rounded text-[10px] font-bold outline-none focus:ring-1 focus:ring-purple-500 text-center ${sinNota ? 'bg-amber-50 border-amber-300 text-amber-700' : 'bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700'}"
+              onchange="app.registrarCambioPPI('${al.id}', '${periodo}', this.value)" title="PPI — si elegís SI/NO, MiEscuela exige que haya nota cargada">
+              <option value="" ${ppiVal === '' ? 'selected' : ''}>—</option>
+              <option value="SI" ${ppiVal === 'SI' ? 'selected' : ''}>SI</option>
+              <option value="NO" ${ppiVal === 'NO' ? 'selected' : ''}>NO</option>
+            </select>
+            ${sinNota ? '<div class="text-[8px] text-amber-600 font-bold mt-0.5" title="MiEscuela exige nota si hay PPI definido">falta nota</div>' : ''}
           </td>
         `;
       }

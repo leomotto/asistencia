@@ -6,10 +6,10 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.75";
+import { db, getPath } from "./firebase-config.js?v=10.76";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.75";
-import { escaparHTML } from "./utils.js?v=10.75";
+import { showToast } from "./ui.js?v=10.76";
+import { escaparHTML } from "./utils.js?v=10.76";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -157,17 +157,19 @@ export async function traerYCompararMiescuela() {
       getDocs(collection(db, getPath('estudiantes'))),
       getDocs(collection(db, getPath('evaluaciones'))),
     ]);
-    const localPorMiId = new Map();  // id_miescuela -> { nombre, notaSideac }
+    const localPorMiId = new Map();  // id_miescuela -> { nombre, notaSideac, ppiSideac ('', 'SI', 'NO') }
     const notasPorAlumno = new Map();
     snapEval.forEach(d => { const x = d.data(); if (x.materia === materia) notasPorAlumno.set(x.alumnoId, x); });
     snapEst.forEach(d => {
       const e = d.data();
       if (!e.id_miescuela) return;
       const notaDoc = notasPorAlumno.get(d.id) || {};
+      const rawPpi = notaDoc.ppi?.[periodoSideac];
+      const ppiSideac = rawPpi === true ? 'SI' : (rawPpi === 'SI' || rawPpi === 'NO') ? rawPpi : '';
       localPorMiId.set(String(e.id_miescuela), {
         nombre: `${e.apellido || ''}, ${e.nombre || ''}`,
         notaSideac: notaDoc[periodoSideac] ?? '',
-        ppiSideac: !!notaDoc.ppi?.[periodoSideac],
+        ppiSideac,
         estId: d.id,
       });
     });
@@ -177,18 +179,27 @@ export async function traerYCompararMiescuela() {
     const filas = gcaba.map(g => {
       const local = localPorMiId.get(String(g.idAlumno));
       let accion, motivo = '';
+      const ppiBool = local ? local.ppiSideac === 'SI' : false;
       if (!local) { accion = 'huerfano_gcaba'; motivo = 'En MiEscuela pero no en SIDEAC'; }
       else {
         const nS = String(local.notaSideac ?? '').trim();
-        const ppiDif = !!local.ppiSideac !== !!g.ppi;
-        if (nS === '' || nS === '-') { accion = 'sin_nota'; motivo = 'Sin nota en SIDEAC'; }
-        else if (!g.idConocimiento)  { accion = 'post'; }
-        else if (String(g.notaGCABA).trim() !== nS || ppiDif) { accion = 'put'; }
-        else { accion = 'igual'; }
+        const sinNota = nS === '' || nS === '-';
+        if (local.ppiSideac !== '' && sinNota) {
+          // MiEscuela exige nota si PPI está definido (SI o NO) — no se puede enviar así
+          accion = 'ppi_sin_nota'; motivo = `PPI ${local.ppiSideac} definido pero sin nota (MiEscuela lo exige)`;
+        } else if (sinNota) {
+          accion = 'sin_nota'; motivo = 'Sin nota en SIDEAC';
+        } else if (!g.idConocimiento) {
+          accion = 'post';
+        } else if (String(g.notaGCABA).trim() !== nS || !!g.ppi !== ppiBool) {
+          accion = 'put';
+        } else {
+          accion = 'igual';
+        }
       }
       return {
         idAlumno: g.idAlumno, idCalificacion: g.idCalificacion, idConocimiento: g.idConocimiento,
-        estId: local?.estId || null, ppi: !!g.ppi, ppiSideac: !!local?.ppiSideac,
+        estId: local?.estId || null, ppi: !!g.ppi, ppiSideac: local?.ppiSideac ?? '',
         nombre: local?.nombre || g.nombre || `ID ${g.idAlumno}`,
         notaSideac: local?.notaSideac ?? '', notaGCABA: g.notaGCABA ?? '', accion, motivo,
       };
@@ -218,12 +229,14 @@ function _renderStaging(cont, filas, huerfanosSideac) {
     put:   '<span class="text-[9px] bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 px-1.5 py-0.5 rounded font-black uppercase">ACTUALIZA (PUT)</span>',
     igual: '<span class="text-[9px] text-slate-400 uppercase">sin cambios</span>',
     sin_nota: '<span class="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase">sin nota SIDEAC</span>',
+    ppi_sin_nota: '<span class="text-[9px] bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300 px-1.5 py-0.5 rounded font-black uppercase" title="MiEscuela exige nota si hay PPI definido">PPI sin nota</span>',
     huerfano_gcaba: '<span class="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 px-1.5 py-0.5 rounded font-black uppercase" title="No está en SIDEAC">solo GCABA</span>',
   }[a] || a);
 
   const ppiCell = (f) => {
-    if (f.ppiSideac === f.ppi) return f.ppiSideac ? '<span class="text-purple-600 font-bold">SÍ</span>' : '<span class="text-slate-300">—</span>';
-    return `<span class="text-amber-600 font-bold" title="SIDEAC dice ${f.ppiSideac ? 'SÍ' : 'NO'}, MiEscuela dice ${f.ppi ? 'SÍ' : 'NO'}">${f.ppiSideac ? 'SÍ' : 'NO'} ⚠️</span>`;
+    const ppiSideacBool = f.ppiSideac === 'SI';
+    if (ppiSideacBool === f.ppi) return f.ppiSideac || (f.ppi ? 'SI' : '<span class="text-slate-300">—</span>');
+    return `<span class="text-amber-600 font-bold" title="SIDEAC: ${f.ppiSideac || '(sin definir)'}, MiEscuela: ${f.ppi ? 'SI' : 'NO'}">${f.ppiSideac || '—'} ⚠️</span>`;
   };
   const rows = filas.map(f => `
     <tr class="border-b dark:border-slate-800">
@@ -275,7 +288,7 @@ export async function sincronizarMiescuela() {
       alumno: f.idAlumno,
       espacioCurricularSeccion: { idEspacioCurricularSeccion: idSeccion },
       calificacion: { idCalificacion: f.idCalificacion },
-      data: { ppi: !!f.ppiSideac, calificacion: String(f.notaSideac) },
+      data: { ppi: f.ppiSideac === 'SI', calificacion: String(f.notaSideac) },
       nota: String(f.notaSideac),
       aprobado: _aprobado(f.notaSideac),
       asistenciaEc: false,
