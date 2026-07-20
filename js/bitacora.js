@@ -1,7 +1,7 @@
 // js/bitacora.js — Log de acciones sobre calificaciones (auditoría/histórico, NO para BI).
 // Colección aparte ("log_calificaciones"), nunca se cruza con las queries de asistencia/BI.
 
-import { db, getPath } from "./firebase-config.js?v=10.82";
+import { db, getPath } from "./firebase-config.js?v=10.83";
 import { collection, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // accion: 'guardar_calificacion' | 'importar_miescuela' | 'enviar_miescuela' | 'tomar_nota_oficial' | 'ppi_masivo'

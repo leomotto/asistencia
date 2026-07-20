@@ -1,5 +1,5 @@
 import { getDoc, doc, getDocs, collection, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.82";
+import { db, getPath } from "./firebase-config.js?v=10.83";
 
 export async function cargarOnboardingEscuelas() {
   const container = document.getElementById('onboardingFormContainer');

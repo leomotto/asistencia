@@ -25,7 +25,7 @@
     }, 6000);
   </script>
   <title>SISTEMA DE ASISTENCIA Y CALIFICACIÓN - SIDEAC</title>
-  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.82">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=10.83">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -398,6 +398,8 @@
             <button onclick="app.aplicarPPIMasivo('')" class="bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg">Limpiar</button>
             <span class="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></span>
             <button onclick="app.tomarTodosOficiales()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1"><i class="ph ph-download-simple"></i> Tomar nota+PPI oficial (todos)</button>
+            <span class="w-px h-5 bg-slate-300 dark:bg-slate-600 mx-1"></span>
+            <button onclick="app.limpiarImportacionErronea()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" title="Borra notas oficiales importadas de alumnos que no pertenecen a este curso/período (roster viejo de MiEscuela)"><i class="ph ph-broom"></i> Limpiar importación errónea</button>
           </div>
           <div id="avisoDiferenciasMiEscuela" class="hidden mt-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-bold px-3 py-2 rounded-lg"></div>
         </div>
@@ -1464,6 +1466,6 @@
   </main>
   </div> <!-- Cierra appContainer -->
   
-  <script type="module" src="js/app.js?v=10.82"></script>
+  <script type="module" src="js/app.js?v=10.83"></script>
 </body>
 </html>

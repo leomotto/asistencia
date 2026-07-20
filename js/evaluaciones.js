@@ -1,10 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
-import { doc, setDoc, getDoc, collection, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.82";
-import { showToast } from "./ui.js?v=10.82";
-import { escaparHTML, normValorativo } from "./utils.js?v=10.82";
-import { registrarBitacora } from "./bitacora.js?v=10.82";
+import { doc, setDoc, getDoc, collection, getDocs, writeBatch, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=10.83";
+import { showToast, showConfirm } from "./ui.js?v=10.83";
+import { escaparHTML, normValorativo } from "./utils.js?v=10.83";
+import { registrarBitacora } from "./bitacora.js?v=10.83";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -707,6 +707,67 @@ export function tomarTodosOficiales() {
   });
   showToast(`✅ Se tomó nota+PPI oficial de ${n} estudiante(s). Revisá y Guardá.`, 'success');
   registrarBitacora('tomar_nota_oficial_masivo', { materia: document.getElementById('evalCurso')?.value, periodo, cantidad: n });
+}
+
+// Limpieza puntual: MiEscuela a veces no refresca el cambio de división y trae en el GET
+// alumnos que ya no pertenecen a este curso. Si eso se importó antes del fix, esos alumnos
+// quedan con un "oficial.{periodo}" pegado en un curso que no es el suyo. Este botón (Admin)
+// busca esos casos para el curso/período abiertos y los borra, previa confirmación con la lista.
+export async function limpiarImportacionErronea() {
+  const rol = window.app.currentUser?.rolActivo;
+  if (rol !== 'ADMIN' && rol !== 'SUPERADMIN') {
+    showToast('Solo un Administrador puede ejecutar esta limpieza.', 'error');
+    return;
+  }
+  const curso = document.getElementById('evalCurso')?.value;
+  const periodo = document.getElementById('evalPeriodo')?.value;
+  if (!curso || !periodo) { showToast('Elegí curso y período primero.', 'error'); return; }
+
+  const nCurso = curso.replace(/\s+/g, ' ').toLowerCase().trim();
+  const perteneceACurso = (est) => {
+    const nMaterias = (est.materias || []).map(m => m.replace(/\s+/g, ' ').toLowerCase().trim());
+    const nDataCurso = (est.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+    return nDataCurso === nCurso || nMaterias.includes(nCurso) ||
+           (nDataCurso && nDataCurso.length > 1 && nCurso.includes(nDataCurso));
+  };
+
+  const [snapEst, snapEval] = await Promise.all([
+    getDocs(collection(db, getPath('estudiantes'))),
+    getDocs(collection(db, getPath('evaluaciones'))),
+  ]);
+  const estudiantesPorId = new Map();
+  snapEst.forEach(d => estudiantesPorId.set(d.id, d.data()));
+
+  const candidatos = [];
+  snapEval.forEach(d => {
+    const data = d.data();
+    if (data.materia !== curso || !data.oficial?.[periodo]) return;
+    const est = estudiantesPorId.get(data.alumnoId);
+    if (!est || perteneceACurso(est)) return;
+    const tieneNotaPropia = ['b1', 'b2', 'b3', 'b4', 'po_dic', 'po_feb'].some(k => String(data[k] ?? '').trim() !== '');
+    candidatos.push({ docId: d.id, alumnoId: data.alumnoId, nombre: `${est.apellido || ''}, ${est.nombre || ''}`, cursoReal: est.curso || '(sin curso)', tieneNotaPropia });
+  });
+
+  if (!candidatos.length) { showToast('No se encontraron notas importadas de alumnos ajenos a este curso.', 'success'); return; }
+
+  const lista = candidatos.map(c => `• ${c.nombre} (curso real: ${c.cursoReal})`).join('\n');
+  const ok = await showConfirm(
+    `Se encontraron ${candidatos.length} alumno(s)`,
+    `Estos alumnos no pertenecen a "${curso}" pero tienen datos de MiEscuela importados en ese curso/período:\n\n${lista}\n\n¿Borrar esos datos importados?`,
+    'Borrar', true
+  );
+  if (!ok) return;
+
+  for (const c of candidatos) {
+    if (c.tieneNotaPropia) {
+      await setDoc(doc(db, getPath('evaluaciones'), c.docId), { [`oficial.${periodo}`]: deleteField() }, { merge: true });
+    } else {
+      await deleteDoc(doc(db, getPath('evaluaciones'), c.docId));
+    }
+  }
+  showToast(`✅ Se limpiaron ${candidatos.length} registro(s).`, 'success');
+  registrarBitacora('limpiar_importacion_erronea', { materia: curso, periodo, cantidad: candidatos.length, alumnos: candidatos.map(c => c.alumnoId) });
+  await cargarPlanillaEvaluaciones();
 }
 
 function _recalcularFilaEvaluacion(alumnoId) {
