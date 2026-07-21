@@ -1,10 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.88";
-import { showToast, showConfirm } from "./ui.js?v=10.88";
-import { escaparHTML, normValorativo } from "./utils.js?v=10.88";
-import { registrarBitacora } from "./bitacora.js?v=10.88";
+import { db, getPath } from "./firebase-config.js?v=10.89";
+import { showToast, showConfirm } from "./ui.js?v=10.89";
+import { escaparHTML, normValorativo } from "./utils.js?v=10.89";
+import { registrarBitacora } from "./bitacora.js?v=10.89";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
@@ -729,8 +729,12 @@ export async function limpiarImportacionErronea() {
   const perteneceACurso = (est) => {
     const nMaterias = (est.materias || []).map(m => m.replace(/\s+/g, ' ').toLowerCase().trim());
     const nDataCurso = (est.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
-    return nDataCurso === nCurso || nMaterias.includes(nCurso) ||
+    const actual = nDataCurso === nCurso || nMaterias.includes(nCurso) ||
            (nDataCurso && nDataCurso.length > 1 && nCurso.includes(nDataCurso));
+    if (actual) return true;
+    // También cuenta si perteneció históricamente (cambio de división/pase ya registrado en
+    // "inscripciones") — evita borrar datos legítimos de un período en que sí correspondía acá.
+    return Object.keys(est.inscripciones || {}).some(m => m.replace(/\s+/g, ' ').toLowerCase().trim() === nCurso);
   };
 
   const [snapEst, snapEval] = await Promise.all([

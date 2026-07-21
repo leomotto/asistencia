@@ -6,11 +6,11 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.88";
+import { db, getPath } from "./firebase-config.js?v=10.89";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.88";
-import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.88";
-import { registrarBitacora } from "./bitacora.js?v=10.88";
+import { showToast } from "./ui.js?v=10.89";
+import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.89";
+import { registrarBitacora } from "./bitacora.js?v=10.89";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -221,10 +221,16 @@ export async function traerYCompararMiescuela() {
       if (!e.id_miescuela) return;
       const nDataMaterias = (e.materias || []).map(m => m.replace(/\s+/g, ' ').toLowerCase().trim());
       const nDataCurso = (e.curso || '').replace(/\s+/g, ' ').toLowerCase().trim();
+      // Pertenencia ACTUAL (curso/materias de hoy)...
       const isInMaterias = nDataCurso === nCurso ||
                            nDataMaterias.includes(nCurso) ||
                            (nDataCurso && nDataCurso.length > 1 && nCurso.includes(nDataCurso));
-      if (!isInMaterias) return;   // no pertenece a esta materia/curso: se trata como huérfano GCABA
+      // ...o pertenencia HISTÓRICA: el alumno cerró el bimestre en esta división y después cambió
+      // (pase/cambio de división ya registrado en "inscripciones"). El chequeo de pertenencia actual
+      // solo no alcanza para traer notas de un período viejo — se busca la materia en su historial.
+      const tieneInscripcionHistorica = Object.keys(e.inscripciones || {})
+        .some(m => m.replace(/\s+/g, ' ').toLowerCase().trim() === nCurso);
+      if (!isInMaterias && !tieneInscripcionHistorica) return;   // no pertenece ni perteneció: huérfano GCABA
       const notaDoc = notasPorAlumno.get(d.id) || {};
       const rawPpi = notaDoc.ppi?.[periodoSideac];
       const ppiSideac = rawPpi === true ? 'SI' : (rawPpi === 'SI' || rawPpi === 'NO') ? rawPpi : '';
