@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
-import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.91";
-import { showToast } from "./ui.js?v=10.91";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.91";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.91";
+import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, deleteField, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { db, getPath } from "./firebase-config.js?v=10.92";
+import { showToast } from "./ui.js?v=10.92";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.92";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.92";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -968,6 +968,19 @@ export async function abrirPerfilAlumno(uid, curso) {
     }
   }
 
+  const btnReactivar = document.getElementById('btnReactivarAlumno');
+  if (btnReactivar) {
+    const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
+    if (esAdmin && al.estado === 'BAJA') {
+      btnReactivar.style.display = 'flex';
+      btnReactivar.classList.remove('hidden');
+      btnReactivar.onclick = () => app.reactivarAlumno(uid);
+    } else {
+      btnReactivar.style.display = 'none';
+      btnReactivar.classList.add('hidden');
+    }
+  }
+
   modal.classList.remove('hidden');
 
   try {
@@ -1038,8 +1051,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.91")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.91");
+      const fbdb = (await import("./firebase-config.js?v=10.92")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.92");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1076,8 +1089,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.91")).db;
-    const { appId } = await import("./firebase-config.js?v=10.91");
+    const fbdb = (await import("./firebase-config.js?v=10.92")).db;
+    const { appId } = await import("./firebase-config.js?v=10.92");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
@@ -1131,6 +1144,23 @@ export async function confirmarEmitirPase() {
   } catch (error) {
     console.error("Error al emitir pase:", error);
     window.app.showToast("Error al emitir el pase. Revisá la consola.", "error");
+  }
+}
+
+// Vuelve a poner ACTIVO a un alumno que estaba de BAJA (por pase) y reapareció en una división
+// que sí gestionás acá. No toca materias/inscripciones — eso se edita a mano en su ficha como a
+// cualquier alumno; esto solo destraba el estado global para que vuelva a entrar en los chequeos
+// de Integridad de Estudiantes (que se saltean a quien no está ACTIVO).
+export async function reactivarAlumno(uid) {
+  if (!await window.app.showConfirm("Reactivar estudiante", "¿Confirmás que este alumno volvió y está en una de tus divisiones? Vas a poder editar su curso/materias en la ficha después.", "Reactivar", false)) return;
+  try {
+    await setDoc(doc(db, getPath('estudiantes'), uid), { estado: 'ACTIVO', pase: deleteField() }, { merge: true });
+    showToast('✅ Estudiante reactivado. Ahora editá su ficha para poner la división correcta.', 'success');
+    if (typeof window.app.cerrarPerfilAlumno === 'function') window.app.cerrarPerfilAlumno();
+    if (typeof window.app.cargarAlumnosMatricula === 'function') await window.app.cargarAlumnosMatricula();
+  } catch (error) {
+    console.error("Error al reactivar:", error);
+    showToast('❌ Error al reactivar. Revisá la consola.', 'error');
   }
 }
 
