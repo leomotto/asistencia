@@ -1,10 +1,10 @@
 // js/estudiantes.js — Matrícula, modal de alumnos, horarios y fusión de duplicados
 
 import { doc, setDoc, getDoc, collection, getDocs, deleteDoc, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.87";
-import { showToast } from "./ui.js?v=10.87";
-import { HORARIOS_DINAMICOS } from "./materias.js?v=10.87";
-import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.87";
+import { db, getPath } from "./firebase-config.js?v=10.88";
+import { showToast } from "./ui.js?v=10.88";
+import { HORARIOS_DINAMICOS } from "./materias.js?v=10.88";
+import { normalizeDateToISO, formatISOToDisplay, escaparHTML } from "./utils.js?v=10.88";
 
 let fusionState = { primario: null, secundario: null, todosAlumnos: [] };
 
@@ -951,10 +951,10 @@ export async function abrirPerfilAlumno(uid, curso) {
   const btnPase = document.getElementById('btnEmitirPase');
   if (btnPase) {
     const esAdmin = window.app.currentUser?.rolActivo === 'ADMIN' || window.app.currentUser?.rolActivo === 'SUPERADMIN';
-    // El pase es una acción de administración de MATRÍCULA. No mostrarlo cuando el perfil
-    // se abre desde Calificaciones o Asistencia.
-    const enMatricula = !document.getElementById('gestionAlumnos')?.classList.contains('hidden');
-    if (esAdmin && enMatricula) {
+    // El perfil (este modal) solo se abre desde Calificaciones/Asistencia, nunca desde Matrícula
+    // (ahí el ícono de editar abre la ficha, no el perfil) — el pase se habilita para cualquier
+    // Admin/SuperAdmin que llegue al perfil, sin exigir venir de una pantalla en particular.
+    if (esAdmin) {
       btnPase.style.display = 'flex';
       btnPase.classList.remove('hidden');
       btnPase.onclick = () => app.emitirPase(uid);
@@ -1034,8 +1034,8 @@ export async function emitirPase(uid) {
     try {
       const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
       const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-      const fbdb = (await import("./firebase-config.js?v=10.87")).db;
-      const { getPath } = await import("./firebase-config.js?v=10.87");
+      const fbdb = (await import("./firebase-config.js?v=10.88")).db;
+      const { getPath } = await import("./firebase-config.js?v=10.88");
       
       const qSnap = await getDocs(collection(fbdb, getPath("escuelas")));
       let html = '<option value="EXTERIOR">Otra / Fuera del sistema (EXTERIOR)</option>';
@@ -1072,8 +1072,8 @@ export async function confirmarEmitirPase() {
   try {
     const db = window.app.db || await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(m => window.app.db);
     const { doc, getDoc, setDoc, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js");
-    const fbdb = (await import("./firebase-config.js?v=10.87")).db;
-    const { appId } = await import("./firebase-config.js?v=10.87");
+    const fbdb = (await import("./firebase-config.js?v=10.88")).db;
+    const { appId } = await import("./firebase-config.js?v=10.88");
 
     // Construir rutas absolutas
     const oldPath = typeof __app_id !== 'undefined' 
