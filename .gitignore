@@ -30,3 +30,6 @@ test.js
 test_migrate.js
 test_responsiveness.py
 reporte_permisos.txt
+
+# Datos reales de alumnos (DNI, nombre, fecha de nacimiento) - nunca al repo
+asistencia-json/
