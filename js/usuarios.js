@@ -1,6 +1,6 @@
 import { doc, setDoc, collection, getDocs, query, where, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.89";
-import { showToast } from "./ui.js?v=10.89";
+import { db, getPath } from "./firebase-config.js?v=10.90";
+import { showToast } from "./ui.js?v=10.90";
 
 // Dado un nombre como "1ro A - Matemática", extrae base y división
 function descomponerNombre(nombre = '') {

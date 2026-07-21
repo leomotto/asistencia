@@ -6,11 +6,11 @@
 //
 // Flujo (según spec GCABA): GET (estado actual) → MATCH (cruce con notas locales) → POST/PUT.
 
-import { db, getPath } from "./firebase-config.js?v=10.89";
+import { db, getPath } from "./firebase-config.js?v=10.90";
 import { collection, getDocs, query, where, doc, writeBatch } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.89";
-import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.89";
-import { registrarBitacora } from "./bitacora.js?v=10.89";
+import { showToast } from "./ui.js?v=10.90";
+import { escaparHTML, esPeriodoValorativo, normValorativo, valorativoDisplayGCABA } from "./utils.js?v=10.90";
+import { registrarBitacora } from "./bitacora.js?v=10.90";
 
 const API_BASE = 'https://api.prod.miescuela2.phinxlab.com';
 const EP_GET   = `${API_BASE}/api/calificaciones/secundariocustom`;
@@ -94,44 +94,26 @@ export function abrirModalMiescuela() {
   modal.classList.remove('hidden');
 }
 
-// Quita tildes y pasa a mayúsculas, para comparar nombres sin importar acentos.
-function _normTxt(s) {
-  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+// La respuesta de GCABA para esta planilla es una lista plana de alumno+nota — no trae nombre de
+// materia ni de división en ningún lado, así que no hay forma de inferirlos por texto. En cambio,
+// se recuerda la asociación idSección → materia SIDEAC la primera vez que el docente la elige a
+// mano, y de ahí en más "usar última planilla vista" la completa sola para esa misma sección.
+const LS_KEY = 'sideac_miescuela_seccion_materia';
+
+function _recordarMateriaSeccion(idSeccion, materia) {
+  if (!idSeccion || !materia) return;
+  try {
+    const mapa = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    mapa[idSeccion] = materia;
+    localStorage.setItem(LS_KEY, JSON.stringify(mapa));
+  } catch (e) { /* localStorage no disponible: no rompe el flujo */ }
 }
 
-// Intenta extraer nombre de materia y de división del primer registro de la planilla capturada,
-// probando varias rutas posibles (la forma exacta del JSON de GCABA no está 100% documentada).
-function _inferirMateriaDivision(respBody) {
-  const items = Array.isArray(respBody) ? respBody : (respBody?.data || respBody?.results || []);
-  const it = items[0];
-  if (!it) return null;
-  console.log('[MiEscuela] Item crudo para inferir materia/división:', it);
-
-  const ecs = it.espacioCurricularSeccion || {};
-  const materiaTxt = ecs.espacioCurricular?.materia?.descripcion || ecs.materia?.descripcion ||
-                      it.materia?.descripcion || it.espacioCurricular?.materia?.descripcion || '';
-  const seccion = ecs.seccion || it.seccion || {};
-  const divisionTxt = seccion.division || seccion.nombreSeccion || '';
-  const anioTxt = seccion.anio?.descripcionAnio || '';
-  if (!materiaTxt && !divisionTxt) return null;
-  return { materiaTxt, divisionTxt, anioTxt };
-}
-
-// Busca en window.app.cursos (nombres de materias SIDEAC, ej. "1ro A - Matemática") la que mejor
-// coincida con la división+materia inferidas de MiEscuela. Heurístico: siempre queda editable.
-function _matchearMateriaSideac({ materiaTxt, divisionTxt, anioTxt }) {
-  const cursos = window.app.cursos || [];
-  const divTokens = _normTxt(`${anioTxt} ${divisionTxt}`).split(/\s+/).filter(Boolean);
-  const STOPWORDS = new Set(['DE', 'LA', 'EL', 'Y', 'DEL', 'LOS', 'LAS', 'EN']);
-  const matTokens = _normTxt(materiaTxt).split(/\s+/).filter(w => w.length >= 4 && !STOPWORDS.has(w));
-
-  const candidatos = cursos.filter(c => {
-    const nc = _normTxt(c);
-    const tieneDivision = divTokens.length === 0 || divTokens.every(t => nc.includes(t));
-    const tieneMateria = matTokens.length === 0 || matTokens.some(t => nc.includes(t));
-    return tieneDivision && tieneMateria;
-  });
-  return candidatos.length === 1 ? candidatos[0] : null;
+function _materiaRecordadaParaSeccion(idSeccion) {
+  try {
+    const mapa = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    return mapa[idSeccion] || null;
+  } catch (e) { return null; }
 }
 
 // Trae la última planilla de calificaciones que el docente abrió en MiEscuela (capturada por
@@ -154,14 +136,11 @@ export async function usarUltimaPlanillaMiescuela() {
     if (ps) document.getElementById('miPeriodoSideac').value = ps;
     const nombreBim = { b1: '1er bim', b2: '2do bim', b3: '3er bim', b4: '4to bim' }[ps] || '(revisá el bimestre)';
 
-    let materiaMsg = 'Elegí la materia manualmente.';
-    const info = _inferirMateriaDivision(u.respBody);
-    if (info) {
-      const match = _matchearMateriaSideac(info);
-      if (match) {
-        document.getElementById('miMateria').value = match;
-        materiaMsg = `Materia detectada: "${match}" (verificá que sea la correcta).`;
-      }
+    let materiaMsg = 'Elegí la materia manualmente (va a quedar recordada para esta sección).';
+    const recordada = _materiaRecordadaParaSeccion(u.espacioCurricularSeccion);
+    if (recordada) {
+      document.getElementById('miMateria').value = recordada;
+      materiaMsg = `Materia recordada: "${recordada}" (verificá que sea la correcta).`;
     }
     showToast(`Planilla detectada: sección ${u.espacioCurricularSeccion}, período GCABA ${u.periodo} → ${nombreBim}. ${materiaMsg}`, 'success');
   } catch (e) {
@@ -185,6 +164,7 @@ export async function traerYCompararMiescuela() {
     showToast('Completá materia, ID sección, período GCABA y período SIDEAC.', 'error');
     return;
   }
+  _recordarMateriaSeccion(idSeccion, materia);
 
   cont.innerHTML = `<div class="text-center py-6"><i class="ph ph-spinner animate-spin text-2xl text-indigo-500"></i><p class="text-sm text-slate-500 mt-2">Consultando MiEscuela y comparando...</p></div>`;
 
