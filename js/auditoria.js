@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.86";
+import { db, getPath, appId } from "./firebase-config.js?v=10.87";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.86";
-import { escaparHTML } from "./utils.js?v=10.86";
+import { showToast } from "./ui.js?v=10.87";
+import { escaparHTML } from "./utils.js?v=10.87";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -458,8 +458,16 @@ export async function analizarIntegridadEstudiantes() {
             }
             
             const inscrip = estudianteUpdates.inscripciones[matEsperada] || [];
-            const isActivo = inscrip.length > 0 && inscrip[inscrip.length - 1].estado === 'ACTIVO';
-            if (!isActivo) {
+            const ultimoEstado = inscrip.length > 0 ? inscrip[inscrip.length - 1].estado : null;
+            const isActivo = ultimoEstado === 'ACTIVO';
+            // PASE/BAJA en la última inscripción es una decisión deliberada (ej. el alumno se fue
+            // a una escuela que no está cargada en SIDEAC). No hay que reactivarla en automático:
+            // lo que está desincronizado es el estado GLOBAL, que debería pasar a BAJA también.
+            const esTerminalDeliberado = ultimoEstado === 'PASE' || ultimoEstado === 'BAJA';
+            if (esTerminalDeliberado) {
+              tieneAnomalias = true;
+              reporte.push(`'${matEsperada}' está en estado ${ultimoEstado} pero el alumno figura ACTIVO a nivel global — revisar manualmente (no se reactiva en automático).`);
+            } else if (!isActivo) {
               estudianteUpdates.inscripciones[matEsperada] = inscrip;
               estudianteUpdates.inscripciones[matEsperada].push({
                 estado: 'ACTIVO',
