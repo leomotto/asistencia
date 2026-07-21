@@ -1,7 +1,7 @@
-import { db, getPath, appId } from "./firebase-config.js?v=10.84";
+import { db, getPath, appId } from "./firebase-config.js?v=10.85";
 import { collection, getDocs, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { showToast } from "./ui.js?v=10.84";
-import { escaparHTML } from "./utils.js?v=10.84";
+import { showToast } from "./ui.js?v=10.85";
+import { escaparHTML } from "./utils.js?v=10.85";
 
 let datosAuditoria = {
   materiasOficiales: [],
@@ -561,7 +561,9 @@ function _renderizarResultadosIntegridad(anomalias) {
   anomalias.forEach(a => {
     html += `
       <tr class="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
-        <td class="p-3 font-bold text-slate-800 dark:text-slate-100">${a.nombre}</td>
+        <td class="p-3 font-bold text-slate-800 dark:text-slate-100">
+          <button type="button" onclick="app.abrirModalAlumnoConId('${a.id}')" class="hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline text-left" title="Abrir legajo del estudiante">${a.nombre}</button>
+        </td>
         <td class="p-3 text-indigo-600 font-semibold">${a.cursoPrimario || 'SIN ASIGNAR'}</td>
         <td class="p-3">
           <ul class="list-disc list-inside text-xs text-slate-600 dark:text-slate-400 space-y-1">
