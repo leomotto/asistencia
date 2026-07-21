@@ -1,10 +1,10 @@
 // js/evaluaciones.js — Módulo de Calificaciones: Gestión de notas de bimestres y períodos de orientación (PO)
 
 import { doc, setDoc, getDoc, collection, getDocs, writeBatch, deleteDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-import { db, getPath } from "./firebase-config.js?v=10.90";
-import { showToast, showConfirm } from "./ui.js?v=10.90";
-import { escaparHTML, normValorativo } from "./utils.js?v=10.90";
-import { registrarBitacora } from "./bitacora.js?v=10.90";
+import { db, getPath } from "./firebase-config.js?v=10.91";
+import { showToast, showConfirm } from "./ui.js?v=10.91";
+import { escaparHTML, normValorativo } from "./utils.js?v=10.91";
+import { registrarBitacora } from "./bitacora.js?v=10.91";
 
 // Estado de cambios pendientes locales: { "alumnoId": { b1, b2, b3, b4, po_dic, po_feb } }
 export let cambiosPendientesEvaluaciones = {};
